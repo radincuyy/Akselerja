@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react';
 
 const acceptedTypes = '.pdf,.doc,.docx';
+const acceptedExtensions = ['pdf', 'doc', 'docx'];
 
 export default function UploadView({ isActive, onSimulateComplete }) {
   const fileInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState('');
 
   const pickFile = () => {
     fileInputRef.current?.click();
@@ -14,6 +16,14 @@ export default function UploadView({ isActive, onSimulateComplete }) {
 
   const setFile = (file) => {
     if (!file) return;
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!acceptedExtensions.includes(extension)) {
+      setSelectedFile(null);
+      setFileError('Format file belum didukung. Gunakan PDF, DOC, atau DOCX.');
+      return;
+    }
+
+    setFileError('');
     setSelectedFile(file);
   };
 
@@ -83,6 +93,8 @@ export default function UploadView({ isActive, onSimulateComplete }) {
                     <p className="text-xs text-green-700">{Math.max(1, Math.round(selectedFile.size / 1024))} KB siap diproses</p>
                   </div>
                 </div>
+              ) : fileError ? (
+                <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{fileError}</p>
               ) : (
                 <p className="text-sm text-text-muted">Belum ada file dipilih. Untuk demo cepat, Anda bisa langsung memakai CV contoh.</p>
               )}
@@ -91,7 +103,10 @@ export default function UploadView({ isActive, onSimulateComplete }) {
             <div className="grid grid-cols-1 gap-3 sm:flex">
               <button
                 type="button"
-                onClick={() => setSelectedFile({ name: 'CV_Budi_Santoso.pdf', size: 284000 })}
+                onClick={() => {
+                  setFileError('');
+                  setSelectedFile({ name: 'CV_Budi_Santoso.pdf', size: 284000 });
+                }}
                 className="min-h-11 rounded-full border border-border-color px-4 py-2 text-sm font-medium text-text-dark hover:border-primary hover:text-primary"
               >
                 Pakai CV Contoh

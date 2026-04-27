@@ -1,15 +1,29 @@
-export default function JobDetailView({ isActive, job, onBack }) {
+import { useParams } from 'react-router-dom';
+import { jobs } from '../data/jobs';
 
-  const displayJob = job || {
-    title: 'Data Scientist',
-    company: 'TechNusa Corp',
-    location: 'Jakarta, Indonesia',
-    salary: 'Rp 28jt - 42jt',
-    type: 'FULL-TIME',
-    logo: 'ph-brain',
-    match: 78,
-    tags: ['Python', 'SQL', 'Machine Learning']
-  };
+export default function JobDetailView({ isActive, job, onBack }) {
+  const { jobId } = useParams();
+  const displayJob = job || jobs.find((item) => item.id === Number(jobId));
+
+  if (!displayJob) {
+    return (
+      <div className={`view ${isActive ? 'active' : ''} mx-auto max-w-3xl`}>
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center shadow-sm">
+          <i className="ph ph-briefcase text-5xl text-gray-300"></i>
+          <h2 className="mt-4 font-outfit text-2xl font-bold text-gray-900">Lowongan tidak ditemukan</h2>
+          <p className="mt-2 text-sm text-text-muted">Lowongan demo ini tidak tersedia atau URL yang dibuka tidak valid.</p>
+          <button
+            type="button"
+            onClick={onBack}
+            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Kembali ke Cari Kerja
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const tags = displayJob.tags || ['Komunikasi', 'Analisis', 'Kolaborasi'];
   const typeLabel = displayJob.type === 'FULL-TIME' ? 'Waktu Penuh' : displayJob.type;
 
@@ -125,7 +139,7 @@ export default function JobDetailView({ isActive, job, onBack }) {
             <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-white p-5 text-center shadow-sm sm:p-6">
               <i className="ph ph-map-trifold text-3xl text-blue-500 mb-2"></i>
               <div className="text-xs font-bold text-text-dark">Lokasi Kerja</div>
-              <div className="text-[10px] text-text-muted">Jakarta, Indonesia</div>
+              <div className="text-[10px] text-text-muted">{displayJob.location}</div>
             </div>
           </div>
 

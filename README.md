@@ -28,7 +28,7 @@ Website saat ini adalah prototype frontend berbasis data demo. Label Azure OpenA
 5. Lihat hasil matching dan gap skill di `/dashboard`.
 6. Buka rekomendasi belajar di `/learning`.
 7. Diskusi dengan chatbot di `/chat`.
-8. Cari dan buka detail lowongan di `/jobs` dan `/jobs/detail`.
+8. Cari dan buka detail lowongan di `/jobs` dan `/jobs/:jobId`.
 
 ## Alur Perusahaan
 
@@ -83,7 +83,7 @@ npm run preview
 
 ## Deployment Vercel
 
-Project sudah memiliki `vercel.json` dengan rewrite SPA agar route seperti `/dashboard`, `/jobs/detail`, dan `/company` tidak 404 saat deploy.
+Project sudah memiliki `vercel.json` dengan rewrite SPA agar route seperti `/dashboard`, `/jobs/1`, dan `/company` tidak 404 saat deploy.
 
 Konfigurasi Vercel:
 

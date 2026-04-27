@@ -56,7 +56,16 @@ export default function ChatView({ isActive }) {
                       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg ${m.sender === 'bot' ? 'bg-primary-light text-primary-dark' : 'bg-slate-200 text-slate-500'}`}>
                         <i className={m.sender === 'bot' ? 'ph-fill ph-robot' : 'ph-fill ph-user'}></i>
                       </div>
-                      <div className={`py-3.5 px-4 rounded-2xl text-[14.5px] leading-relaxed ${m.sender === 'bot' ? 'bg-slate-50 border border-border-color rounded-tl-sm text-text-dark' : 'bg-primary text-white rounded-tr-sm'}`} dangerouslySetInnerHTML={{ __html: m.text }}></div>
+                      {m.sender === 'bot' ? (
+                        <div
+                          className="rounded-2xl rounded-tl-sm border border-border-color bg-slate-50 px-4 py-3.5 text-[14.5px] leading-relaxed text-text-dark"
+                          dangerouslySetInnerHTML={{ __html: m.text }}
+                        ></div>
+                      ) : (
+                        <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-3.5 text-[14.5px] leading-relaxed text-white">
+                          {m.text}
+                        </div>
+                      )}
                   </div>
                 ))}
             </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Navigate, Routes, Route, useNavigate } from 'react-router-dom';
 import Landing, { NavBar, Footer } from './components/Landing';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
@@ -42,13 +42,12 @@ function PublicLayout({ children, onNavigate, isAuthenticated, role, onLogout })
 function App() {
   const [role, setRole] = useState('seeker');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [selectedJob, setSelectedJob] = useState(null);
   const navigate = useNavigate();
 
   const handleAuthComplete = (action, authRole) => {
     setRole(authRole);
     setIsAuthenticated(true);
-    if (authRole === 'seeker' && action === 'register') {
+    if (authRole === 'seeker') {
       navigate('/onboarding');
     } else {
       navigate(authRole === 'company' ? '/company' : '/dashboard');
@@ -56,8 +55,7 @@ function App() {
   };
 
   const handleJobSelect = (job) => {
-    setSelectedJob(job);
-    navigate('/jobs/detail');
+    navigate(`/jobs/${job.id}`);
   };
 
   const handleNavigate = (screen, nextRole) => {
@@ -87,17 +85,18 @@ function App() {
         
         {/* Public Routes */}
         <Route path="/jobs" element={<PublicLayout onNavigate={handleNavigate} isAuthenticated={isAuthenticated} role={role} onLogout={handleLogout}><JobListView isActive={true} onSelectJob={handleJobSelect} /></PublicLayout>} />
-        <Route path="/jobs/detail" element={<PublicLayout onNavigate={handleNavigate} isAuthenticated={isAuthenticated} role={role} onLogout={handleLogout}><JobDetailView isActive={true} job={selectedJob} onBack={() => navigate('/jobs')} /></PublicLayout>} />
+        <Route path="/jobs/detail" element={<Navigate to="/jobs" replace />} />
+        <Route path="/jobs/:jobId" element={<PublicLayout onNavigate={handleNavigate} isAuthenticated={isAuthenticated} role={role} onLogout={handleLogout}><JobDetailView isActive={true} onBack={() => navigate('/jobs')} /></PublicLayout>} />
         
         {/* Seeker Dashboard Routes */}
-        <Route path="/dashboard" element={<MainLayout view="dashboard" role={role} onViewChange={handleSidebarChange}><DashboardView isActive={true} onToLearning={() => navigate('/learning')} /></MainLayout>} />
-        <Route path="/learning" element={<MainLayout view="learning" role={role} onViewChange={handleSidebarChange}><LearningView isActive={true} /></MainLayout>} />
-        <Route path="/chat" element={<MainLayout view="chat" role={role} onViewChange={handleSidebarChange}><ChatView isActive={true} /></MainLayout>} />
+        <Route path="/dashboard" element={<MainLayout view="dashboard" role="seeker" onViewChange={handleSidebarChange}><DashboardView isActive={true} onToLearning={() => navigate('/learning')} /></MainLayout>} />
+        <Route path="/learning" element={<MainLayout view="learning" role="seeker" onViewChange={handleSidebarChange}><LearningView isActive={true} /></MainLayout>} />
+        <Route path="/chat" element={<MainLayout view="chat" role="seeker" onViewChange={handleSidebarChange}><ChatView isActive={true} /></MainLayout>} />
         
         {/* Company Dashboard Routes */}
-        <Route path="/company" element={<MainLayout view="talent-pool" role={role} onViewChange={handleSidebarChange}><CompanyDashboardView isActive={true} onPostJob={() => navigate('/post-job')} /></MainLayout>} />
-        <Route path="/talent-pool" element={<MainLayout view="talent-pool" role={role} onViewChange={handleSidebarChange}><CompanyDashboardView isActive={true} onPostJob={() => navigate('/post-job')} /></MainLayout>} />
-        <Route path="/post-job" element={<MainLayout view="post-job" role={role} onViewChange={handleSidebarChange}><PostJobView onBack={() => navigate('/talent-pool')} /></MainLayout>} />
+        <Route path="/company" element={<MainLayout view="talent-pool" role="company" onViewChange={handleSidebarChange}><CompanyDashboardView isActive={true} onPostJob={() => navigate('/post-job')} /></MainLayout>} />
+        <Route path="/talent-pool" element={<MainLayout view="talent-pool" role="company" onViewChange={handleSidebarChange}><CompanyDashboardView isActive={true} onPostJob={() => navigate('/post-job')} /></MainLayout>} />
+        <Route path="/post-job" element={<MainLayout view="post-job" role="company" onViewChange={handleSidebarChange}><PostJobView onBack={() => navigate('/talent-pool')} /></MainLayout>} />
       </Routes>
     </div>
   );
