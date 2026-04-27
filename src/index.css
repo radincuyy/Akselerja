@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #7F77DD;
+  --color-primary-hover: #675ec7;
+  --color-primary-light: #EEEDFE;
+  --color-primary-dark: #3C3489;
+  --color-accent: #1D9E75;
+  --color-accent-light: #E1F5EE;
+  --color-accent-dark: #085041;
+  --color-bg-main: #f8fafc;
+  --color-bg-card: #ffffff;
+  --color-text-dark: #0f172a;
+  --color-text-muted: #64748b;
+  --color-border-color: #e2e8f0;
+  
+  --radius-lg: 20px;
+  --radius-md: 12px;
+
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 20px 40px rgba(127, 119, 221, 0.15);
+
+  --font-inter: 'Inter', sans-serif;
+  --font-outfit: 'Outfit', sans-serif;
+}
+
+@layer base {
+  body {
+    @apply font-inter bg-bg-main text-text-dark antialiased overflow-x-hidden;
+  }
+  h1, h2, h3, h4 {
+    @apply font-outfit;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@utility animate-fade-in {
+  animation: fadeIn 0.4s ease;
+}
+
+@utility animate-spin-fast {
+  animation: spin 1s linear infinite;
+}
+
+/* We will keep view and screen here to avoid re-writing the state logic toggle, but we will move most other things to classes */
+.view {
+  @apply hidden animate-fade-in;
+}
+.view.active {
+  @apply block;
+}
+
+.screen {
+  @apply hidden min-h-screen animate-fade-in;
+}
+.screen.active {
+  @apply block;
+}
