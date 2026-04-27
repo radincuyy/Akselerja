@@ -6,37 +6,6 @@ const featuredJobs = [
   { title: 'Machine Learning Specialist', company: 'FinBank ID', match: 62, salary: 'Rp 35jt - 55jt', tags: ['Python', 'TensorFlow', 'Azure'] },
 ];
 
-const analysisStats = [
-  {
-    icon: 'ph-briefcase',
-    count: '9',
-    unit: 'lowongan',
-    label: 'Lowongan Dianalisis',
-    desc: 'pekerjaan contoh yang dibandingkan dengan profil kandidat.',
-  },
-  {
-    icon: 'ph-target',
-    count: '78',
-    unit: '/100',
-    label: 'Skor Kesiapan Kerja',
-    desc: 'nilai kecocokan CV terhadap target posisi.',
-  },
-  {
-    icon: 'ph-path',
-    count: '3',
-    unit: 'skill',
-    label: 'Skill Transfer',
-    desc: 'kemampuan lama yang masih relevan untuk posisi target.',
-  },
-  {
-    icon: 'ph-graduation-cap',
-    count: '4',
-    unit: 'minggu',
-    label: 'Roadmap Belajar',
-    desc: 'durasi upskilling dari gap skill terbesar.',
-  },
-];
-
 const getRoleLabel = (role) => (role === 'company' ? 'Perusahaan' : 'Kandidat');
 const getDashboardPath = (role) => (role === 'company' ? 'company' : 'dashboard');
 const getAvatarInitials = (role) => (role === 'company' ? 'TC' : 'BS');
@@ -120,7 +89,7 @@ function Hero({ onNavigate }) {
 
         </div>
 
-        <div className="rounded-[20px] border border-gray-100 bg-white p-5 shadow-xl shadow-blue-100/40">
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xl shadow-blue-100/40">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Contoh Hasil Analisis</p>
@@ -131,23 +100,6 @@ function Hero({ onNavigate }) {
           <p className="mb-4 text-sm leading-relaxed text-gray-500">
             Contoh tampilan setelah kandidat mengunggah CV: sistem menilai kesiapan kerja dan menyarankan skill prioritas.
           </p>
-
-          <div className="mb-4 grid grid-cols-2 gap-3">
-            {analysisStats.map((item) => (
-              <div key={item.label} className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
-                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                  <i className={`ph ${item.icon} text-lg`}></i>
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-xl font-bold text-gray-900">{item.count}</span>
-                  <span className="text-[11px] font-semibold text-gray-400">{item.unit}</span>
-                </div>
-                <div className="mt-1 text-xs font-bold text-gray-800">{item.label}</div>
-                <div className="mt-1 text-[11px] leading-snug text-gray-500">{item.desc}</div>
-              </div>
-            ))}
-          </div>
-
           <div className="rounded-xl bg-gray-50 p-4">
             <div className="mb-2 flex justify-between text-sm">
               <span className="font-semibold text-gray-700">Skor Kesiapan Kerja</span>
