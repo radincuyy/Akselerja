@@ -15,20 +15,20 @@ export default function Sidebar({ currentView, onViewChange, role }) {
   const navItems = role === 'company' ? companyNavItems : seekerNavItems;
 
   return (
-    <nav className="w-full lg:w-[260px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 flex flex-col lg:h-screen lg:sticky top-0 shrink-0 shadow-sm z-40">
+    <nav className="sticky top-0 z-40 flex w-full shrink-0 flex-col border-b border-gray-200 bg-white p-3 shadow-sm sm:p-4 lg:h-[100dvh] lg:w-[260px] lg:border-b-0 lg:border-r lg:p-6">
       <button
         type="button"
         onClick={() => onViewChange('landing')}
-        className="font-outfit text-2xl font-bold text-blue-600 flex items-center gap-2 mb-4 lg:mb-8 cursor-pointer transition-transform hover:scale-105 text-left"
+        className="mb-3 flex min-h-11 w-fit cursor-pointer items-center gap-2 text-left font-outfit text-xl font-bold text-blue-600 transition-transform hover:scale-105 sm:text-2xl lg:mb-8"
       >
           <i className="ph-fill ph-briefcase"></i> Akselerja
       </button>
-      <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto pb-1 lg:pb-0">
+      <div className="-mx-1 flex flex-row gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0">
         {navItems.map(item => (
           <button
             type="button"
             key={item.id}
-            className={`shrink-0 px-4 py-3 rounded-md text-gray-500 no-underline flex items-center gap-3 font-medium cursor-pointer transition-all duration-200 hover:bg-gray-50 hover:text-gray-900 ${currentView === item.id ? 'bg-blue-50 !text-blue-600' : ''}`}
+            className={`flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium whitespace-nowrap text-gray-500 no-underline transition-all duration-200 hover:bg-gray-50 hover:text-gray-900 sm:gap-3 sm:px-4 sm:py-3 ${currentView === item.id ? 'bg-blue-50 !text-blue-600' : ''}`}
             onClick={() => onViewChange(item.id)}
           >
             <i className={`ph ${item.icon} text-lg`}></i> {item.label}

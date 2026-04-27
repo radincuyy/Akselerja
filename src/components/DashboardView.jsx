@@ -160,9 +160,9 @@ export default function DashboardView({ isActive, onToLearning }) {
 
   return (
     <div className={`view ${isActive ? 'active' : ''}`}>
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-[28px] mb-2 font-outfit">Kesesuaian Kerja & Gap Skill</h2>
+          <h2 className="mb-2 font-outfit text-2xl sm:text-[28px]">Kesesuaian Kerja & Gap Skill</h2>
           <p className="text-text-muted">Target: <strong>Data Scientist</strong>. Skor dan analisis memakai data demo prototype.</p>
         </div>
         <div className="inline-flex w-fit items-center gap-1.5 bg-[#E6F1FB] text-[#0C447C] text-xs px-3 py-1.5 rounded-full font-medium border border-[#0C447C]/10 m-0">
@@ -170,7 +170,7 @@ export default function DashboardView({ isActive, onToLearning }) {
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ['1', 'Profil terbaca', 'Python, SQL, Data Viz'],
           ['2', 'Match dihitung', '3 lowongan relevan'],
@@ -187,8 +187,8 @@ export default function DashboardView({ isActive, onToLearning }) {
         ))}
       </div>
 
-      <section className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 mb-6">
-        <div className="rounded-[20px] border border-primary/20 bg-white p-6 shadow-sm">
+      <section className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,320px)_1fr]">
+        <div className="rounded-[20px] border border-primary/20 bg-white p-4 shadow-sm sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-primary">Career Readiness</p>
@@ -219,7 +219,7 @@ export default function DashboardView({ isActive, onToLearning }) {
           </p>
         </div>
 
-        <div className="rounded-[20px] border border-border-color bg-white p-6 shadow-sm">
+        <div className="rounded-[20px] border border-border-color bg-white p-4 shadow-sm sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-accent-dark">Transferable Skill Detector</p>
@@ -227,7 +227,7 @@ export default function DashboardView({ isActive, onToLearning }) {
             </div>
             <span className="w-fit rounded-full bg-accent-light px-3 py-1.5 text-xs font-bold text-accent-dark">AI Skill Bridge</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {transferableSkills.map((skill) => (
               <article key={skill.from} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
@@ -243,7 +243,7 @@ export default function DashboardView({ isActive, onToLearning }) {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(320px,380px)]">
         <div>
           <h3 className="text-base mb-4 flex items-center gap-2 text-text-dark font-outfit font-semibold">
             <i className="ph-fill ph-briefcase text-primary"></i> Rekomendasi Lowongan
@@ -306,7 +306,7 @@ export default function DashboardView({ isActive, onToLearning }) {
           <h3 className="text-base mb-2 text-center font-outfit font-semibold">Analisis Gap Skill</h3>
           <p className="text-xs text-text-muted text-center mb-4">Anda vs kebutuhan TechNusa Corp</p>
 
-          <div className="relative h-[300px] w-full mt-4">
+          <div className="relative mt-4 h-[260px] w-full sm:h-[300px]">
             <canvas ref={chartRef}></canvas>
           </div>
 
@@ -338,7 +338,7 @@ export default function DashboardView({ isActive, onToLearning }) {
         </aside>
       </div>
 
-      <section className="mt-6 rounded-[20px] border border-border-color bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-[20px] border border-border-color bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">4-Week Upskilling Roadmap</p>
@@ -347,13 +347,13 @@ export default function DashboardView({ isActive, onToLearning }) {
           <button
             type="button"
             onClick={onToLearning}
-            className="w-fit rounded-full border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-light"
+            className="min-h-11 w-full rounded-full border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-light sm:w-fit"
           >
             Buka Jalur Belajar
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {upskillingRoadmap.map((item) => {
             const isSelected = item.skillId !== 'portfolio' && activeSims[item.skillId];
             return (

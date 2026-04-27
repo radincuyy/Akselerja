@@ -16,9 +16,9 @@ export default function JobDetailView({ isActive, job, onBack }) {
   return (
     <div className={`view ${isActive ? 'active' : ''} max-w-7xl mx-auto`}>
       {/* Breadcrumbs */}
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-[28px] font-outfit font-bold text-gray-900">Detail Pekerjaan</h2>
-        <div className="text-sm text-text-muted flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm">
+      <div className="mb-6 flex flex-col gap-3 sm:mb-8 lg:flex-row lg:items-center lg:justify-between">
+        <h2 className="font-outfit text-2xl font-bold text-gray-900 sm:text-[28px]">Detail Pekerjaan</h2>
+        <div className="flex w-full items-center gap-2 overflow-x-auto whitespace-nowrap rounded-full border border-gray-100 bg-white px-4 py-2 text-sm text-text-muted shadow-sm lg:w-auto">
           <button onClick={onBack} className="hover:text-blue-600 transition-colors">Home</button> 
           <i className="ph ph-caret-right text-[10px]"></i>
           <button onClick={onBack} className="hover:text-blue-600 transition-colors">Cari Kerja</button> 
@@ -28,13 +28,13 @@ export default function JobDetailView({ isActive, job, onBack }) {
       </div>
 
       {/* Header Section - Removed Card Styling */}
-      <div className="flex flex-col md:flex-row items-center justify-between py-10 border-b border-gray-200 mb-10">
-        <div className="flex items-center gap-6 mb-6 md:mb-0">
-          <div className="w-20 h-20 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-100">
-            <i className={`ph-fill ${displayJob.logo} text-5xl`}></i>
+      <div className="mb-8 flex flex-col gap-6 border-b border-gray-200 py-8 md:flex-row md:items-center md:justify-between lg:mb-10 lg:py-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-100 sm:h-20 sm:w-20">
+            <i className={`ph-fill ${displayJob.logo} text-4xl sm:text-5xl`}></i>
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-text-dark mb-2 font-outfit">{displayJob.title}</h1>
+            <h1 className="mb-2 font-outfit text-2xl font-bold text-text-dark sm:text-3xl">{displayJob.title}</h1>
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-text-muted font-medium">di {displayJob.company}</span>
               <span className="bg-green-100 text-green-700 text-[11px] font-bold px-3 py-1 rounded-sm">{typeLabel}</span>
@@ -42,17 +42,17 @@ export default function JobDetailView({ isActive, job, onBack }) {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <button className="w-14 h-14 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-all active:scale-95 border border-blue-100">
+        <div className="flex w-full items-center gap-3 md:w-auto md:gap-4">
+          <button className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 transition-all hover:bg-blue-100 active:scale-95 sm:h-14 sm:w-14">
             <i className="ph ph-bookmark text-2xl"></i>
           </button>
-          <button className="flex-1 md:flex-none bg-blue-600 text-white px-10 py-4 rounded-sm font-bold hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-3 text-lg">
+          <button className="flex min-h-12 flex-1 items-center justify-center gap-3 rounded-sm bg-blue-600 px-6 py-3 font-bold text-white transition-all hover:bg-blue-700 active:scale-95 sm:text-lg md:flex-none md:px-10 md:py-4">
             Lamar Sekarang <i className="ph ph-arrow-right"></i>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_minmax(320px,380px)]">
         {/* Main Content */}
         {/* Main Content - Removed Card Styling */}
         <div className="py-4">
@@ -116,20 +116,20 @@ export default function JobDetailView({ isActive, job, onBack }) {
 
         {/* Sidebar Info */}
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-6 rounded-xl border border-gray-100 text-center shadow-sm">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-gray-100 bg-white p-5 text-center shadow-sm sm:p-6">
               <div className="text-[10px] text-text-muted mb-2 uppercase tracking-widest font-bold">Gaji Bulanan</div>
               <div className="text-accent font-bold text-xl">{displayJob.salary}</div>
               <div className="text-[10px] text-text-muted mt-1">Estimasi IDR</div>
             </div>
-            <div className="bg-white p-6 rounded-xl border border-gray-100 text-center shadow-sm flex flex-col items-center justify-center">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-white p-5 text-center shadow-sm sm:p-6">
               <i className="ph ph-map-trifold text-3xl text-blue-500 mb-2"></i>
               <div className="text-xs font-bold text-text-dark">Lokasi Kerja</div>
               <div className="text-[10px] text-text-muted">Jakarta, Indonesia</div>
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-xl border border-gray-100 shadow-sm">
+          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8">
             <h4 className="font-bold mb-8 pb-4 border-b border-gray-100 text-lg font-outfit">Ringkasan Pekerjaan</h4>
             <div className="space-y-6">
               {[
@@ -176,20 +176,20 @@ export default function JobDetailView({ isActive, job, onBack }) {
       </div>
 
       {/* Related Jobs */}
-      <div className="mt-20">
-        <div className="flex justify-between items-center mb-10">
-          <h3 className="text-2xl font-bold font-outfit text-gray-900">Pekerjaan Terkait</h3>
-          <button onClick={onBack} className="text-blue-600 font-bold hover:underline flex items-center gap-2">
+      <div className="mt-14 sm:mt-20">
+        <div className="mb-8 flex flex-col gap-3 sm:mb-10 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="font-outfit text-2xl font-bold text-gray-900">Pekerjaan Terkait</h3>
+          <button onClick={onBack} className="flex min-h-11 w-fit items-center gap-2 font-bold text-blue-600 hover:underline">
             Lihat Semua <i className="ph ph-arrow-right"></i>
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
           {[
             { title: 'Product Designer', company: 'Google Inc.', salary: 'Rp 25jt - 40jt', type: 'FULL-TIME' },
             { title: 'Visual UI Designer', company: 'Airbnb', salary: 'Rp 28jt - 35jt', type: 'REMOTE' },
             { title: 'UX Researcher', company: 'Gojek', salary: 'Rp 20jt - 30jt', type: 'PART-TIME' }
           ].map((item, i) => (
-            <div key={i} className="bg-white p-8 rounded-xl border border-gray-100 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-100 transition-all cursor-pointer group">
+            <div key={i} className="group cursor-pointer rounded-xl border border-gray-100 bg-white p-5 transition-all hover:border-blue-400 hover:shadow-xl hover:shadow-blue-100 sm:p-8">
               <div className="flex justify-between mb-6">
                 <div className="flex items-center gap-2">
                    <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider ${item.type === 'FULL-TIME' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{item.type}</span>

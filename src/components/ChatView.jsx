@@ -39,21 +39,21 @@ export default function ChatView({ isActive }) {
 
   return (
     <div className={`view ${isActive ? 'active' : ''}`}>
-        <div className="flex justify-between items-end mb-8">
+        <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <h2 className="text-[28px] mb-2 font-outfit">Advisor Karir AI</h2>
+                <h2 className="mb-2 font-outfit text-2xl sm:text-[28px]">Advisor Karir AI</h2>
                 <p className="text-text-muted">Chat simulatif yang mengikuti profil demo dan target karir Anda.</p>
             </div>
-            <div className="inline-flex items-center gap-1.5 bg-[#E6F1FB] text-[#0C447C] text-xs px-3 py-1.5 rounded-full font-medium border border-[#0C447C]/10 m-0">
+            <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#0C447C]/10 bg-[#E6F1FB] px-3 py-1.5 text-xs font-medium text-[#0C447C]">
                 <i className="ph-fill ph-microsoft-logo text-[#0078D4]"></i> Simulasi Azure OpenAI
             </div>
         </div>
 
-        <div className="flex flex-col h-[calc(100vh-200px)] bg-bg-card rounded-[20px] border border-border-color overflow-hidden shadow-sm">
-            <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-5" ref={chatMessagesRef}>
+        <div className="flex h-[clamp(460px,calc(100dvh-250px),720px)] flex-col overflow-hidden rounded-[20px] border border-border-color bg-bg-card shadow-sm lg:h-[calc(100dvh-200px)]">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 sm:gap-5 sm:p-6" ref={chatMessagesRef}>
                 {messages.map((m, idx) => (
-                  <div key={idx} className={`flex gap-4 max-w-[85%] ${m.sender === 'bot' ? 'self-start animate-fade-in' : 'self-end flex-row-reverse'}`}>
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-lg ${m.sender === 'bot' ? 'bg-primary-light text-primary-dark' : 'bg-slate-200 text-slate-500'}`}>
+                  <div key={idx} className={`flex max-w-[92%] gap-3 sm:max-w-[85%] sm:gap-4 ${m.sender === 'bot' ? 'self-start animate-fade-in' : 'self-end flex-row-reverse'}`}>
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg ${m.sender === 'bot' ? 'bg-primary-light text-primary-dark' : 'bg-slate-200 text-slate-500'}`}>
                         <i className={m.sender === 'bot' ? 'ph-fill ph-robot' : 'ph-fill ph-user'}></i>
                       </div>
                       <div className={`py-3.5 px-4 rounded-2xl text-[14.5px] leading-relaxed ${m.sender === 'bot' ? 'bg-slate-50 border border-border-color rounded-tl-sm text-text-dark' : 'bg-primary text-white rounded-tr-sm'}`} dangerouslySetInnerHTML={{ __html: m.text }}></div>
@@ -61,16 +61,16 @@ export default function ChatView({ isActive }) {
                 ))}
             </div>
             
-            <div className="p-5 border-t border-border-color bg-bg-card flex gap-3">
+            <div className="flex gap-2 border-t border-border-color bg-bg-card p-3 sm:gap-3 sm:p-5">
                 <input 
                   type="text" 
-                  className="flex-1 px-5 py-3.5 rounded-full border border-border-color font-inter text-[15px] outline-none transition-colors duration-200 focus:border-primary" 
+                  className="min-w-0 flex-1 rounded-full border border-border-color px-4 py-3.5 font-inter text-[15px] outline-none transition-colors duration-200 focus:border-primary sm:px-5" 
                   placeholder="Tanya tentang tips interview, perbaikan CV, dll..." 
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyPress}
                 />
-                <button className="w-12 h-12 rounded-full bg-primary text-white border-none cursor-pointer flex items-center justify-center text-xl transition-all duration-200 hover:bg-primary-hover hover:scale-105" onClick={handleSend}><i className="ph-fill ph-paper-plane-right"></i></button>
+                <button className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-primary text-xl text-white transition-all duration-200 hover:scale-105 hover:bg-primary-hover" onClick={handleSend}><i className="ph-fill ph-paper-plane-right"></i></button>
             </div>
         </div>
     </div>

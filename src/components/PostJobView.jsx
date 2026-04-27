@@ -42,18 +42,18 @@ export default function PostJobView({ onBack }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-6 animate-fade-in">
+    <div className="mx-auto max-w-4xl animate-fade-in px-0 py-0 sm:py-2 lg:py-4">
       {/* Breadcrumbs */}
-      <div className="flex justify-between items-center mb-10">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 font-outfit">Pasang Lowongan Baru</h1>
+          <h1 className="font-outfit text-2xl font-bold text-gray-900 sm:text-3xl">Pasang Lowongan Baru</h1>
           <p className="text-text-muted mt-2">Gunakan AI untuk menjangkau kandidat yang paling tepat.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2 sm:w-auto">
           {[1, 2, 3].map((s) => (
             <div 
               key={s} 
-              className={`w-10 h-1.5 rounded-full transition-all duration-500 ${s <= step ? 'bg-blue-600' : 'bg-gray-200'}`}
+              className={`h-1.5 flex-1 rounded-full transition-all duration-500 sm:w-10 sm:flex-none ${s <= step ? 'bg-blue-600' : 'bg-gray-200'}`}
             ></div>
           ))}
         </div>
@@ -62,8 +62,8 @@ export default function PostJobView({ onBack }) {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-xl shadow-blue-50/50 overflow-hidden">
         {/* Step 1: Info Dasar */}
         {step === 1 && (
-          <div className="p-10 space-y-8 animate-slide-up">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-6 p-4 animate-slide-up sm:p-6 lg:space-y-8 lg:p-10">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:gap-8">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Judul Pekerjaan</label>
                 <input 
@@ -90,7 +90,7 @@ export default function PostJobView({ onBack }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:gap-8">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Lokasi</label>
                 <div className="relative">
@@ -106,7 +106,7 @@ export default function PostJobView({ onBack }) {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Kisaran Gaji (Opsional)</label>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <input 
                     type="number" 
                     placeholder="Min" 
@@ -130,14 +130,14 @@ export default function PostJobView({ onBack }) {
 
         {/* Step 2: Deskripsi & AI */}
         {step === 2 && (
-          <div className="p-10 space-y-8 animate-slide-up">
+          <div className="space-y-6 p-4 animate-slide-up sm:p-6 lg:space-y-8 lg:p-10">
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Deskripsi Pekerjaan</label>
                 <button
                   type="button"
                   onClick={generateDescription}
-                  className="flex items-center gap-2 text-blue-600 text-sm font-bold hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-all"
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-blue-600 transition-all hover:bg-blue-50 sm:w-auto"
                 >
                   <i className="ph ph-sparkle text-lg"></i> Generate dengan AI
                 </button>
@@ -166,9 +166,9 @@ export default function PostJobView({ onBack }) {
 
         {/* Step 3: Skills & Matching */}
         {step === 3 && (
-          <div className="p-10 space-y-8 animate-slide-up">
-            <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-200">
+          <div className="space-y-6 p-4 animate-slide-up sm:p-6 lg:space-y-8 lg:p-10">
+            <div className="flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:flex-row sm:items-start sm:p-6">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200">
                 <i className="ph ph-brain text-2xl"></i>
               </div>
               <div>
@@ -179,11 +179,11 @@ export default function PostJobView({ onBack }) {
 
             <div className="space-y-4">
               <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Target Skill Kandidat</label>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <input 
                   type="text" 
                   placeholder="Contoh: React.js, UI/UX Design, Project Management" 
-                  className="flex-1 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                  className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 p-4 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   value={newSkill}
                   onChange={(e) => setNewSkill(e.target.value)}
                   onKeyDown={(e) => {
@@ -195,7 +195,7 @@ export default function PostJobView({ onBack }) {
                 />
                 <button 
                   onClick={addSkill}
-                  className="bg-blue-600 text-white px-8 rounded-xl font-bold hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-200"
+                  className="min-h-11 rounded-xl bg-blue-600 px-8 py-3 font-bold text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 active:scale-95"
                 >
                   Tambah
                 </button>
@@ -228,10 +228,10 @@ export default function PostJobView({ onBack }) {
         )}
 
         {/* Action Buttons */}
-        <div className="bg-gray-50 p-8 flex justify-between items-center border-t border-gray-100">
+        <div className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <button 
             onClick={step === 1 ? onBack : handlePrev}
-            className="px-8 py-3 text-gray-600 font-bold hover:bg-gray-200 rounded-xl transition-all"
+            className="min-h-11 w-full rounded-xl px-8 py-3 font-bold text-gray-600 transition-all hover:bg-gray-200 sm:w-auto"
           >
             {step === 1 ? 'Batalkan' : 'Sebelumnya'}
           </button>
@@ -239,7 +239,7 @@ export default function PostJobView({ onBack }) {
           {step < 3 ? (
             <button 
               onClick={handleNext}
-              className="bg-blue-600 text-white px-10 py-4 rounded-xl font-bold hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2 shadow-xl shadow-blue-200"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-10 py-4 font-bold text-white shadow-xl shadow-blue-200 transition-all hover:bg-blue-700 active:scale-95 sm:w-auto"
             >
               Lanjutkan <i className="ph ph-arrow-right"></i>
             </button>
@@ -249,7 +249,7 @@ export default function PostJobView({ onBack }) {
                 setPublished(true);
                 setTimeout(onBack, 700);
               }}
-              className="bg-green-600 text-white px-12 py-4 rounded-xl font-bold hover:bg-green-700 transition-all active:scale-95 flex items-center gap-2 shadow-xl shadow-green-200"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-8 py-4 text-center font-bold text-white shadow-xl shadow-green-200 transition-all hover:bg-green-700 active:scale-95 sm:w-auto sm:px-12"
             >
               Selesaikan & Tayangkan <i className="ph ph-rocket-launch"></i>
             </button>

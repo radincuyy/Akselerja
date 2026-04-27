@@ -14,10 +14,10 @@ import PostJobView from './components/PostJobView';
 
 function MainLayout({ children, view, role, onViewChange }) {
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen animate-fade-in bg-gray-50">
+    <div className="flex min-h-[100dvh] flex-col bg-gray-50 animate-fade-in lg:flex-row">
       <Sidebar currentView={view} onViewChange={onViewChange} role={role} />
-      <main className="flex-1 p-6 lg:p-10 overflow-y-auto min-h-screen lg:h-screen">
-        <div className="max-w-[1040px] mx-auto">
+      <main className="min-h-[100dvh] min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:h-[100dvh] lg:overflow-y-auto lg:p-10">
+        <div className="mx-auto w-full max-w-[1120px]">
           {children}
         </div>
       </main>
@@ -29,8 +29,8 @@ function PublicLayout({ children, onNavigate, isAuthenticated, role, onLogout })
   return (
     <div className="min-h-screen bg-white font-inter">
       <NavBar onNavigate={onNavigate} isAuthenticated={isAuthenticated} role={role} onLogout={onLogout} />
-      <main className="bg-gray-50 py-10 lg:py-12">
-        <div className="max-w-7xl mx-auto px-5 lg:px-8">
+      <main className="bg-gray-50 py-6 sm:py-10 lg:py-12">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-5 lg:px-8">
           {children}
         </div>
       </main>

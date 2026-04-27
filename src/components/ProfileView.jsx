@@ -5,11 +5,11 @@ export default function ProfileView({ isActive, onNext }) {
   return (
     <div className={`view ${isActive ? 'active' : ''}`}>
         <div className="mb-8">
-            <h2 className="text-[28px] mb-2 font-outfit">Profil & Skill Terdeteksi</h2>
+            <h2 className="mb-2 font-outfit text-2xl sm:text-[28px]">Profil & Skill Terdeteksi</h2>
             <p className="text-text-muted">Hasil ekstraksi simulatif dari CV Anda. Sesuaikan target karir di bawah.</p>
         </div>
 
-        <div className="bg-bg-card rounded-[20px] p-6 shadow-sm border border-border-color mb-6">
+        <div className="mb-6 rounded-[20px] border border-border-color bg-bg-card p-4 shadow-sm sm:p-6">
             <div className="inline-flex items-center gap-1.5 bg-[#E6F1FB] text-[#0C447C] text-xs px-3 py-1.5 rounded-full mb-4 font-medium border border-[#0C447C]/10">
                 <i className="ph-fill ph-microsoft-logo text-[#0078D4]"></i> Simulasi Ekstraksi AI
             </div>
@@ -50,8 +50,8 @@ export default function ProfileView({ isActive, onNext }) {
                 </div>
             </div>
 
-            <div className="mt-10 flex justify-end">
-                <button className="px-6 py-3 rounded-full font-medium cursor-pointer transition-all duration-200 border-none font-inter text-[15px] inline-flex items-center gap-2 bg-primary text-white shadow-lg hover:bg-primary-hover hover:-translate-y-0.5" onClick={onNext}>
+            <div className="mt-8 flex justify-end sm:mt-10">
+                <button className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full border-none bg-primary px-6 py-3 font-inter text-[15px] font-medium text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover sm:w-auto" onClick={onNext}>
                     Lihat Hasil Pencocokan Kerja <i className="ph-bold ph-arrow-right"></i>
                 </button>
             </div>
