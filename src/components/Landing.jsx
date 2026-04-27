@@ -7,10 +7,34 @@ const featuredJobs = [
 ];
 
 const stats = [
-  { icon: 'ph-briefcase', count: '9', label: 'Lowongan Demo', desc: 'data pekerjaan contoh' },
-  { icon: 'ph-target', count: '78', label: 'Skor Kesiapan', desc: 'contoh career readiness' },
-  { icon: 'ph-path', count: '3', label: 'Skill Bridge', desc: 'skill yang bisa ditransfer' },
-  { icon: 'ph-graduation-cap', count: '4', label: 'Minggu Roadmap', desc: 'rencana upskilling' },
+  {
+    icon: 'ph-briefcase',
+    count: '9',
+    unit: 'lowongan',
+    label: 'Lowongan Dianalisis',
+    desc: 'pekerjaan contoh yang dibandingkan dengan profil kandidat.',
+  },
+  {
+    icon: 'ph-target',
+    count: '78',
+    unit: '/100',
+    label: 'Skor Kesiapan Kerja',
+    desc: 'nilai kecocokan CV terhadap target posisi.',
+  },
+  {
+    icon: 'ph-path',
+    count: '3',
+    unit: 'skill',
+    label: 'Skill Transfer',
+    desc: 'kemampuan lama yang masih relevan untuk posisi target.',
+  },
+  {
+    icon: 'ph-graduation-cap',
+    count: '4',
+    unit: 'minggu',
+    label: 'Roadmap Belajar',
+    desc: 'durasi upskilling dari gap skill terbesar.',
+  },
 ];
 
 const getRoleLabel = (role) => (role === 'company' ? 'Perusahaan' : 'Kandidat');
@@ -94,15 +118,20 @@ function Hero({ onNavigate }) {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="mb-3">
+            <p className="text-sm font-bold text-gray-900">Ringkasan output demo</p>
+            <p className="text-sm text-gray-500">Angka ini menunjukkan hasil yang akan dilihat kandidat setelah CV dicocokkan dengan lowongan.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             {stats.map((item) => (
               <div key={item.label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                   <i className={`ph ${item.icon} text-xl`}></i>
                 </div>
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-1.5">
                   <span className="text-2xl font-bold text-gray-900">{item.count}</span>
-                  {item.label === 'Skor Kesiapan' && <span className="text-xs font-semibold text-gray-400">/100</span>}
+                  <span className="text-xs font-semibold text-gray-400">{item.unit}</span>
                 </div>
                 <div className="mt-1 text-sm font-semibold text-gray-800">{item.label}</div>
                 <div className="mt-1 text-xs leading-snug text-gray-500">{item.desc}</div>
