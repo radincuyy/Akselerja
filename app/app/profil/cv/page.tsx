@@ -25,10 +25,10 @@ export default function UpdateCvPage() {
       </Link>
 
       <header className="mt-6 max-w-2xl">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-muted)">
+        <p className="text-sm font-medium text-(--color-muted)">
           Profil saya
         </p>
-        <h1 className="mt-2 text-[clamp(1.5rem,3vw,2.25rem)] font-semibold tracking-tight text-(--color-ink)">
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-(--color-ink) sm:text-3xl">
           {profile.cv ? "Update CV" : "Upload CV"}
         </h1>
         <p className="mt-3 text-base leading-relaxed text-(--color-muted)">

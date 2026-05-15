@@ -6,6 +6,7 @@ import { me as seedMe } from "./mock-data";
 
 let initialised = false;
 let cachedProfile: Candidate;
+let visibility: "applied-only" | "all-companies" = "applied-only";
 
 function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
@@ -92,6 +93,16 @@ export function newEducationId() {
 
 export function newExperienceId() {
   return uid("ex");
+}
+
+export function getVisibility() {
+  seed();
+  return visibility;
+}
+
+export function setVisibility(v: "applied-only" | "all-companies") {
+  seed();
+  visibility = v;
 }
 
 // Format helpers, used in UI.

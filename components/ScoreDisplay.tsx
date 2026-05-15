@@ -34,7 +34,7 @@ export default function ScoreDisplay({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-muted)">
+      <p className="text-sm font-medium text-(--color-muted)">
         {label}
       </p>
       <div className="flex items-baseline gap-2">

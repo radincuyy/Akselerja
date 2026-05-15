@@ -14,7 +14,6 @@ import {
   skillById,
 } from "@/lib/mock-data";
 import {
-  autoTriggerReview,
   findApplication,
   listNotes,
 } from "@/lib/applications-store";
@@ -37,9 +36,6 @@ export default async function HrCandidateDetailPage({
   const job = jobIdParam
     ? jobs.find((j) => j.id === jobIdParam) ?? jobs[0]
     : jobs[0];
-
-  // Auto-trigger review when HR opens a submitted application's detail.
-  autoTriggerReview(candidate.id, job.id);
 
   const application = findApplication(candidate.id, job.id);
   const { score, breakdown } = calcMatch(candidate, job);
@@ -70,10 +66,10 @@ export default async function HrCandidateDetailPage({
 
       <header className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-muted)">
+          <p className="text-sm font-medium text-(--color-muted)">
             Profil kandidat
           </p>
-          <h1 className="mt-2 text-[clamp(1.5rem,3vw,2.25rem)] font-semibold tracking-tight text-(--color-ink)">
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-(--color-ink) sm:text-3xl">
             {candidate.name}
           </h1>
           <p className="mt-1 text-sm text-(--color-muted)">

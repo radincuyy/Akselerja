@@ -11,9 +11,12 @@ export default function HrJobsPage() {
         title="Lowongan kamu"
         description="Kelola posting, lihat kandidat, dan tutup lowongan saat sudah diisi."
         action={
-          <button className="rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)">
+          <Link
+            href="/hr/lowongan/baru"
+            className="rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+          >
             + Pasang lowongan baru
-          </button>
+          </Link>
         }
       />
 
@@ -51,9 +54,15 @@ export default function HrJobsPage() {
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-(--color-muted)">
-                <span className="rounded-full bg-(--color-tint) px-2.5 py-0.5 text-(--color-ink)">
-                  Aktif
-                </span>
+                {job.status === "closed" ? (
+                  <span className="rounded-full border border-(--color-line) bg-(--color-paper) px-2.5 py-0.5 text-(--color-muted)">
+                    Ditutup
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-(--color-tint) px-2.5 py-0.5 text-(--color-ink)">
+                    Aktif
+                  </span>
+                )}
                 <span>Diposting {new Date(job.postedAt).toLocaleDateString("id-ID")}</span>
                 <span aria-hidden>·</span>
                 <Link

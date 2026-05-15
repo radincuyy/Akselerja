@@ -29,9 +29,9 @@ const groups = [
   {
     title: "Hukum",
     links: [
-      { label: "Privasi", href: "#" },
-      { label: "Syarat layanan", href: "#" },
-      { label: "Kebijakan data", href: "#" },
+      { label: "Privasi", href: "/privasi" },
+      { label: "Syarat layanan", href: "/syarat" },
+      { label: "Kebijakan data", href: "/kebijakan-data" },
     ],
   },
 ];

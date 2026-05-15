@@ -2,7 +2,14 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import LoginForm from "@/components/LoginForm";
 
-export default function MasukPage() {
+type SearchParams = Promise<{ reset?: string }>;
+
+export default async function MasukPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const { reset } = await searchParams;
   return (
     <main className="min-h-svh bg-(--color-paper)">
       <header className="border-b border-(--color-line)">
@@ -20,6 +27,20 @@ export default function MasukPage() {
           Pakai email yang kamu daftarkan. Kami akan arahkan ke beranda yang
           tepat berdasarkan tipe akunmu.
         </p>
+
+        {reset === "1" ? (
+          <div
+            role="status"
+            className="mt-6 rounded-lg border border-(--color-line) bg-(--color-tint) p-4"
+          >
+            <p className="text-sm font-semibold text-(--color-ink)">
+              Password berhasil diatur ulang
+            </p>
+            <p className="mt-1 text-sm text-(--color-muted)">
+              Masuk dengan password baru kamu.
+            </p>
+          </div>
+        ) : null}
 
         <div className="mt-8">
           <LoginForm />

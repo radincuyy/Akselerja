@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -51,9 +52,9 @@ export default function LoginForm() {
           <label htmlFor={pwId} className="text-xs font-medium tracking-wide text-(--color-muted)">
             Password
           </label>
-          <a href="#" className="text-xs text-(--color-teal) hover:text-(--color-teal-deep)">
+          <Link href="/lupa-password" className="text-xs text-(--color-teal) hover:text-(--color-teal-deep)">
             Lupa password?
-          </a>
+          </Link>
         </div>
         <input
           id={pwId}

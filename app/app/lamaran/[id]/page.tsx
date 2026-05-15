@@ -69,10 +69,10 @@ export default async function ApplicationDetailPage({
       </Link>
 
       <header className="mt-6">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-muted)">
+        <p className="text-sm font-medium text-(--color-muted)">
           Lamaran kamu
         </p>
-        <h1 className="mt-2 text-[clamp(1.5rem,3vw,2.25rem)] font-semibold tracking-tight text-(--color-ink)">
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-(--color-ink) sm:text-3xl">
           {job.title}
         </h1>
         <p className="mt-1 text-sm text-(--color-muted)">

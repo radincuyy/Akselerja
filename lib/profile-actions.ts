@@ -8,6 +8,7 @@ import {
   setCv,
   setEducationList,
   setExperienceList,
+  setVisibility,
   updateProfileBasic,
 } from "./profile-store";
 import type { Education, Experience } from "./types";
@@ -180,4 +181,22 @@ export async function confirmCvUpdate(filename: string, sizeBytes: number) {
   });
   revalidateProfileSurfaces();
   redirect("/app/profil?cv=1");
+}
+
+export async function setProfileVisibility(formData: FormData) {
+  const value = String(formData.get("visibility") ?? "");
+  if (value !== "applied-only" && value !== "all-companies") return;
+  setVisibility(value);
+  revalidatePath("/app/pengaturan");
+  revalidatePath("/app/profil");
+}
+
+export async function deleteCandidateAccount() {
+  // Demo: log out and bring user back to landing page.
+  // Production: hard delete from Cosmos + Blob, send confirmation email.
+  redirect("/?account-deleted=1");
+}
+
+export async function deleteCompanyAccount() {
+  redirect("/?account-deleted=1");
 }

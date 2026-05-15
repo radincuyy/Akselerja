@@ -61,10 +61,10 @@ export default async function LowonganDetailPage({ params }: { params: Params })
       </Link>
 
       <header className="mt-6">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-muted)">
+        <p className="text-sm font-medium text-(--color-muted)">
           {job.industry} · {job.type}
         </p>
-        <h1 className="mt-2 text-[clamp(1.75rem,3.5vw,2.5rem)] font-semibold tracking-tight text-(--color-ink)">
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-(--color-ink) sm:text-4xl">
           {job.title}
         </h1>
         <p className="mt-2 text-base text-(--color-muted)">
@@ -233,17 +233,34 @@ export default async function LowonganDetailPage({ params }: { params: Params })
               </div>
             ) : (
               <>
-                <p className="text-sm leading-relaxed text-(--color-muted)">
-                  {score >= 50
-                    ? "Kamu siap melamar. Perusahaan akan melihat profil dan match score yang sama dengan yang kamu lihat di sini."
-                    : "Kamu masih bisa melamar, tapi disarankan tutup beberapa skill gap dulu agar peluang lebih besar."}
-                </p>
-                <div className="mt-4">
-                  <ApplyButton jobId={job.id} />
-                </div>
-                <button className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-(--color-line) px-5 py-3 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)">
-                  Simpan untuk nanti
-                </button>
+                {job.status === "closed" ? (
+                  <div className="rounded-md border border-(--color-line) bg-(--color-tint) p-4 text-sm leading-relaxed text-(--color-muted)">
+                    <p className="font-semibold text-(--color-ink)">
+                      Lowongan ini sudah ditutup
+                    </p>
+                    <p className="mt-1">
+                      Perusahaan tidak menerima lamaran baru untuk posisi ini.
+                      Lihat lowongan lain di daftar utama.
+                    </p>
+                    <Link
+                      href="/app/lowongan"
+                      className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
+                    >
+                      Cari lowongan lain →
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm leading-relaxed text-(--color-muted)">
+                      {score >= 50
+                        ? "Kamu siap melamar. Perusahaan akan melihat profil dan match score yang sama dengan yang kamu lihat di sini."
+                        : "Kamu masih bisa melamar, tapi disarankan tutup beberapa skill gap dulu agar peluang lebih besar."}
+                    </p>
+                    <div className="mt-4">
+                      <ApplyButton jobId={job.id} />
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -253,10 +270,12 @@ export default async function LowonganDetailPage({ params }: { params: Params })
               Bagaimana skor ini dihitung?
             </p>
             <p className="mt-2">
-              Skor menggunakan kombinasi: skill match (40%), assessment (20%),
-              relevansi pengalaman (15%), lokasi dan gaji (10%), potensi
-              belajar (10%), soft skill (5%). Setiap komponen di atas bisa kamu
-              tingkatkan, dan skor akan diperbarui otomatis.
+              Untuk tiap skill yang diminta, kami bandingkan level kamu dengan
+              level yang dibutuhkan. Bobot tiap skill ditetapkan oleh perusahaan
+              saat memasang lowongan. Skill yang cocok memberi kontribusi
+              positif; skill yang belum cocok menjadi langkah berikutnya untuk
+              kamu kerjakan. Daftar lengkap kontribusinya ada di Rincian
+              kecocokan di sebelah kiri.
             </p>
           </div>
         </aside>

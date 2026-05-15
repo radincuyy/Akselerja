@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import Logo from "./Logo";
+import MobileNav from "./MobileNav";
 import {
   isUpdatedSinceSeen,
   listApplicationsForCandidate,
 } from "@/lib/applications-store";
+import { getProfile } from "@/lib/profile-store";
 
 type NavItem = { href: string; label: string };
 
@@ -30,11 +32,34 @@ const companyNav: NavItem[] = [
   { href: "/hr/insight", label: "Insight" },
 ];
 
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export default function AppShell({ variant, active, children }: Props) {
   noStore();
   const items = variant === "candidate" ? candidateNav : companyNav;
-  const profileName = variant === "candidate" ? "Rahmat Saputra" : "PT Cipta Logistik";
-  const profileMeta = variant === "candidate" ? "Bekasi · 1 thn" : "HR Recruiter";
+
+  let profileName: string;
+  let profileMeta: string;
+  let initials: string;
+  if (variant === "candidate") {
+    const profile = getProfile();
+    profileName = profile.name;
+    const yearsLabel =
+      profile.experienceYears === 0
+        ? "Belum berpengalaman"
+        : `${profile.experienceYears} thn`;
+    profileMeta = `${profile.location.split(",")[0]} · ${yearsLabel}`;
+    initials = initialsFromName(profile.name);
+  } else {
+    profileName = "PT Cipta Logistik";
+    profileMeta = "HR Recruiter";
+    initials = "CL";
+  }
 
   const lamaranNewCount =
     variant === "candidate"
@@ -75,7 +100,7 @@ export default function AppShell({ variant, active, children }: Props) {
                     {showBadge ? (
                       <span
                         aria-label={`${lamaranNewCount} update baru`}
-                        className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-(--color-teal) px-1 text-[10px] font-semibold leading-none text-(--color-paper-on-teal)"
+                        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-(--color-teal) px-1.5 text-xs font-semibold leading-none text-(--color-paper-on-teal)"
                       >
                         {lamaranNewCount}
                       </span>
@@ -98,8 +123,29 @@ export default function AppShell({ variant, active, children }: Props) {
               aria-hidden
               className="flex h-9 w-9 items-center justify-center rounded-full bg-(--color-teal-deep) text-sm font-semibold text-(--color-paper-on-teal)"
             >
-              {variant === "candidate" ? "RS" : "CL"}
+              {initials}
             </div>
+            <Link
+              href={variant === "candidate" ? "/app/pengaturan" : "/hr/pengaturan"}
+              aria-label="Pengaturan akun"
+              title="Pengaturan"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-(--color-line) text-(--color-muted) transition-colors hover:border-(--color-ink) hover:text-(--color-ink)"
+            >
+              <svg
+                aria-hidden
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </Link>
             <Link
               href="/"
               aria-label="Keluar dari akun"
@@ -125,40 +171,7 @@ export default function AppShell({ variant, active, children }: Props) {
             </Link>
           </div>
         </div>
-        <nav
-          aria-label="Menu utama mobile"
-          className="border-t border-(--color-line) px-5 py-2 md:hidden"
-        >
-          <ul className="-mx-1 flex gap-1 overflow-x-auto">
-            {items.map((item) => {
-              const isActive = active === item.href;
-              const showBadge = item.href === "/app/lamaran" && lamaranNewCount > 0;
-              return (
-                <li key={item.href} className="shrink-0">
-                  <Link
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={
-                      isActive
-                        ? "inline-flex items-center gap-1.5 rounded-md bg-(--color-tint) px-3 py-1.5 text-sm font-medium text-(--color-teal)"
-                        : "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-(--color-muted)"
-                    }
-                  >
-                    {item.label}
-                    {showBadge ? (
-                      <span
-                        aria-label={`${lamaranNewCount} update baru`}
-                        className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-(--color-teal) px-1 text-[10px] font-semibold leading-none text-(--color-paper-on-teal)"
-                      >
-                        {lamaranNewCount}
-                      </span>
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        <MobileNav items={items} active={active} lamaranNewCount={lamaranNewCount} />
       </header>
 
       <main className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-12">

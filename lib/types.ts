@@ -24,6 +24,8 @@ export type Job = {
   description: string;
   requirements: SkillRequirement[];
   postedAt: string;
+  status?: "open" | "closed";
+  closedAt?: string;
 };
 
 export type Course = {

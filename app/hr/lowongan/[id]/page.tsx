@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
+import CandidateSearchInput from "@/components/CandidateSearchInput";
 import {
   calcMatch,
   candidates,
@@ -14,6 +15,7 @@ import {
   listApplicationsForJob,
   statusGroup,
 } from "@/lib/applications-store";
+import { closeJobAction, reopenJobAction } from "@/lib/job-actions";
 import type { ApplicationStatus } from "@/lib/types";
 
 type Params = Promise<{ id: string }>;
@@ -97,10 +99,10 @@ export default async function HrJobCandidatesPage({
 
       <header className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-muted)">
+          <p className="text-sm font-medium text-(--color-muted)">
             {job.industry} <span aria-hidden>·</span> {job.type}
           </p>
-          <h1 className="mt-2 text-[clamp(1.5rem,3vw,2.25rem)] font-semibold tracking-tight text-(--color-ink)">
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-(--color-ink) sm:text-3xl">
             {job.title}
           </h1>
           <p className="mt-1 text-sm text-(--color-muted)">
@@ -108,15 +110,53 @@ export default async function HrJobCandidatesPage({
             {formatIdr(job.salaryMin)} – {formatIdr(job.salaryMax)}
           </p>
         </div>
-        <div className="flex gap-2">
-          <button className="rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/hr/lowongan/${job.id}/edit`}
+            className="rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)"
+          >
             Edit lowongan
-          </button>
-          <button className="rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)">
-            Tutup lowongan
-          </button>
+          </Link>
+          {job.status === "closed" ? (
+            <form action={reopenJobAction.bind(null, job.id)}>
+              <button
+                type="submit"
+                className="rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+              >
+                Buka kembali
+              </button>
+            </form>
+          ) : (
+            <form action={closeJobAction.bind(null, job.id)}>
+              <button
+                type="submit"
+                className="rounded-md border border-(--color-line) bg-(--color-paper) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-signal-clay) hover:text-(--color-signal-clay)"
+              >
+                Tutup lowongan
+              </button>
+            </form>
+          )}
         </div>
       </header>
+
+      {job.status === "closed" ? (
+        <div
+          role="status"
+          className="mt-6 flex flex-col gap-1 rounded-lg border border-(--color-line) bg-(--color-tint) p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p className="text-sm font-semibold text-(--color-ink)">
+              Lowongan ini sudah ditutup
+            </p>
+            <p className="mt-0.5 text-xs text-(--color-muted)">
+              Kandidat baru tidak bisa melamar. Pelamar lama tetap bisa kamu kelola.
+              {job.closedAt
+                ? ` Ditutup ${formatRelativeId(job.closedAt)}.`
+                : ""}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <nav aria-label="Filter status pipeline" className="flex flex-wrap items-center gap-2">
@@ -146,28 +186,7 @@ export default async function HrJobCandidatesPage({
             );
           })}
         </nav>
-        <form className="flex items-center gap-2" action={`/hr/lowongan/${job.id}`}>
-          {activeFilter !== "all" ? (
-            <input type="hidden" name="status" value={activeFilter} />
-          ) : null}
-          <label htmlFor="search-cand" className="sr-only">
-            Cari nama kandidat
-          </label>
-          <input
-            id="search-cand"
-            type="search"
-            name="q"
-            defaultValue={search}
-            placeholder="Cari nama kandidat…"
-            className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3 py-1.5 text-sm text-(--color-ink) placeholder:text-(--color-muted) focus:border-(--color-teal) sm:w-60"
-          />
-          <button
-            type="submit"
-            className="rounded-md border border-(--color-line) px-3 py-1.5 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)"
-          >
-            Cari
-          </button>
-        </form>
+        <CandidateSearchInput initial={search} />
       </div>
 
       {enriched.length === 0 ? (

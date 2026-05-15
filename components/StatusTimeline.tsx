@@ -164,7 +164,6 @@ function Dot({
     }
     return (
       <span aria-hidden className="relative flex h-6 w-6 items-center justify-center">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-(--color-teal) opacity-30" />
         <span className="relative inline-flex h-3 w-3 rounded-full bg-(--color-teal)" />
       </span>
     );

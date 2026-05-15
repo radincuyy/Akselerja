@@ -15,7 +15,7 @@ export default function PageHeader({
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
       <div className="max-w-3xl">
         {eyebrow && (
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-muted)">
+          <p className="text-sm font-medium text-(--color-muted)">
             {eyebrow}
           </p>
         )}

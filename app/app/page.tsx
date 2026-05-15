@@ -17,12 +17,12 @@ import {
 } from "@/lib/applications-store";
 
 export default function CandidateHome() {
-  const ranked = jobs
+  const openJobs = jobs.filter((j) => j.status !== "closed");
+  const ranked = openJobs
     .map((job) => ({ job, ...calcMatch(me, job) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
-
-  const completedAssessments = 1;
+    .sort((a, b) => b.score - a.score);
+  const top3 = ranked.slice(0, 3);
+  const matchingCount = ranked.filter((r) => r.score >= 60).length;
 
   const myApplications = listApplicationsForCandidate(me.id);
   const recentApplications = myApplications.slice(0, 3);
@@ -38,6 +38,18 @@ export default function CandidateHome() {
     ? jobs.find((j) => j.id === featuredBanner.jobId)
     : null;
 
+  const heading =
+    matchingCount === 0
+      ? `Belum ada lowongan yang cocok hari ini, ${me.name.split(" ")[0]}.`
+      : matchingCount === 1
+        ? `Hari ini ada 1 lowongan yang cocok denganmu.`
+        : `Hari ini ada ${matchingCount} lowongan yang cocok denganmu.`;
+
+  const subhead =
+    matchingCount === 0
+      ? "Lengkapi profil atau ikuti satu assessment supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk."
+      : `Lowongan dihitung cocok kalau match score-nya 60% ke atas. Skor naik begitu kamu menambah skill, mengikuti assessment, atau melengkapi pengalaman.`;
+
   return (
     <AppShell variant="candidate" active="/app">
       {featuredBanner && featuredBannerJob ? (
@@ -45,7 +57,7 @@ export default function CandidateHome() {
           href={`/app/lamaran/${featuredBanner.id}`}
           className="block rounded-lg border border-(--color-teal) bg-(--color-teal-soft) p-5 transition-colors hover:bg-(--color-tint) sm:p-6"
         >
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-teal-deep)">
+          <p className="text-sm font-medium text-(--color-teal-deep)">
             Kabar baik
           </p>
           <p className="mt-2 text-base font-semibold leading-snug text-(--color-ink) sm:text-lg">
@@ -63,46 +75,29 @@ export default function CandidateHome() {
         aria-labelledby="dashboard-heading"
         className={featuredBanner ? "mt-10" : undefined}
       >
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-muted)">
-          Selamat datang kembali, {me.name.split(" ")[0]}
+        <p className="text-base text-(--color-muted)">
+          Selamat datang kembali, {me.name.split(" ")[0]}.
         </p>
         <h1
           id="dashboard-heading"
-          className="mt-2 text-[clamp(1.75rem,3.5vw,2.5rem)] font-semibold tracking-tight text-(--color-ink)"
+          className="mt-2 text-2xl font-semibold tracking-tight text-(--color-ink) sm:text-3xl lg:text-4xl"
         >
-          Hari ini ada 3 lowongan yang cocok denganmu.
+          {heading}
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-(--color-muted)">
-          Skor kesiapan kerjamu naik 4 poin minggu ini setelah kamu melengkapi
-          profil. Lanjutkan satu langkah saja, dan rekomendasinya akan terus
-          membaik.
+          {subhead}
         </p>
       </section>
 
-      <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_auto]">
-        <div className="rounded-lg border border-(--color-line) bg-(--color-paper) p-6">
-          <ScoreDisplay
-            score={me.readinessScore}
-            label="Skor kesiapan kerja"
-            explanation="Profil kamu lebih siap dari 60% kandidat lain di lokasi yang sama. Untuk masuk top 25%, ikuti satu skill assessment lagi."
-            action={{ label: "Tingkatkan skor", href: "/app/assessment" }}
-            size="lg"
-          />
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:w-64">
-          <Stat
-            label="Lowongan cocok"
-            value="12"
-            note="match score ≥ 60%"
-          />
-          <Stat
-            label="Assessment"
-            value={`${completedAssessments} / 4`}
-            note="selesai"
-          />
-        </div>
-      </div>
+      <section className="mt-10 rounded-lg border border-(--color-line) bg-(--color-paper) p-6">
+        <ScoreDisplay
+          score={me.readinessScore}
+          label="Skor kesiapan kerja"
+          explanation="Skor ini menggabungkan kelengkapan profil, hasil assessment, dan pengalaman yang kamu tulis. Naikkan dengan satu langkah konkret di bawah."
+          action={{ label: "Tingkatkan skor", href: "/app/assessment" }}
+          size="lg"
+        />
+      </section>
 
       {myApplications.length > 0 ? (
         <section className="mt-14" aria-labelledby="my-applications-heading">
@@ -190,7 +185,7 @@ export default function CandidateHome() {
           </Link>
         </div>
         <div className="mt-6 grid gap-4">
-          {ranked.map(({ job, score, breakdown }) => {
+          {top3.map(({ job, score, breakdown }) => {
             const top = breakdown.find((b) => b.state === "match");
             const reason = top
               ? `Cocok karena ${skillById[top.skillId]?.name ?? top.name}.`
@@ -233,28 +228,6 @@ export default function CandidateHome() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  note,
-}: {
-  label: string;
-  value: string;
-  note?: string;
-}) {
-  return (
-    <div className="rounded-lg border border-(--color-line) bg-(--color-paper) p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-(--color-muted)">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-(--color-ink)">
-        {value}
-      </p>
-      {note && <p className="mt-0.5 text-xs text-(--color-muted)">{note}</p>}
-    </div>
-  );
-}
-
 function NextStep({
   eyebrow,
   title,
@@ -271,7 +244,7 @@ function NextStep({
       href={href}
       className="group flex flex-col rounded-lg border border-(--color-line) bg-(--color-paper) p-5 transition-colors hover:border-(--color-teal)"
     >
-      <p className="text-xs font-medium uppercase tracking-wider text-(--color-teal)">
+      <p className="text-sm font-medium text-(--color-teal)">
         {eyebrow}
       </p>
       <h3 className="mt-2 text-base font-semibold text-(--color-ink) group-hover:text-(--color-teal)">
