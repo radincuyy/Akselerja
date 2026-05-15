@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+.env*.local
+*.log
+.DS_Store
+.vercel
+.turbo
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Internal docs
+DESIGN.md
+PLAN.md
+PRODUCT.md
