@@ -25,7 +25,7 @@ export default function LegalLayout({
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
+      <main id="main" className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
         <p className="text-sm font-medium text-(--color-muted)">
           {eyebrow}
         </p>

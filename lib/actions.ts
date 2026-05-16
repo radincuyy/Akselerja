@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   addNote,
-  autoTriggerReview,
   createApplication,
   markCandidateSeen,
   setRating,
@@ -30,12 +29,6 @@ export async function applyToJob(jobId: string) {
   const app = createApplication(ME_ID, jobId);
   revalidateLamaranSurfaces();
   redirect(`/app/lamaran/${app.id}`);
-}
-
-export async function autoReviewIfSubmitted(candidateId: string, jobId: string) {
-  if (!candidateId || !jobId) return;
-  autoTriggerReview(candidateId, jobId);
-  revalidateLamaranSurfaces();
 }
 
 export async function changeApplicationStatus(

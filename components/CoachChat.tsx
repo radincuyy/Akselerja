@@ -87,9 +87,9 @@ function generateResponse(prompt: string): string {
       "",
       "Untuk interview, tiga hal yang biasanya ditanya HR untuk posisi entry-level:",
       "",
-      "1. \"Ceritain pengalaman kamu yang paling related ke pekerjaan ini\" — siapkan satu cerita konkret, dengan angka kalau bisa.",
-      "2. \"Kenapa kami harus pilih kamu?\" — jangan jawab generik. Sebut satu hal spesifik dari job desc yang kamu bisa berikan.",
-      "3. \"Kapan kamu bisa mulai?\" — jawab langsung, jangan ragu.",
+      "1. \"Ceritain pengalaman kamu yang paling related ke pekerjaan ini\". Siapkan satu cerita konkret, dengan angka kalau bisa.",
+      "2. \"Kenapa kami harus pilih kamu?\". Jangan jawab generik, sebut satu hal spesifik dari job desc yang kamu bisa berikan.",
+      "3. \"Kapan kamu bisa mulai?\". Jawab langsung, jangan ragu.",
       "",
       "Mau saya bantu kamu latihan satu pertanyaan?",
     ].join("\n");

@@ -535,40 +535,9 @@ export function calcMatch(candidate: Candidate, job: Job) {
 
 type SkillStateExt = "match" | "improve" | "missing";
 
-export function formatIdr(n: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
-export function levelLabel(n: number) {
-  if (n >= 3) return "Mahir";
-  if (n === 2) return "Menengah";
-  if (n === 1) return "Dasar";
-  return "Belum ada";
-}
-
-export function formatRelativeId(iso: string, now: Date = new Date()): string {
-  const d = new Date(iso);
-  const ms = now.getTime() - d.getTime();
-  const min = Math.round(ms / 60000);
-  if (min < 1) return "baru saja";
-  if (min < 60) return `${min} menit lalu`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr} jam lalu`;
-  const day = Math.round(hr / 24);
-  if (day < 7) return `${day} hari lalu`;
-  if (day < 30) return `${Math.round(day / 7)} minggu lalu`;
-  if (day < 365) return `${Math.round(day / 30)} bulan lalu`;
-  return `${Math.round(day / 365)} tahun lalu`;
-}
-
-export function formatDateId(iso: string): string {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(iso));
-}
+export {
+  formatIdr,
+  levelLabel,
+  formatRelativeId,
+  formatDateId,
+} from "./format";

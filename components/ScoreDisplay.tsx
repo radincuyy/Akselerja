@@ -1,3 +1,5 @@
+import { scoreBandLabel } from "@/lib/format";
+
 type Tone = "default" | "warning" | "low";
 
 type Props = {
@@ -31,19 +33,30 @@ export default function ScoreDisplay({
       : size === "sm"
         ? "text-3xl"
         : "text-5xl";
+  const tones = toneClasses(score, tone);
+  // Only show band label when tone is auto (score-driven), not for explicit
+  // warning/low tones used for non-match meanings.
+  const showBand = tone === undefined || tone === "default";
 
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium text-(--color-muted)">
         {label}
       </p>
-      <div className="flex items-baseline gap-2">
-        <span
-          className={`${numberClass} font-semibold leading-none tracking-tight tabular-nums ${toneClasses(score, tone)}`}
-        >
-          {score}
-        </span>
-        <span className="text-xl font-medium text-(--color-muted)">%</span>
+      <div className="flex items-baseline gap-3">
+        <div className="flex items-baseline gap-2">
+          <span
+            className={`${numberClass} font-semibold leading-none tracking-tight tabular-nums ${tones}`}
+          >
+            {score}
+          </span>
+          <span className="text-xl font-medium text-(--color-muted)">%</span>
+        </div>
+        {showBand ? (
+          <span className={`text-sm font-medium ${tones}`}>
+            {scoreBandLabel(score)}
+          </span>
+        ) : null}
       </div>
       <p className="max-w-md text-sm leading-relaxed text-(--color-ink)">
         {explanation}

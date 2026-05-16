@@ -212,15 +212,6 @@ export function setStatus(
   return app;
 }
 
-export function autoTriggerReview(candidateId: string, jobId: string) {
-  seed();
-  const app = findApplication(candidateId, jobId);
-  if (!app) return;
-  if (app.status === "submitted") {
-    setStatus(app.id, "reviewing", "system");
-  }
-}
-
 export function setRating(applicationId: string, rating: 1 | 2 | 3 | 4 | 5 | 0): Application | undefined {
   seed();
   const app = applications.find((a) => a.id === applicationId);

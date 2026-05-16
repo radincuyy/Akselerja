@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Step = "cv" | "profile" | "preferences";
@@ -15,6 +15,15 @@ export default function OnboardingFlow() {
   const [step, setStep] = useState<Step>("cv");
   const [submitting, setSubmitting] = useState(false);
   const [extractedSkills, setExtractedSkills] = useState<string[] | null>(null);
+
+  const cvId = useId();
+  const eduId = useId();
+  const expYearsId = useId();
+  const locationId = useId();
+  const bioId = useId();
+  const jobTypeId = useId();
+  const salaryId = useId();
+  const industryId = useId();
 
   function next() {
     if (step === "cv") setStep("profile");
@@ -108,7 +117,11 @@ export default function OnboardingFlow() {
 
             {!extractedSkills ? (
               <form onSubmit={handleCvSubmit} className="mt-8 max-w-md">
+                <label htmlFor={cvId} className="sr-only">
+                  Pilih file CV
+                </label>
                 <input
+                  id={cvId}
                   type="file"
                   accept=".pdf,.doc,.docx"
                   required
@@ -185,10 +198,11 @@ export default function OnboardingFlow() {
               className="mt-8 grid max-w-xl gap-5 sm:grid-cols-2"
             >
               <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-xs font-medium tracking-wide text-(--color-muted)">
+                <label htmlFor={eduId} className="text-xs font-medium tracking-wide text-(--color-muted)">
                   Pendidikan terakhir
                 </label>
                 <input
+                  id={eduId}
                   type="text"
                   required
                   defaultValue="D3 Manajemen Logistik · Politeknik APP Jakarta"
@@ -196,10 +210,11 @@ export default function OnboardingFlow() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium tracking-wide text-(--color-muted)">
+                <label htmlFor={expYearsId} className="text-xs font-medium tracking-wide text-(--color-muted)">
                   Tahun pengalaman kerja
                 </label>
                 <input
+                  id={expYearsId}
                   type="number"
                   required
                   min={0}
@@ -209,10 +224,11 @@ export default function OnboardingFlow() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium tracking-wide text-(--color-muted)">
+                <label htmlFor={locationId} className="text-xs font-medium tracking-wide text-(--color-muted)">
                   Lokasi sekarang
                 </label>
                 <input
+                  id={locationId}
                   type="text"
                   required
                   defaultValue="Bekasi, Jawa Barat"
@@ -220,10 +236,11 @@ export default function OnboardingFlow() {
                 />
               </div>
               <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-xs font-medium tracking-wide text-(--color-muted)">
+                <label htmlFor={bioId} className="text-xs font-medium tracking-wide text-(--color-muted)">
                   Tentang kamu (1-2 kalimat)
                 </label>
                 <textarea
+                  id={bioId}
                   rows={3}
                   defaultValue="Fresh graduate D3 Logistik dengan pengalaman magang 1 tahun di gudang ritel. Tertarik di bidang logistik dan operasional."
                   className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) focus:border-(--color-teal)"
@@ -261,10 +278,11 @@ export default function OnboardingFlow() {
             </h2>
             <form onSubmit={handleSubmit} className="mt-8 grid max-w-xl gap-5 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium tracking-wide text-(--color-muted)">
+                <label htmlFor={jobTypeId} className="text-xs font-medium tracking-wide text-(--color-muted)">
                   Tipe pekerjaan
                 </label>
                 <select
+                  id={jobTypeId}
                   required
                   defaultValue="Full-time"
                   className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) focus:border-(--color-teal)"
@@ -276,10 +294,11 @@ export default function OnboardingFlow() {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium tracking-wide text-(--color-muted)">
+                <label htmlFor={salaryId} className="text-xs font-medium tracking-wide text-(--color-muted)">
                   Ekspektasi gaji bulanan (Rp)
                 </label>
                 <input
+                  id={salaryId}
                   type="number"
                   required
                   defaultValue={5000000}
@@ -288,10 +307,11 @@ export default function OnboardingFlow() {
                 />
               </div>
               <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-xs font-medium tracking-wide text-(--color-muted)">
+                <label htmlFor={industryId} className="text-xs font-medium tracking-wide text-(--color-muted)">
                   Industri yang diminati
                 </label>
                 <input
+                  id={industryId}
                   type="text"
                   defaultValue="Logistik, Manufaktur, Ritel"
                   className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) focus:border-(--color-teal)"

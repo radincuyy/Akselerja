@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Job } from "@/lib/types";
-import { formatIdr } from "@/lib/mock-data";
+import { formatIdr, scoreBandLabel } from "@/lib/format";
 
 type Props = {
   job: Job;
@@ -30,7 +30,7 @@ export default function JobCard({ job, matchScore, topReason, ctaPath }: Props) 
             </p>
           </div>
           <div className="text-right">
-            <div className="flex items-baseline gap-1">
+            <div className="flex items-baseline justify-end gap-1">
               <span
                 className={`text-2xl font-semibold leading-none tabular-nums ${matchTone(matchScore)}`}
               >
@@ -38,8 +38,8 @@ export default function JobCard({ job, matchScore, topReason, ctaPath }: Props) 
               </span>
               <span className="text-sm text-(--color-muted)">%</span>
             </div>
-            <p className="text-[11px] uppercase tracking-wider text-(--color-muted)">
-              cocok
+            <p className={`text-xs font-medium ${matchTone(matchScore)}`}>
+              {scoreBandLabel(matchScore)}
             </p>
           </div>
         </div>

@@ -20,7 +20,7 @@ export default function Logo({ className }: Props) {
       <text
         x="29"
         y="17"
-        fontFamily="General Sans, system-ui, sans-serif"
+        fontFamily="var(--font-sans)"
         fontWeight="600"
         fontSize="16"
         letterSpacing="-0.01em"

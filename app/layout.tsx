@@ -1,5 +1,30 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
+
+const generalSans = localFont({
+  src: [
+    {
+      path: "../public/fonts/GeneralSans-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/GeneralSans-Medium.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/GeneralSans-Semibold.woff2",
+      weight: "600",
+      style: "normal",
+    },
+  ],
+  variable: "--font-general-sans",
+  display: "swap",
+  preload: true,
+  fallback: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+});
 
 export const metadata: Metadata = {
   title: "Akselerja, cari kerja yang cocok dengan kemampuanmu",
@@ -16,7 +41,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f8f6f1",
+  themeColor: "#faf8f3",
   width: "device-width",
   initialScale: 1,
 };
@@ -27,20 +52,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
-      <head>
-        <link rel="preconnect" href="https://api.fontshare.com" />
-        <link
-          rel="preconnect"
-          href="https://cdn.fontshare.com"
-          crossOrigin=""
-        />
-        <link
-          rel="stylesheet"
-          href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap"
-        />
-      </head>
-      <body>{children}</body>
+    <html lang="id" className={generalSans.variable}>
+      <body>
+        <a href="#main" className="skip-link">
+          Lewat ke konten utama
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

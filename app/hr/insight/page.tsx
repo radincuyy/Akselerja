@@ -96,21 +96,31 @@ export default function HrInsightPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-muted)">
             Distribusi lokasi kandidat
           </h2>
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {locations.map((l) => (
-              <li
-                key={l.name}
-                className="rounded-md border border-(--color-line) bg-(--color-tint) p-4"
-              >
-                <p className="text-xs font-medium uppercase tracking-wider text-(--color-muted)">
-                  {l.name}
-                </p>
-                <p className="mt-2 text-2xl font-semibold tabular-nums text-(--color-ink)">
-                  {l.count}
-                </p>
-                <p className="text-xs text-(--color-muted)">kandidat</p>
-              </li>
-            ))}
+          <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
+            Total {locations.reduce((sum, l) => sum + l.count, 0)} kandidat dari{" "}
+            {locations.length} kota berbeda.
+          </p>
+          <ul className="mt-5 space-y-4">
+            {locations.map((l) => {
+              const total = locations.reduce((sum, x) => sum + x.count, 0);
+              const share = Math.round((l.count / (total || 1)) * 100);
+              return (
+                <li key={l.name}>
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="font-medium text-(--color-ink)">{l.name}</span>
+                    <span className="text-(--color-muted)">
+                      {l.count} kandidat · {share}%
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-(--color-line)">
+                    <div
+                      className="h-full rounded-full bg-(--color-teal)"
+                      style={{ width: `${share}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
 

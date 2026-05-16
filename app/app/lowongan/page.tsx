@@ -118,11 +118,11 @@ function FilterChip({
   return (
     <Link
       href={href}
-      aria-current={active ? "true" : undefined}
+      aria-current={active ? "page" : undefined}
       className={
         active
-          ? "rounded-full bg-(--color-teal) px-3.5 py-1.5 text-xs font-medium text-(--color-paper-on-teal)"
-          : "rounded-full border border-(--color-line) bg-(--color-paper) px-3.5 py-1.5 text-xs font-medium text-(--color-muted) hover:border-(--color-ink)/40 hover:text-(--color-ink)"
+          ? "inline-flex min-h-11 items-center rounded-full bg-(--color-teal) px-4 py-2 text-xs font-medium text-(--color-paper-on-teal)"
+          : "inline-flex min-h-11 items-center rounded-full border border-(--color-line) bg-(--color-paper) px-4 py-2 text-xs font-medium text-(--color-muted) hover:border-(--color-ink)/40 hover:text-(--color-ink)"
       }
     >
       {label}

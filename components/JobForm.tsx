@@ -77,6 +77,10 @@ export default function JobForm({ mode, skills }: Props) {
   useEffect(() => {
     if (state && !state.ok && errorAnchorRef.current) {
       errorAnchorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      const firstInvalid = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+      if (firstInvalid) {
+        setTimeout(() => firstInvalid.focus({ preventScroll: true }), 250);
+      }
     }
   }, [state]);
 
@@ -118,7 +122,7 @@ export default function JobForm({ mode, skills }: Props) {
       : null;
 
   return (
-    <form action={formAction} onChange={() => setDirty(true)} className="mt-10 space-y-12">
+    <form action={formAction} onChange={() => setDirty(true)} className="mt-10 space-y-12 pb-24 sm:pb-28">
       <div ref={errorAnchorRef} aria-hidden />
       {state && !state.ok ? (
         <div
@@ -331,7 +335,7 @@ export default function JobForm({ mode, skills }: Props) {
         )}
 
         {errors.requirements ? (
-          <p role="alert" className="mt-3 text-xs font-medium text-(--color-signal-clay)">
+          <p className="mt-3 text-xs font-medium text-(--color-signal-clay)">
             {errors.requirements}
           </p>
         ) : null}
@@ -371,7 +375,7 @@ function SkillPicker({
           onChange={(e) => setValue(e.target.value)}
           className="mt-1 w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3 py-2 text-sm text-(--color-ink) focus:border-(--color-teal)"
         >
-          <option value="">— Pilih skill —</option>
+          <option value="">Pilih skill…</option>
           {skills.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -507,7 +511,7 @@ function Field({
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} role="alert" className="text-xs font-medium text-(--color-signal-clay)">
+        <p id={errorId} className="text-xs font-medium text-(--color-signal-clay)">
           {error}
         </p>
       ) : null}
@@ -555,7 +559,7 @@ function SelectField({
         ))}
       </select>
       {error ? (
-        <p id={errorId} role="alert" className="text-xs font-medium text-(--color-signal-clay)">
+        <p id={errorId} className="text-xs font-medium text-(--color-signal-clay)">
           {error}
         </p>
       ) : null}

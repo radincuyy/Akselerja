@@ -70,7 +70,7 @@ export default function HrNotesPanel({ applicationId, rating, notes }: Props) {
                 onMouseEnter={() => setHover(n)}
                 onFocus={() => setHover(n)}
                 onClick={() => setStars(n)}
-                className="group p-1"
+                className="group inline-flex h-11 w-11 items-center justify-center rounded-md"
               >
                 <svg
                   width="20"

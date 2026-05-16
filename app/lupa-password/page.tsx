@@ -25,7 +25,7 @@ export default function LupaPasswordPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-16 sm:px-8">
+    <main id="main" className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-16 sm:px-8">
       <Link
         href="/masuk"
         className="inline-flex items-center gap-1.5 text-sm text-(--color-muted) hover:text-(--color-ink)"

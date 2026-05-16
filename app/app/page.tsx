@@ -142,7 +142,7 @@ export default function CandidateHome() {
                     <span aria-hidden className="block">
                       {isNew ? (
                         <span className="relative flex h-2.5 w-2.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-(--color-teal) opacity-50" />
+                          <span className="absolute inline-flex h-full w-full pulse-once rounded-full bg-(--color-teal) opacity-50" />
                           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-(--color-teal)" />
                         </span>
                       ) : (

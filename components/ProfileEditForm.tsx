@@ -43,11 +43,16 @@ export default function ProfileEditForm({ profile }: Props) {
 
   const errors = state && !state.ok ? state.errors : {};
 
-  // Scroll to first error on submit failure.
+  // Scroll to first error on submit failure, then focus first invalid input.
   const errorAnchorRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (state && !state.ok && errorAnchorRef.current) {
       errorAnchorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      const firstInvalid = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+      if (firstInvalid) {
+        // Wait for scroll, then focus
+        setTimeout(() => firstInvalid.focus({ preventScroll: true }), 250);
+      }
     }
   }, [state]);
 
@@ -106,7 +111,7 @@ export default function ProfileEditForm({ profile }: Props) {
   }
 
   return (
-    <form action={formAction} onChange={() => setDirty(true)} className="mt-10 space-y-12">
+    <form action={formAction} onChange={() => setDirty(true)} className="mt-10 space-y-12 pb-24 sm:pb-28">
       <div ref={errorAnchorRef} aria-hidden />
       {state && !state.ok ? (
         <div

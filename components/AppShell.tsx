@@ -121,7 +121,7 @@ export default function AppShell({ variant, active, children }: Props) {
             </div>
             <div
               aria-hidden
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-(--color-teal-deep) text-sm font-semibold text-(--color-paper-on-teal)"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-(--color-teal-deep) text-sm font-semibold text-(--color-paper-on-teal)"
             >
               {initials}
             </div>
@@ -129,7 +129,7 @@ export default function AppShell({ variant, active, children }: Props) {
               href={variant === "candidate" ? "/app/pengaturan" : "/hr/pengaturan"}
               aria-label="Pengaturan akun"
               title="Pengaturan"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-(--color-line) text-(--color-muted) transition-colors hover:border-(--color-ink) hover:text-(--color-ink)"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-(--color-line) text-(--color-muted) transition-colors hover:border-(--color-ink) hover:text-(--color-ink)"
             >
               <svg
                 aria-hidden
@@ -150,7 +150,7 @@ export default function AppShell({ variant, active, children }: Props) {
               href="/"
               aria-label="Keluar dari akun"
               title="Keluar"
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-(--color-line) px-2.5 text-sm text-(--color-muted) transition-colors hover:border-(--color-ink) hover:text-(--color-ink) sm:px-3"
+              className="inline-flex h-11 items-center gap-1.5 rounded-md border border-(--color-line) px-3 text-sm text-(--color-muted) transition-colors hover:border-(--color-ink) hover:text-(--color-ink) sm:px-3.5"
             >
               <svg
                 aria-hidden
@@ -174,7 +174,7 @@ export default function AppShell({ variant, active, children }: Props) {
         <MobileNav items={items} active={active} lamaranNewCount={lamaranNewCount} />
       </header>
 
-      <main className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-12">
+      <main id="main" className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-12">
         {children}
       </main>
     </div>

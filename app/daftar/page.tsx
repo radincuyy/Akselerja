@@ -3,7 +3,7 @@ import Logo from "@/components/Logo";
 
 export default function DaftarPage() {
   return (
-    <main className="min-h-svh bg-(--color-paper)">
+    <main id="main" className="min-h-svh bg-(--color-paper)">
       <header className="border-b border-(--color-line)">
         <div className="mx-auto flex h-14 max-w-3xl items-center px-5 sm:px-8">
           <Link href="/" aria-label="Akselerja" className="text-(--color-ink)">

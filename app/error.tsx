@@ -16,7 +16,7 @@ export default function RootError({
   }, [error]);
 
   return (
-    <main className="mx-auto flex min-h-[70vh] max-w-2xl flex-col justify-center px-5 py-16 sm:px-8">
+    <main id="main" className="mx-auto flex min-h-[70vh] max-w-2xl flex-col justify-center px-5 py-16 sm:px-8">
       <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--color-muted)">
         Ada yang salah di sisi kami
       </p>

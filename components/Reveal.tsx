@@ -15,9 +15,13 @@ export default function Reveal({
   delay = 0,
 }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [visible, setVisible] = useState(false);
+  // Default true for SSR/no-JS so content is visible without hydration.
+  // useEffect flips to false then animates in once observed.
+  const [visible, setVisible] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    setHydrated(true);
     const node = ref.current;
     if (!node) return;
     if (
@@ -27,6 +31,7 @@ export default function Reveal({
       setVisible(true);
       return;
     }
+    setVisible(false);
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -41,7 +46,11 @@ export default function Reveal({
   }, [delay]);
 
   return (
-    <div ref={ref} className={`reveal ${className}`} data-visible={visible}>
+    <div
+      ref={ref}
+      className={`${hydrated ? "reveal" : ""} ${className}`}
+      data-visible={visible}
+    >
       {children}
     </div>
   );

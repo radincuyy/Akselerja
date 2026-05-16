@@ -50,7 +50,7 @@ export default function CandidateSearchInput({ initial }: Props) {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Cari nama kandidat…"
-          className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3 py-1.5 text-sm text-(--color-ink) placeholder:text-(--color-muted) focus:border-(--color-teal)"
+          className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3 py-2.5 text-sm text-(--color-ink) placeholder:text-(--color-muted) focus:border-(--color-teal)"
         />
         {isPending ? (
           <span

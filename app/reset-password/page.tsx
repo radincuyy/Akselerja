@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function ResetPasswordPage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-16 sm:px-8">
+    <main id="main" className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-16 sm:px-8">
       <h1 className="text-2xl font-semibold tracking-tight text-(--color-ink) sm:text-3xl">
         Atur password baru
       </h1>

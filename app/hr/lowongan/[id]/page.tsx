@@ -16,6 +16,7 @@ import {
   statusGroup,
 } from "@/lib/applications-store";
 import { closeJobAction, reopenJobAction } from "@/lib/job-actions";
+import { scoreBandLabel } from "@/lib/format";
 import type { ApplicationStatus } from "@/lib/types";
 
 type Params = Promise<{ id: string }>;
@@ -174,8 +175,8 @@ export default async function HrJobCandidatesPage({
                 aria-current={isActive ? "page" : undefined}
                 className={
                   isActive
-                    ? "rounded-full bg-(--color-teal) px-3.5 py-1.5 text-xs font-medium text-(--color-paper-on-teal)"
-                    : "rounded-full border border-(--color-line) bg-(--color-paper) px-3.5 py-1.5 text-xs font-medium text-(--color-muted) hover:border-(--color-ink)/40 hover:text-(--color-ink)"
+                    ? "inline-flex min-h-11 items-center rounded-full bg-(--color-teal) px-4 py-2 text-xs font-medium text-(--color-paper-on-teal)"
+                    : "inline-flex min-h-11 items-center rounded-full border border-(--color-line) bg-(--color-paper) px-4 py-2 text-xs font-medium text-(--color-muted) hover:border-(--color-ink)/40 hover:text-(--color-ink)"
                 }
               >
                 {f.label}
@@ -196,6 +197,9 @@ export default async function HrJobCandidatesPage({
       ) : (
         <div className="mt-6 overflow-hidden rounded-lg border border-(--color-line) bg-(--color-paper)">
           <table className="w-full text-left text-sm">
+            <caption className="sr-only">
+              Daftar kandidat untuk {job.title}, diurutkan dari match score tertinggi.
+            </caption>
             <thead className="bg-(--color-tint) text-xs uppercase tracking-wider text-(--color-muted)">
               <tr>
                 <th scope="col" className="px-5 py-3 font-medium">
@@ -284,22 +288,24 @@ function ScoreCell({ score }: { score: number }) {
       : score >= 50
         ? "text-(--color-signal-amber)"
         : "text-(--color-signal-clay)";
+  const fill =
+    score >= 75
+      ? "h-full bg-(--color-teal)"
+      : score >= 50
+        ? "h-full bg-(--color-signal-amber)"
+        : "h-full bg-(--color-signal-clay)";
   return (
     <div>
-      <span className={`text-base font-semibold tabular-nums ${tone}`}>
-        {score}%
-      </span>
+      <div className="flex items-baseline gap-2">
+        <span className={`text-base font-semibold tabular-nums ${tone}`}>
+          {score}%
+        </span>
+        <span className={`text-xs font-medium ${tone}`}>
+          {scoreBandLabel(score)}
+        </span>
+      </div>
       <div className="mt-1 h-1 w-24 overflow-hidden rounded-full bg-(--color-line)">
-        <div
-          className={
-            score >= 75
-              ? "h-full bg-(--color-teal)"
-              : score >= 50
-                ? "h-full bg-(--color-signal-amber)"
-                : "h-full bg-(--color-signal-clay)"
-          }
-          style={{ width: `${score}%` }}
-        />
+        <div className={fill} style={{ width: `${score}%` }} />
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ export default async function MasukPage({
 }) {
   const { reset } = await searchParams;
   return (
-    <main className="min-h-svh bg-(--color-paper)">
+    <main id="main" className="min-h-svh bg-(--color-paper)">
       <header className="border-b border-(--color-line)">
         <div className="mx-auto flex h-14 max-w-2xl items-center px-5 sm:px-8">
           <Link href="/" aria-label="Akselerja" className="text-(--color-ink)">

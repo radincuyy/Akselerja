@@ -98,6 +98,9 @@ export default function HrHome() {
 
           <div className="mt-6 overflow-hidden rounded-lg border border-(--color-line) bg-(--color-paper)">
             <table className="w-full text-left text-sm">
+              <caption className="sr-only">
+                Lowongan aktif dengan jumlah kandidat dan top match score, diurutkan dari yang paling baru.
+              </caption>
               <thead className="bg-(--color-tint) text-xs text-(--color-muted)">
                 <tr>
                   <th scope="col" className="px-5 py-3 font-medium">Posisi</th>
