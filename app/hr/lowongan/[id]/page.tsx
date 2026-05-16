@@ -300,8 +300,8 @@ function ScoreCell({ score }: { score: number }) {
         <span className={`text-base font-semibold tabular-nums ${tone}`}>
           {score}%
         </span>
-        <span className={`text-xs font-medium ${tone}`}>
-          {scoreBandLabel(score)}
+        <span className="text-xs font-medium text-(--color-muted)">
+          {scoreBandLabel(score, "hr")}
         </span>
       </div>
       <div className="mt-1 h-1 w-24 overflow-hidden rounded-full bg-(--color-line)">

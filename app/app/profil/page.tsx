@@ -2,8 +2,9 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
 import SkillBar from "@/components/SkillBar";
-import { skillById, formatIdr } from "@/lib/mock-data";
+import { assessments, skillById, formatIdr } from "@/lib/mock-data";
 import { formatPeriod, getProfile } from "@/lib/profile-store";
+import { completedAssessmentIds } from "@/lib/format";
 
 type SearchParams = Promise<{ saved?: string; cv?: string }>;
 
@@ -17,6 +18,44 @@ export default async function ProfilPage({
   const education = me.education ?? [];
   const experience = me.experience ?? [];
   const cv = me.cv;
+
+  const remainingAssessments = assessments.filter(
+    (a) => !completedAssessmentIds.has(a.id),
+  ).length;
+  const hasBio = Boolean(me.bio && me.bio.trim().length >= 30);
+
+  type Suggestion = { text: string; href: string };
+  const suggestions: Suggestion[] = [];
+  if (experience.length === 0) {
+    suggestions.push({
+      text: "Tambah satu pengalaman organisasi, magang, atau projek mandiri untuk memperkuat profil.",
+      href: "/app/profil/edit#pengalaman",
+    });
+  }
+  if (education.length === 0) {
+    suggestions.push({
+      text: "Lengkapi riwayat pendidikan supaya HR bisa memfilter posisi yang sesuai.",
+      href: "/app/profil/edit#pendidikan",
+    });
+  }
+  if (!hasBio) {
+    suggestions.push({
+      text: "Tulis 1 sampai 2 kalimat tentang dirimu, supaya HR cepat tangkap konteksmu.",
+      href: "/app/profil/edit",
+    });
+  }
+  if (!cv) {
+    suggestions.push({
+      text: "Upload CV agar profil terisi otomatis dan match score lebih akurat.",
+      href: "/app/profil/cv",
+    });
+  }
+  if (remainingAssessments > 0) {
+    suggestions.push({
+      text: `Selesaikan ${remainingAssessments} assessment lagi untuk skor kesiapan yang lebih akurat.`,
+      href: "/app/assessment",
+    });
+  }
 
   return (
     <AppShell variant="candidate" active="/app/profil">
@@ -208,25 +247,37 @@ export default async function ProfilPage({
             </Link>
           </div>
 
-          <div className="rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
-            <p className="text-sm font-semibold text-(--color-ink)">
-              Saran perbaikan profil
-            </p>
-            <ul className="mt-3 space-y-2 text-sm leading-relaxed text-(--color-muted)">
-              <li>
-                Tambahkan satu pengalaman organisasi atau projek mandiri untuk
-                memperkuat profil fresh graduate.
-              </li>
-              <li>
-                Selesaikan 3 assessment lagi untuk skor kesiapan yang lebih
-                akurat.
-              </li>
-              <li>
-                Belum ada sertifikat. Ikuti satu kursus gratis Akselerja untuk
-                badge pertama.
-              </li>
-            </ul>
-          </div>
+          {suggestions.length > 0 ? (
+            <div className="rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
+              <p className="text-sm font-semibold text-(--color-ink)">
+                Saran perbaikan profil
+              </p>
+              <ul className="mt-3 space-y-2.5 text-sm leading-relaxed text-(--color-muted)">
+                {suggestions.slice(0, 3).map((s) => (
+                  <li key={s.href} className="flex items-start gap-2">
+                    <span aria-hidden className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-(--color-muted)" />
+                    <Link
+                      href={s.href}
+                      className="hover:text-(--color-ink) hover:underline"
+                    >
+                      {s.text}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
+              <p className="text-sm font-semibold text-(--color-ink)">
+                Profilmu sudah lengkap
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
+                Pengalaman, pendidikan, bio, CV, dan semua assessment sudah
+                terisi. Sambil menunggu, kamu bisa lihat lowongan baru atau
+                tanya career coach untuk fokus berikutnya.
+              </p>
+            </div>
+          )}
 
           <div className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-(--color-muted)">

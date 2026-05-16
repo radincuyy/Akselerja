@@ -1,4 +1,4 @@
-import { scoreBandLabel } from "@/lib/format";
+import { scoreBandLabel, type ScoreAudience } from "@/lib/format";
 
 type Tone = "default" | "warning" | "low";
 
@@ -9,6 +9,7 @@ type Props = {
   action?: { label: string; href: string };
   size?: "sm" | "md" | "lg";
   tone?: Tone;
+  audience?: ScoreAudience;
 };
 
 function toneClasses(score: number, tone?: Tone) {
@@ -26,6 +27,7 @@ export default function ScoreDisplay({
   action,
   size = "md",
   tone,
+  audience = "candidate",
 }: Props) {
   const numberClass =
     size === "lg"
@@ -53,8 +55,8 @@ export default function ScoreDisplay({
           <span className="text-xl font-medium text-(--color-muted)">%</span>
         </div>
         {showBand ? (
-          <span className={`text-sm font-medium ${tones}`}>
-            {scoreBandLabel(score)}
+          <span className="text-sm font-medium text-(--color-muted)">
+            {scoreBandLabel(score, audience)}
           </span>
         ) : null}
       </div>

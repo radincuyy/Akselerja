@@ -121,7 +121,7 @@ export default function AppShell({ variant, active, children }: Props) {
             </div>
             <div
               aria-hidden
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-(--color-teal-deep) text-sm font-semibold text-(--color-paper-on-teal)"
+              className="hidden h-10 w-10 items-center justify-center rounded-full bg-(--color-teal-deep) text-sm font-semibold text-(--color-paper-on-teal) sm:flex"
             >
               {initials}
             </div>

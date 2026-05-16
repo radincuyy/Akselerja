@@ -2,8 +2,7 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
 import { assessments, skillById } from "@/lib/mock-data";
-
-const completed = new Set(["a-001"]);
+import { completedAssessmentIds } from "@/lib/format";
 
 export default function AssessmentListPage() {
   return (
@@ -16,7 +15,7 @@ export default function AssessmentListPage() {
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {assessments.map((a) => {
-          const isDone = completed.has(a.id);
+          const isDone = completedAssessmentIds.has(a.id);
           return (
             <article
               key={a.id}
