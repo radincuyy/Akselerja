@@ -40,6 +40,37 @@ export type Course = {
   description: string;
 };
 
+export type PracticeType =
+  | "case-simulation"
+  | "roleplay"
+  | "document-review"
+  | "design-brief";
+
+export type PracticeRubricCriterion = {
+  id: string;
+  name: string;
+  description: string;
+  weight: number;
+  signals: string[];
+};
+
+export type PracticeTask = {
+  id: string;
+  slug: string;
+  role: string;
+  title: string;
+  skillId: string;
+  level: 1 | 2 | 3;
+  type: PracticeType;
+  estimatedMinutes: number;
+  sourceLabel: string;
+  sourceNotes: string[];
+  scenario: string;
+  instructions: string[];
+  expectedEvidence: string[];
+  rubric: PracticeRubricCriterion[];
+};
+
 export type Education = {
   id: string;
   institution: string;

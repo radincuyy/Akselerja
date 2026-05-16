@@ -17,7 +17,11 @@ import { findApplication } from "@/lib/applications-store";
 
 type Params = Promise<{ id: string }>;
 
-export default async function LowonganDetailPage({ params }: { params: Params }) {
+export default async function LowonganDetailPage({
+  params,
+}: {
+  params: Params;
+}) {
   const { id } = await params;
   const job = jobs.find((j) => j.id === id);
   if (!job) notFound();
@@ -27,6 +31,11 @@ export default async function LowonganDetailPage({ params }: { params: Params })
   const matched = breakdown.filter((b) => b.state === "match");
   const improving = breakdown.filter((b) => b.state === "improve");
   const missing = breakdown.filter((b) => b.state === "missing");
+  const completedRoadmapJob =
+    job.id !== "j-001" && job.title === "Junior Admin Gudang"
+      ? jobs.find((j) => j.id === "j-001")
+      : null;
+  const companySpecificGaps = [...missing, ...improving].slice(0, 4);
 
   // Personalized learning path: top 3 courses for missing/improve skills
   const gapSkillIds = [...missing, ...improving].map((b) => b.skillId);
@@ -126,6 +135,46 @@ export default async function LowonganDetailPage({ params }: { params: Params })
               </ul>
             </div>
           </section>
+
+          {completedRoadmapJob ? (
+            <section className="mt-8 rounded-lg border border-(--color-line) bg-(--color-tint) p-6 sm:p-7">
+              <p className="text-sm font-semibold uppercase tracking-wider text-(--color-muted)">
+                Requirement perusahaan ini berbeda
+              </p>
+              <h2 className="mt-2 text-lg font-semibold tracking-tight text-(--color-ink)">
+                Judulnya sama, tapi skill targetnya tidak sama
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-(--color-muted)">
+                Kamu sudah menyelesaikan roadmap Warehouse Management System
+                untuk {completedRoadmapJob.company}. Untuk mencapai kebutuhan di{" "}
+                {job.company}, fokus tambahanmu adalah skill yang diminta
+                perusahaan ini.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {companySpecificGaps.length === 0 ? (
+                  <span className="rounded-full bg-(--color-paper) px-3 py-1 text-xs font-medium text-(--color-signal-green)">
+                    Tidak ada gap tambahan besar
+                  </span>
+                ) : (
+                  companySpecificGaps.map((gap) => (
+                    <span
+                      key={gap.skillId}
+                      className="rounded-full bg-(--color-paper) px-3 py-1 text-xs font-medium text-(--color-ink)"
+                    >
+                      {gap.name}: {levelLabel(gap.have)} →{" "}
+                      {levelLabel(gap.required)}
+                    </span>
+                  ))
+                )}
+              </div>
+              <Link
+                href={`/app/belajar?target=${job.id}`}
+                className="mt-5 inline-flex items-center justify-center rounded-md border border-(--color-line) bg-(--color-paper) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+              >
+                Buat roadmap tambahan
+              </Link>
+            </section>
+          ) : null}
 
           <section className="mt-8" aria-labelledby="path-heading">
             <h2
@@ -315,7 +364,14 @@ function StateBadge({ state }: { state: "match" | "improve" | "missing" }) {
     missing: {
       label: "Belum ada",
       cls: "bg-(--color-tint) text-(--color-signal-clay)",
-      icon: <path d="M3 7h8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />,
+      icon: (
+        <path
+          d="M3 7h8"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+        />
+      ),
     },
   }[state];
 
