@@ -357,7 +357,7 @@ export default async function BelajarPage({
               </p>
             </div>
             <div className="rounded-lg bg-(--color-tint) px-4 py-3 text-right">
-              <p className="text-xs uppercase tracking-wider text-(--color-muted)">
+              <p className="text-xs text-(--color-muted)">
                 Match score
               </p>
               <p className="text-3xl font-semibold tabular-nums text-(--color-teal)">
@@ -388,12 +388,12 @@ export default async function BelajarPage({
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-muted)">
+          <h2 className="text-sm font-medium text-(--color-muted)">
             Sedang dipelajari
           </h2>
           <div className="mt-4 rounded-lg border border-(--color-line) bg-(--color-paper) p-6">
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-(--color-teal)">
+              <p className="text-xs font-medium text-(--color-teal)">
                 Warehouse Management System
               </p>
               <span className="text-xs text-(--color-muted)">Gratis</span>
@@ -544,7 +544,7 @@ function NearbyJobsCard({
 }) {
   return (
     <section className="mt-4 rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-muted)">
+      <h2 className="text-sm font-medium text-(--color-muted)">
         Lowongan terdekat
       </h2>
       <div className="mt-4 space-y-3">
@@ -580,7 +580,7 @@ function ArchiveSummary({ score }: { score: number }) {
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-(--color-muted)">
+          <p className="text-xs font-medium text-(--color-muted)">
             Roadmap selesai
           </p>
           <p className="mt-1 text-sm font-medium text-(--color-ink)">
@@ -609,7 +609,7 @@ function SkillGroup({
 }) {
   return (
     <div className="rounded-md border border-(--color-line) bg-(--color-tint) p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-(--color-muted)">
+      <p className="text-xs font-medium text-(--color-muted)">
         {title}
       </p>
       <ul className="mt-3 space-y-2">
@@ -644,18 +644,47 @@ function LevelStatus({
   const required = levelLabel(item.required);
   if (item.have >= item.required) {
     return (
-      <span className="shrink-0 whitespace-nowrap rounded-full bg-(--color-paper) px-2.5 py-1 text-xs font-medium text-(--color-signal-green)">
+      <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-(--color-paper) px-2.5 py-1 text-xs font-medium text-(--color-signal-green)">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+          <path
+            d="M2.5 6.5 5 9l4.5-5.5"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
         Memenuhi · {have}
       </span>
     );
   }
+
+  const arrowColor =
+    tone === "green"
+      ? "text-(--color-signal-green)"
+      : "text-(--color-signal-amber)";
 
   return (
     <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs">
       <span className="rounded-full bg-(--color-paper) px-2 py-1 font-medium text-(--color-muted)">
         {have}
       </span>
-      <span className="text-(--color-muted)">→</span>
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="none"
+        aria-hidden
+        className={arrowColor}
+      >
+        <path
+          d="M3 7.5 6 4l3 3.5M6 4v6"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
       <span
         className={
           tone === "green"

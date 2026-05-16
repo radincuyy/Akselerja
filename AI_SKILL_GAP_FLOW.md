@@ -116,6 +116,13 @@ Tujuannya:
 - kandidat bisa mengulang latihan
 - sistem tidak perlu memberi roadmap yang sama terus-menerus
 
+> **Catatan demo:** Untuk prototype, isi arsip Junior Admin Gudang adalah
+> data pre-seed untuk persona Rahmat Saputra. SkillPracticeRunner di
+> `/app/belajar/[slug]` belum push hasil ke arsip secara live, karena
+> mock data tidak persisten antar session. Versi production akan
+> menyimpan jawaban, skor rubrik, dan feedback ke Cosmos DB lewat
+> server action saat kandidat menekan Nilai jawaban.
+
 ## Latihan Praktik
 
 Latihan tidak hanya quiz. Untuk skill kerja, bentuk latihan harus menyerupai pekerjaan nyata.

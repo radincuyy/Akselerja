@@ -110,14 +110,14 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
             </span>
           </div>
 
-          <h2 className="mt-6 text-sm font-semibold uppercase tracking-wider text-(--color-muted)">
+          <h2 className="mt-6 text-sm font-medium text-(--color-muted)">
             Skenario
           </h2>
           <p className="mt-3 text-base leading-relaxed text-(--color-ink)">
             {task.scenario}
           </p>
 
-          <h2 className="mt-7 text-sm font-semibold uppercase tracking-wider text-(--color-muted)">
+          <h2 className="mt-7 text-sm font-medium text-(--color-muted)">
             Tugas
           </h2>
           <ol className="mt-3 space-y-2">
@@ -141,7 +141,7 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
         >
           <label
             htmlFor="practice-answer"
-            className="text-sm font-semibold uppercase tracking-wider text-(--color-muted)"
+            className="text-sm font-medium text-(--color-muted)"
           >
             Jawaban kandidat
           </label>
@@ -164,17 +164,21 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
             <button
               type="submit"
               disabled={!answer.trim()}
-              className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
             >
-              Nilai dengan AI
+              Nilai jawaban
             </button>
           </div>
         </form>
 
         {submitted ? (
           <section className="mt-6 rounded-lg border border-(--color-teal) bg-(--color-teal-soft) p-6 sm:p-7">
-            <p className="text-xs font-medium uppercase tracking-wider text-(--color-teal-deep)">
-              Feedback AI berbasis rubrik
+            <p className="text-sm font-medium text-(--color-teal-deep)">
+              Feedback rubrik
+            </p>
+            <p className="mt-1 text-xs text-(--color-muted)">
+              Demo: skor dihitung dari sinyal di rubrik. Versi production memakai
+              Azure OpenAI dengan rubrik yang sama.
             </p>
             <div className="mt-4 flex flex-wrap items-end gap-3">
               <span className="text-6xl font-semibold leading-none tabular-nums text-(--color-teal)">
@@ -248,7 +252,7 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
 
       <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
         <section className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-muted)">
+          <h2 className="text-sm font-medium text-(--color-muted)">
             Timer latihan
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
@@ -303,7 +307,7 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
         </section>
 
         <section className="rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-muted)">
+          <h2 className="text-sm font-medium text-(--color-muted)">
             Bukti yang dicari
           </h2>
           <ul className="mt-4 space-y-2">

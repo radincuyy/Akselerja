@@ -77,7 +77,7 @@ export default function JuniorAdminGudangArchivePage() {
           description="Riwayat latihan, jawaban terakhir, dan feedback rubrik yang dipakai sebagai bukti kesiapan Rahmat."
           action={
             <div className="rounded-lg bg-(--color-tint) px-4 py-3 text-right">
-              <p className="text-xs uppercase tracking-wider text-(--color-muted)">
+              <p className="text-xs text-(--color-muted)">
                 Rata-rata rubrik
               </p>
               <p className="text-3xl font-semibold tabular-nums text-(--color-teal)">
@@ -97,7 +97,7 @@ export default function JuniorAdminGudangArchivePage() {
               className="flex flex-col rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
             >
               <div className="flex items-baseline justify-between gap-3">
-                <p className="text-xs font-medium uppercase tracking-wider text-(--color-teal)">
+                <p className="text-xs font-medium text-(--color-teal)">
                   {skill?.name ?? "Skill"}
                 </p>
                 <span className="rounded-full bg-(--color-tint) px-2.5 py-1 text-xs font-semibold text-(--color-signal-green)">
@@ -112,7 +112,7 @@ export default function JuniorAdminGudangArchivePage() {
               </p>
 
               <div className="mt-5 rounded-md bg-(--color-tint) p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-(--color-muted)">
+                <p className="text-xs font-medium text-(--color-muted)">
                   Jawaban terakhir
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-(--color-ink)">
@@ -121,7 +121,7 @@ export default function JuniorAdminGudangArchivePage() {
               </div>
 
               <div className="mt-4 flex-1 rounded-md border border-(--color-line) p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-(--color-muted)">
+                <p className="text-xs font-medium text-(--color-muted)">
                   Feedback AI
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
