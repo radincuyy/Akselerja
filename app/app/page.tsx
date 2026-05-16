@@ -15,8 +15,11 @@ import {
   isUpdatedSinceSeen,
   listApplicationsForCandidate,
 } from "@/lib/applications-store";
+import { getProfile } from "@/lib/profile-store";
+import { completedAssessmentIds } from "@/lib/format";
 
 export default function CandidateHome() {
+  const profile = getProfile();
   const openJobs = jobs.filter((j) => j.status !== "closed");
   const ranked = openJobs
     .map((job) => ({ job, ...calcMatch(me, job) }))
@@ -209,22 +212,86 @@ export default function CandidateHome() {
         >
           Langkah berikutnya untukmu
         </h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <NextStep
-            eyebrow="Assessment"
-            title={`Ikuti tes ${assessments[0].title}`}
-            body="10 soal, sekitar 12 menit. Skor kesiapanmu naik begitu selesai."
-            href={`/app/assessment/${assessments[0].slug}`}
-          />
-          <NextStep
-            eyebrow="Profil"
-            title="Tambah pengalaman organisasi"
-            body="Pengalaman organisasi memperkuat profil kandidat fresh graduate."
-            href="/app/profil"
-          />
-        </div>
+        <NextSteps profile={profile} />
       </section>
     </AppShell>
+  );
+}
+
+function NextSteps({
+  profile,
+}: {
+  profile: ReturnType<typeof getProfile>;
+}) {
+  const nextAssessment = assessments.find(
+    (a) => !completedAssessmentIds.has(a.id),
+  );
+  const hasExperience = (profile.experience?.length ?? 0) > 0;
+  const hasEducation = (profile.education?.length ?? 0) > 0;
+  const hasCv = Boolean(profile.cv);
+
+  type Step = { eyebrow: string; title: string; body: string; href: string };
+  const steps: Step[] = [];
+  if (nextAssessment) {
+    steps.push({
+      eyebrow: "Assessment",
+      title: `Ikuti tes ${nextAssessment.title}`,
+      body: `${nextAssessment.questionCount} soal, sekitar ${nextAssessment.durationMinutes} menit. Skor kesiapanmu naik begitu selesai.`,
+      href: `/app/assessment/${nextAssessment.slug}`,
+    });
+  }
+  if (!hasCv) {
+    steps.push({
+      eyebrow: "Profil",
+      title: "Upload CV biar profil terisi otomatis",
+      body: "Kami ekstrak skill, pendidikan, dan pengalaman dari CV-mu. Hemat waktu, lebih akurat.",
+      href: "/app/profil/cv",
+    });
+  } else if (!hasExperience) {
+    steps.push({
+      eyebrow: "Profil",
+      title: "Tambah pengalaman organisasi atau magang",
+      body: "Pengalaman organisasi memperkuat profil kandidat fresh graduate.",
+      href: "/app/profil/edit#pengalaman",
+    });
+  } else if (!hasEducation) {
+    steps.push({
+      eyebrow: "Profil",
+      title: "Lengkapi riwayat pendidikan",
+      body: "HR sering memfilter berdasarkan pendidikan. Isi sebentar saja.",
+      href: "/app/profil/edit#pendidikan",
+    });
+  } else {
+    steps.push({
+      eyebrow: "Coach",
+      title: "Tanya career coach untuk fokus berikutnya",
+      body: "Profil sudah lengkap, assessment sudah jalan. Coach bisa bantu pilih langkah berikutnya yang paling berdampak.",
+      href: "/app/coach",
+    });
+  }
+
+  if (steps.length === 1) {
+    // Add a low-pressure secondary if only one step is available.
+    steps.push({
+      eyebrow: "Belajar",
+      title: "Lihat kursus yang menutup skill gap kamu",
+      body: "Kursus singkat di area yang paling sering muncul di lowongan target.",
+      href: "/app/belajar",
+    });
+  }
+
+  return (
+    <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      {steps.slice(0, 2).map((s) => (
+        <NextStep
+          key={s.href}
+          eyebrow={s.eyebrow}
+          title={s.title}
+          body={s.body}
+          href={s.href}
+        />
+      ))}
+    </div>
   );
 }
 

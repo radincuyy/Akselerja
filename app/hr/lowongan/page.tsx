@@ -2,6 +2,7 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
 import { calcMatch, candidates, jobs, formatIdr } from "@/lib/mock-data";
+import { listApplicationsForJob } from "@/lib/applications-store";
 
 export default function HrJobsPage() {
   return (
@@ -22,9 +23,13 @@ export default function HrJobsPage() {
 
       <div className="mt-8 grid gap-4">
         {jobs.map((job) => {
-          const matched = candidates.filter((c) => c.id !== "me");
-          const top = matched
-            .map((c) => calcMatch(c, job).score)
+          const applicants = listApplicationsForJob(job.id);
+          const applicantCount = applicants.length;
+          const top = applicants
+            .map((a) => {
+              const cand = candidates.find((c) => c.id === a.candidateId);
+              return cand ? calcMatch(cand, job).score : 0;
+            })
             .sort((a, b) => b - a)[0] ?? 0;
           return (
             <article
@@ -45,12 +50,15 @@ export default function HrJobsPage() {
                 </div>
                 <div className="text-right text-xs text-(--color-muted)">
                   <p>
-                    <span className="font-medium tabular-nums text-(--color-ink)">{matched.length}</span> kandidat
+                    <span className="font-medium tabular-nums text-(--color-ink)">{applicantCount}</span>{" "}
+                    {applicantCount === 0 ? "belum ada lamaran" : "kandidat"}
                   </p>
-                  <p>
-                    Top match{" "}
-                    <span className="font-medium tabular-nums text-(--color-teal)">{top}%</span>
-                  </p>
+                  {applicantCount > 0 ? (
+                    <p>
+                      Top match{" "}
+                      <span className="font-medium tabular-nums text-(--color-teal)">{top}%</span>
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-(--color-muted)">

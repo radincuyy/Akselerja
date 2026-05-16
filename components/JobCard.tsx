@@ -38,8 +38,8 @@ export default function JobCard({ job, matchScore, topReason, ctaPath }: Props) 
               </span>
               <span className="text-sm text-(--color-muted)">%</span>
             </div>
-            <p className={`text-xs font-medium ${matchTone(matchScore)}`}>
-              {scoreBandLabel(matchScore)}
+            <p className="text-xs font-medium text-(--color-muted)">
+              {scoreBandLabel(matchScore, "candidate")}
             </p>
           </div>
         </div>
