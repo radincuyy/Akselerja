@@ -58,6 +58,7 @@ desktop.ini
 .claude/settings.local.json
 
 # Internal docs
-DESIGN.md
-PLAN.md
-PRODUCT.md
+docs/
+
+# Scraped raw data (not committed; regenerate via scripts/scrape-karirhub.ts)
+data/
