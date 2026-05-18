@@ -2,6 +2,8 @@ import { skillById } from "./skills";
 import type { Candidate } from "./types";
 import { embedText } from "./gemini-embed";
 import { CONTAINERS, getContainer } from "./db";
+import { revalidateTag } from "next/cache";
+import { profileCacheTag } from "./profile-store";
 
 function buildProfileText(profile: Candidate): string {
   const skills = (profile.skills ?? [])
@@ -89,6 +91,7 @@ export async function refreshProfileVector(userId: string): Promise<void> {
       { op: "set", path: "/profileVector", value: vector },
       { op: "set", path: "/profileVectorUpdatedAt", value: new Date().toISOString() },
     ]);
+    revalidateTag(profileCacheTag(userId));
   } catch (err) {
     console.error("[profile-summary] refresh failed for", userId, err);
   }

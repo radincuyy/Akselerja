@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { signOut } from "@/auth";
 import { deleteBlob, isBlobConfigured, uploadCv } from "./blob-store";
@@ -10,6 +10,7 @@ import {
   mergeSkillsAsync,
   newEducationId,
   newExperienceId,
+  profileCacheTag,
   setContactAsync,
   setCvAsync,
   setEducationListAsync,
@@ -55,6 +56,7 @@ function revalidateProfileSurfaces() {
   // the candidate. We also kick off a vector refresh here so any user-facing
   // mutation that revalidates UI also keeps the embedding current.
   scheduleProfileEmbed("me");
+  revalidateTag(profileCacheTag("me"));
   revalidatePath("/app/profil");
   revalidatePath("/app");
   revalidatePath("/app/lowongan");
@@ -538,6 +540,7 @@ export async function completeOnboarding(input: OnboardingInput) {
   // Default visibility for new candidates.
   await setVisibilityAsync("applied-only", user.id);
 
+  revalidateTag(profileCacheTag(user.id));
   revalidatePath("/app");
   revalidatePath("/app/profil");
   scheduleProfileEmbed(user.id);
@@ -569,6 +572,7 @@ export async function submitAssessmentAttempt(input: {
     correct: input.correct,
     total: input.total,
   });
+  revalidateTag(profileCacheTag(user.id));
   revalidatePath("/app/assessment");
   revalidatePath("/app/profil");
   return {

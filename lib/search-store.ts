@@ -1,4 +1,5 @@
 import { SearchClient, AzureKeyCredential } from "@azure/search-documents";
+import { unstable_cache } from "next/cache";
 import type { Job } from "./types";
 import { getJobsByIdsAsync, listJobsAsync } from "./jobs-store";
 
@@ -88,6 +89,12 @@ function buildFilter(params: SearchJobsParams): string | undefined {
       .join(", ");
     clauses.push(`skillIds/any(s: search.in(s, ${list}))`);
   }
+  if (typeof params.salaryMinFloor === "number") {
+    clauses.push(`salaryMax ge ${params.salaryMinFloor}`);
+  }
+  if (typeof params.salaryMaxCeiling === "number") {
+    clauses.push(`salaryMin gt 0 and salaryMin le ${params.salaryMaxCeiling}`);
+  }
   return clauses.length === 0 ? undefined : clauses.join(" and ");
 }
 
@@ -168,9 +175,7 @@ export async function searchJobs(
   const hasClientFilter =
     typeof params.experienceMin === "number" ||
     typeof params.experienceMax === "number" ||
-    Boolean(params.education) ||
-    typeof params.salaryMinFloor === "number" ||
-    typeof params.salaryMaxCeiling === "number";
+    Boolean(params.education);
   const fetchSize = hasClientFilter
     ? Math.min(500, Math.max(top + skip, 200))
     : Math.min(200, top + skip + 20);
@@ -179,6 +184,8 @@ export async function searchJobs(
     type: params.type,
     industry: params.industry,
     skillIds: params.skillIds,
+    salaryMinFloor: params.salaryMinFloor,
+    salaryMaxCeiling: params.salaryMaxCeiling,
     includeClosed: params.includeClosed,
   });
   const searchText =
@@ -228,41 +235,56 @@ export async function searchJobs(
   }
 }
 
+export const JOB_FACETS_TAG = "job-facets";
+
 export async function listCityFacetsAsync(
   filter: { type?: string } = {},
 ): Promise<{ value: string; count: number }[]> {
-  if (!isSearchConfigured()) {
-    const jobs = await listJobsAsync();
-    const counts = new Map<string, number>();
-    for (const j of jobs) {
-      if (j.status === "closed") continue;
-      if (filter.type && j.type !== filter.type) continue;
-      const city = j.location.split(",")[0].trim();
-      if (!city) continue;
-      counts.set(city, (counts.get(city) ?? 0) + 1);
-    }
-    return [...counts.entries()]
-      .map(([value, count]) => ({ value, count }))
-      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
-  }
-  const client = getClient();
-  const filterClauses = ["status eq 'open'"];
-  if (filter.type) {
-    filterClauses.push(`type eq '${escapeOdataString(filter.type)}'`);
-  }
-  const response = await client.search("*", {
-    facets: ["city,count:200"],
-    filter: filterClauses.join(" and "),
-    top: 0,
-    includeTotalCount: false,
-  });
-  const cityFacet = response.facets?.["city"];
-  if (!cityFacet) return [];
-  return cityFacet
-    .map((f) => ({
-      value: String(f.value),
-      count: typeof f.count === "number" ? f.count : 0,
-    }))
-    .filter((f) => f.value)
-    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+  const cacheKey = ["city-facets", filter.type ?? ""];
+  const fetcher = unstable_cache(
+    async (typeFilter: string): Promise<{ value: string; count: number }[]> => {
+      if (!isSearchConfigured()) {
+        const jobs = await listJobsAsync();
+        const counts = new Map<string, number>();
+        for (const j of jobs) {
+          if (j.status === "closed") continue;
+          if (typeFilter && j.type !== typeFilter) continue;
+          const city = j.location.split(",")[0].trim();
+          if (!city) continue;
+          counts.set(city, (counts.get(city) ?? 0) + 1);
+        }
+        return [...counts.entries()]
+          .map(([value, count]) => ({ value, count }))
+          .sort(
+            (a, b) => b.count - a.count || a.value.localeCompare(b.value),
+          );
+      }
+      const client = getClient();
+      const filterClauses = ["status eq 'open'"];
+      if (typeFilter) {
+        filterClauses.push(`type eq '${escapeOdataString(typeFilter)}'`);
+      }
+      const response = await client.search("*", {
+        facets: ["city,count:200"],
+        filter: filterClauses.join(" and "),
+        top: 0,
+        includeTotalCount: false,
+      });
+      const cityFacet = response.facets?.["city"];
+      if (!cityFacet) return [];
+      return cityFacet
+        .map((f) => ({
+          value: String(f.value),
+          count: typeof f.count === "number" ? f.count : 0,
+        }))
+        .filter((f) => f.value)
+        .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+    },
+    cacheKey,
+    {
+      tags: [JOB_FACETS_TAG],
+      revalidate: 3600,
+    },
+  );
+  return fetcher(filter.type ?? "");
 }

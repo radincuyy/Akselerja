@@ -4,7 +4,7 @@ import ScoreDisplay from "@/components/ScoreDisplay";
 import JobCard from "@/components/JobCard";
 import { skillById } from "@/lib/skills";
 import { calcMatch } from "@/lib/match";
-import { listOpenJobsAsync } from "@/lib/jobs-store";
+import { searchJobs } from "@/lib/search-store";
 import { listAssessmentsAsync } from "@/lib/assessments-store";
 import { getProfileOrSeedAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
@@ -12,13 +12,17 @@ import { completedAssessmentIdsForUser } from "@/lib/attempts-store";
 
 export default async function CandidateHome() {
   const user = await requireUser();
-  const [profile, openJobs, assessments, completedIds] = await Promise.all([
-    getProfileOrSeedAsync(user.id),
-    listOpenJobsAsync(),
+  const profile = await getProfileOrSeedAsync(user.id);
+  const [search, assessments, completedIds] = await Promise.all([
+    searchJobs({
+      top: 50,
+      profileVector: profile.profileVector,
+      includeClosed: false,
+    }),
     listAssessmentsAsync(),
     completedAssessmentIdsForUser(user.id),
   ]);
-  const ranked = openJobs
+  const ranked = search.jobs
     .map((job) => ({ job, ...calcMatch(profile, job) }))
     .sort((a, b) => b.score - a.score);
   const top3 = ranked.slice(0, 3);

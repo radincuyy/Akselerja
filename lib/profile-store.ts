@@ -6,11 +6,16 @@ import type {
   JobType,
   WorkMode,
 } from "./types";
+import { unstable_cache } from "next/cache";
 import { CONTAINERS, getContainer } from "./db";
 
 type CandidateSkill = Candidate["skills"][number];
 
 const ME_ID = "me";
+
+export function profileCacheTag(userId: string): string {
+  return `profile:${userId}`;
+}
 
 type Visibility = "applied-only" | "all-companies";
 
@@ -33,19 +38,34 @@ function stripCosmos(record: CandidateRecord): Candidate {
 }
 
 export async function getProfileAsync(userId = ME_ID): Promise<Candidate | null> {
-  const container = getContainer(CONTAINERS.candidates);
-  try {
-    const { resource } = await container
-      .item(userId, userId)
-      .read<CandidateRecord>();
-    if (!resource) return null;
-    return stripCosmos(resource);
-  } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && (err as { code: number }).code === 404) {
-      return null;
-    }
-    throw err;
-  }
+  const fetcher = unstable_cache(
+    async (id: string) => {
+      const container = getContainer(CONTAINERS.candidates);
+      try {
+        const { resource } = await container
+          .item(id, id)
+          .read<CandidateRecord>();
+        if (!resource) return null;
+        return stripCosmos(resource);
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === "object" &&
+          "code" in err &&
+          (err as { code: number }).code === 404
+        ) {
+          return null;
+        }
+        throw err;
+      }
+    },
+    ["profile", userId],
+    {
+      tags: [profileCacheTag(userId)],
+      revalidate: 300,
+    },
+  );
+  return fetcher(userId);
 }
 
 export async function getProfileOrSeedAsync(userId = ME_ID): Promise<Candidate> {
