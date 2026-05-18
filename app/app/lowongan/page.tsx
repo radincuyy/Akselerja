@@ -98,8 +98,6 @@ export default async function LowonganListPage({
       listCityFacetsAsync({ type: tipe || undefined }),
     ]);
 
-  const semanticActive = Boolean(me.profileVector?.length) && fromSearch;
-
   const hasQuery = Boolean(q && q.trim());
   const ranked = jobs
     .map((job) => {
@@ -117,6 +115,8 @@ export default async function LowonganListPage({
   );
   const total = totalCount ?? ranked.length;
   const hasMore = ranked.length < total;
+  const profileReady =
+    Array.isArray(me.profileVector) && me.profileVector.length > 0;
 
   function buildPageHref(nextPage: number): string {
     const params = new URLSearchParams();
@@ -145,14 +145,31 @@ export default async function LowonganListPage({
 
       <div className="mt-8 max-w-2xl">
         <JobSearchInput defaultValue={q ?? ""} />
-        {fromSearch ? (
+        {fromSearch && profileReady ? (
           <p className="mt-2 text-xs text-(--color-muted)">
-            {semanticActive
-              ? "Pencarian semantik berdasarkan profilmu, ditenagai Azure AI Search."
-              : "Pencarian ditenagai Azure AI Search."}
+            Pencarian semantik berdasarkan profilmu, jadi urutan menyesuaikan
+            kekuatan skill yang sudah kamu masukkan.
           </p>
         ) : null}
       </div>
+
+      {!profileReady ? (
+        <div className="mt-6 max-w-2xl rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
+          <p className="text-sm font-semibold text-(--color-ink)">
+            Urutan masih generic
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
+            Lowongan di bawah belum disesuaikan dengan profilmu. Lengkapi skill
+            atau upload CV supaya urutannya benar-benar mencerminkan kecocokan.
+          </p>
+          <Link
+            href={me.cv ? "/app/profil" : "/app/profil/cv"}
+            className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
+          >
+            {me.cv ? "Lengkapi profil" : "Upload CV"} →
+          </Link>
+        </div>
+      ) : null}
 
       <div className="mt-6 lg:hidden">
         <JobFilterSheet

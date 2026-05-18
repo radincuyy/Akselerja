@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   completeOnboarding,
@@ -18,6 +18,50 @@ import {
 import MultiSelectInput from "@/components/MultiSelectInput";
 
 type Step = "preferences" | "cv";
+
+const DRAFT_KEY = "akselerja:onboarding-draft:v1";
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+
+type OnboardingDraft = {
+  step: Step;
+  jobTypes: JobType[];
+  workModes: WorkMode[];
+  cities: string[];
+  industries: string[];
+  savedAt: number;
+};
+
+function loadDraft(): OnboardingDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<OnboardingDraft>;
+    if (
+      !parsed ||
+      typeof parsed.savedAt !== "number" ||
+      Date.now() - parsed.savedAt > DRAFT_TTL_MS
+    ) {
+      window.localStorage.removeItem(DRAFT_KEY);
+      return null;
+    }
+    return {
+      step: parsed.step === "cv" ? "cv" : "preferences",
+      jobTypes: Array.isArray(parsed.jobTypes) ? parsed.jobTypes : [],
+      workModes: Array.isArray(parsed.workModes) ? parsed.workModes : [],
+      cities: Array.isArray(parsed.cities) ? parsed.cities : [],
+      industries: Array.isArray(parsed.industries) ? parsed.industries : [],
+      savedAt: parsed.savedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearDraft() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(DRAFT_KEY);
+}
 
 const JOB_TYPES: { value: JobType; label: string; hint: string }[] = [
   { value: "Full-time", label: "Full-time", hint: "Kerja penuh waktu" },
@@ -55,6 +99,43 @@ export default function OnboardingFlow() {
 
   const [preferences, setPreferences] =
     useState<OnboardingPreferencesInput | null>(null);
+
+  // Restore draft once on mount, before any user interaction.
+  useEffect(() => {
+    const draft = loadDraft();
+    if (!draft) return;
+    if (draft.jobTypes.length > 0) setJobTypes(draft.jobTypes);
+    if (draft.workModes.length > 0) setWorkModes(draft.workModes);
+    setCities(draft.cities);
+    setIndustries(draft.industries);
+    if (draft.step === "cv") {
+      setPreferences({
+        preferredJobTypes: draft.jobTypes,
+        preferredWorkModes: draft.workModes,
+        preferredCities: draft.cities,
+        industries: draft.industries,
+      });
+      setStep("cv");
+    }
+  }, []);
+
+  // Persist a draft on each meaningful change so a reload keeps progress.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const draft: OnboardingDraft = {
+      step,
+      jobTypes,
+      workModes,
+      cities,
+      industries,
+      savedAt: Date.now(),
+    };
+    try {
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      // Ignore storage errors (quota, private mode).
+    }
+  }, [step, jobTypes, workModes, cities, industries]);
 
   const jobTypeId = useId();
   const workModeId = useId();
@@ -118,6 +199,7 @@ export default function OnboardingFlow() {
           experience: result.experience,
         },
       });
+      clearDraft();
       router.push("/app");
     } catch (err) {
       setSubmitting(false);
@@ -135,6 +217,7 @@ export default function OnboardingFlow() {
     setSubmitting(true);
     try {
       await completeOnboarding({ preferences });
+      clearDraft();
       router.push("/app");
     } catch (err) {
       setSubmitting(false);

@@ -243,9 +243,11 @@ export async function searchJobs(
     const ordered = ids
       .map((id) => hydrated.get(id))
       .filter((j): j is Job => Boolean(j));
-    const filtered = ordered.filter((j) => applyJobFilter(j, params));
-    const totalCount = filtered.length;
-    const page = filtered.slice(skip, skip + top);
+    // All filters now run server-side via OData; the post-hydrate pass is
+    // kept narrow to drop jobs that lost their Cosmos row between index sync
+    // and this request (rare but possible).
+    const totalCount = ordered.length;
+    const page = ordered.slice(skip, skip + top);
     return { jobs: page, relevance, fromSearch: true, totalCount };
   } catch (err) {
     console.error("[search] AI Search query failed, falling back:", err);

@@ -11,9 +11,33 @@ export const runtime = "nodejs";
 
 const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-2.5-flash";
 const MAX_HISTORY = 8;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const RATE_LIMIT_MAX = 20;
 
 type Role = "user" | "coach";
 type ClientMessage = { role: Role; text: string };
+
+// In-memory sliding window. Resets on cold start, which is fine for a demo
+// app. For production back this with Cosmos or Redis.
+const userBuckets = new Map<string, number[]>();
+
+function checkRateLimit(userId: string): { ok: true } | { ok: false; retryAfterSec: number } {
+  const now = Date.now();
+  const bucket = userBuckets.get(userId) ?? [];
+  const fresh = bucket.filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS);
+  if (fresh.length >= RATE_LIMIT_MAX) {
+    const oldest = Math.min(...fresh);
+    const retryAfterSec = Math.max(
+      1,
+      Math.ceil((RATE_LIMIT_WINDOW_MS - (now - oldest)) / 1000),
+    );
+    userBuckets.set(userId, fresh);
+    return { ok: false, retryAfterSec };
+  }
+  fresh.push(now);
+  userBuckets.set(userId, fresh);
+  return { ok: true };
+}
 
 let _client: GoogleGenAI | null = null;
 function getClient(): GoogleGenAI {
@@ -102,6 +126,20 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Tidak terautentikasi." }, { status: 401 });
+  }
+
+  const limit = checkRateLimit(session.user.id);
+  if (!limit.ok) {
+    const minutes = Math.ceil(limit.retryAfterSec / 60);
+    return NextResponse.json(
+      {
+        error: `Batas chat coach per jam tercapai. Coba lagi dalam ${minutes} menit.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSec) },
+      },
+    );
   }
 
   let body: { messages?: unknown };

@@ -509,10 +509,23 @@ export async function completeOnboarding(input: OnboardingInput) {
     visibility: base.visibility ?? "applied-only",
   }));
 
+  // Block on the embedding so the dashboard render right after onboarding has
+  // a real profileVector. Without this the first /app render falls back to
+  // BM25 + score-only ranking, which makes top recommendations look generic
+  // for the most important moment of the funnel. Failures are non-fatal: the
+  // next mutation will retry, and search degrades gracefully.
+  try {
+    await refreshProfileVector(user.id);
+  } catch (err) {
+    console.error(
+      "[onboarding] profile vector refresh failed (non-fatal):",
+      err,
+    );
+  }
+
   revalidateTag(profileCacheTag(user.id));
   revalidatePath("/app");
   revalidatePath("/app/profil");
-  scheduleProfileEmbed(user.id);
 }
 
 // ----- Assessments -----
