@@ -2,24 +2,63 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { signOut } from "@/auth";
+import { deleteBlob, isBlobConfigured, uploadCv } from "./blob-store";
 import {
+  deleteProfileAsync,
+  getProfileOrSeedAsync,
+  mergeSkillsAsync,
   newEducationId,
   newExperienceId,
-  setCv,
-  setEducationList,
-  setExperienceList,
-  setVisibility,
-  updateProfileBasic,
+  setContactAsync,
+  setCvAsync,
+  setEducationListAsync,
+  setExperienceListAsync,
+  setPreferencesAsync,
+  setSkillsAsync,
+  setVisibilityAsync,
+  updateProfileBasicAsync,
 } from "./profile-store";
-import type { Education, Experience } from "./types";
+import { recordAttempt as recordAttemptStore } from "./attempts-store";
+import { getAssessmentBySlugAsync } from "./assessments-store";
+import { parseCv } from "./cv-parser";
+import { requireUser } from "./session";
+import { deleteUserById } from "./user-store";
+import { refreshProfileVector } from "./profile-summary";
+import type {
+  Education,
+  Experience,
+  JobType,
+  WorkMode,
+} from "./types";
+
+// Recompute the profile embedding off the request path so saves stay fast.
+// Failures are swallowed inside refreshProfileVector — we only need the call
+// to complete eventually.
+function scheduleProfileEmbed(userId: string): void {
+  // Defer to next tick so the response can flush before the Gemini call
+  // (~800-1500ms) blocks the request. Failures are logged but never surface
+  // to the user; the vector regenerates on the next mutation.
+  setTimeout(() => {
+    refreshProfileVector(userId).catch((err) => {
+      console.error(
+        "[profile-actions] background embed failed for",
+        userId,
+        err,
+      );
+    });
+  }, 0);
+}
 
 function revalidateProfileSurfaces() {
+  // Profile-relevant changes invalidate every surface that ranks or displays
+  // the candidate. We also kick off a vector refresh here so any user-facing
+  // mutation that revalidates UI also keeps the embedding current.
+  scheduleProfileEmbed("me");
   revalidatePath("/app/profil");
   revalidatePath("/app");
   revalidatePath("/app/lowongan");
   revalidatePath("/app/lowongan/[id]", "page");
-  revalidatePath("/app/lamaran");
-  revalidatePath("/app/lamaran/[id]", "page");
 }
 
 function asString(v: FormDataEntryValue | null): string {
@@ -31,105 +70,39 @@ function asInt(v: FormDataEntryValue | null, fallback = 0): number {
   return Number.isFinite(n) ? Math.round(n) : fallback;
 }
 
-export type SaveProfileResult =
-  | { ok: true }
-  | { ok: false; errors: Record<string, string> };
-
-export async function saveProfile(
-  _prev: SaveProfileResult | null,
-  formData: FormData,
-): Promise<SaveProfileResult> {
-  const errors: Record<string, string> = {};
-  const name = asString(formData.get("name"));
-  const location = asString(formData.get("location"));
-  const bio = asString(formData.get("bio"));
-  const experienceYears = asInt(formData.get("experienceYears"), -1);
-  const expectedSalary = asInt(formData.get("expectedSalary"), -1);
-  const email = asString(formData.get("email"));
-
-  if (!name) errors.name = "Nama tidak boleh kosong.";
-  if (!location) errors.location = "Lokasi tidak boleh kosong.";
-  if (!bio || bio.length < 10) errors.bio = "Bio terlalu pendek, tulis 1 sampai 2 kalimat.";
-  if (bio.length > 280) errors.bio = "Bio terlalu panjang, batasi 280 karakter.";
-  if (experienceYears < 0 || experienceYears > 60) errors.experienceYears = "Isi 0 sampai 60 tahun.";
-  if (expectedSalary < 0) errors.expectedSalary = "Ekspektasi gaji tidak boleh negatif.";
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Email tidak valid.";
-
-  // Education
-  const eduIds = formData.getAll("eduId").map((x) => String(x));
-  const eduInsts = formData.getAll("eduInstitution").map((x) => String(x));
-  const eduDegrees = formData.getAll("eduDegree").map((x) => String(x));
-  const eduStarts = formData.getAll("eduStart").map((x) => String(x));
-  const eduEnds = formData.getAll("eduEnd").map((x) => String(x));
-  const eduNotes = formData.getAll("eduNotes").map((x) => String(x));
-  const educationList: Education[] = [];
-  for (let i = 0; i < eduIds.length; i++) {
-    const institution = eduInsts[i]?.trim() ?? "";
-    const degree = eduDegrees[i]?.trim() ?? "";
-    if (!institution && !degree) continue; // skip empty rows
-    if (!institution || !degree) {
-      errors[`edu-${i}`] = "Institusi dan gelar wajib diisi.";
-      continue;
-    }
-    educationList.push({
-      id: eduIds[i] || newEducationId(),
-      institution,
-      degree,
-      startMonth: eduStarts[i] || "",
-      endMonth: eduEnds[i] || "",
-      notes: eduNotes[i]?.trim() || undefined,
-    });
-  }
-
-  // Experience
-  const expIds = formData.getAll("expId").map((x) => String(x));
-  const expPositions = formData.getAll("expPosition").map((x) => String(x));
-  const expCompanies = formData.getAll("expCompany").map((x) => String(x));
-  const expStarts = formData.getAll("expStart").map((x) => String(x));
-  const expEnds = formData.getAll("expEnd").map((x) => String(x));
-  const expDuties = formData.getAll("expDuties").map((x) => String(x));
-  const experienceList: Experience[] = [];
-  for (let i = 0; i < expIds.length; i++) {
-    const position = expPositions[i]?.trim() ?? "";
-    const company = expCompanies[i]?.trim() ?? "";
-    if (!position && !company) continue;
-    if (!position || !company) {
-      errors[`exp-${i}`] = "Posisi dan perusahaan wajib diisi.";
-      continue;
-    }
-    experienceList.push({
-      id: expIds[i] || newExperienceId(),
-      position,
-      company,
-      startMonth: expStarts[i] || "",
-      endMonth: expEnds[i] || "",
-      duties: expDuties[i]?.trim() || undefined,
-    });
-  }
-
-  if (Object.keys(errors).length > 0) {
-    return { ok: false, errors };
-  }
-
-  updateProfileBasic({ name, location, bio, experienceYears, expectedSalary, email });
-  setEducationList(educationList);
-  setExperienceList(experienceList);
-  revalidateProfileSurfaces();
-  redirect("/app/profil?saved=1");
-}
-
-// CV upload: stub mode. Stores filename + timestamp.
-// When Azure Blob is wired (Fase 1), replace with real upload.
+// CV upload via Azure Blob; jatuh ke metadata-only kalau Blob belum dikonfig.
 export type ParsedCvPreview = {
   filename: string;
   sizeBytes: number;
-  skillsFound: string[];
-  educationFound: number;
-  experienceFound: number;
+  blobName?: string;
+  contentType: string;
+  skills: { id: string; name: string }[];
+  education: {
+    institution: string;
+    degree: string;
+    startMonth?: string;
+    endMonth?: string;
+    notes?: string;
+  }[];
+  experience: {
+    position: string;
+    company: string;
+    startMonth?: string;
+    endMonth?: string;
+    duties?: string;
+  }[];
   notes: string[];
 };
 
-export async function uploadCvForReview(formData: FormData): Promise<ParsedCvPreview | { error: string }> {
+const ALLOWED_CONTENT_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+export async function uploadCvForReview(
+  formData: FormData,
+): Promise<ParsedCvPreview | { error: string }> {
   const file = formData.get("cv");
   if (!(file instanceof File)) {
     return { error: "Tidak ada file yang diupload." };
@@ -138,65 +111,489 @@ export async function uploadCvForReview(formData: FormData): Promise<ParsedCvPre
     return { error: "File kosong, coba upload ulang." };
   }
   if (file.size > 5 * 1024 * 1024) {
-    return { error: "File lebih besar dari 5 MB. Kompres dulu atau pilih format lain." };
+    return {
+      error: "File lebih besar dari 5 MB. Kompres dulu atau pilih format lain.",
+    };
   }
-  const allowed = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ];
-  if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|docx?|doc)$/i)) {
+  if (
+    !ALLOWED_CONTENT_TYPES.includes(file.type) &&
+    !file.name.match(/\.(pdf|docx?|doc)$/i)
+  ) {
     return { error: "Format tidak didukung. Pakai PDF, DOC, atau DOCX." };
   }
 
-  // Simulate parsing latency. Realistic for demo.
-  await new Promise((r) => setTimeout(r, 1400));
+  const user = await requireUser();
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const contentType = file.type || "application/octet-stream";
 
-  // Stub extraction. In Fase 2 this will call Azure OpenAI with the parsed text.
-  return {
-    filename: file.name,
-    sizeBytes: file.size,
-    skillsFound: [
-      "Microsoft Excel",
-      "Inventory Management",
-      "Komunikasi",
-      "Ketelitian",
-      "Customer Service",
-    ],
-    educationFound: 1,
-    experienceFound: 2,
-    notes: [
-      "Kami menemukan 5 skill, sebagian besar sudah ada di profilmu, 1 di antaranya baru.",
-      "Riwayat pendidikan dan pengalaman terdeteksi.",
-    ],
-  };
+  let blobName: string | undefined;
+  if (isBlobConfigured()) {
+    try {
+      const result = await uploadCv(buffer, file.name, user.id, contentType);
+      blobName = result.blobName;
+    } catch (err) {
+      console.error("[cv] Blob upload failed:", err);
+      return {
+        error: "Gagal mengunggah CV ke storage. Coba lagi sebentar.",
+      };
+    }
+  }
+
+  try {
+    const parsed = await parseCv({
+      buffer,
+      contentType,
+      filename: file.name,
+    });
+
+    return {
+      filename: file.name,
+      sizeBytes: file.size,
+      blobName,
+      contentType,
+      skills: parsed.skills,
+      education: parsed.education,
+      experience: parsed.experience,
+      notes: parsed.notes,
+    };
+  } catch (err) {
+    console.error("[cv-parser] Engine failed:", err);
+    return {
+      error:
+        err instanceof Error
+          ? err.message
+          : "Parser CV gagal memproses file. Coba lagi atau hubungi admin.",
+    };
+  }
 }
 
-export async function confirmCvUpdate(filename: string, sizeBytes: number) {
-  if (!filename) return;
-  setCv({
-    filename,
-    sizeBytes,
-    uploadedAt: new Date().toISOString(),
-  });
+export type ConfirmCvInput = {
+  filename: string;
+  sizeBytes: number;
+  blobName?: string;
+  contentType?: string;
+  extractedSkills?: { id: string; name: string }[];
+  extractedEducation?: ParsedCvPreview["education"];
+  extractedExperience?: ParsedCvPreview["experience"];
+};
+
+export async function confirmCvUpdate(input: ConfirmCvInput) {
+  if (!input.filename) return;
+  const user = await requireUser();
+
+  await setCvAsync(
+    {
+      filename: input.filename,
+      sizeBytes: input.sizeBytes,
+      uploadedAt: new Date().toISOString(),
+      blobName: input.blobName,
+      contentType: input.contentType,
+    },
+    user.id,
+  );
+
+  if (input.extractedSkills && input.extractedSkills.length > 0) {
+    await mergeSkillsAsync(
+      input.extractedSkills.map((s) => ({
+        skillId: s.id,
+        level: 2 as const,
+        name: s.name,
+      })),
+      user.id,
+    );
+  }
+
+  if (input.extractedEducation && input.extractedEducation.length > 0) {
+    const education: Education[] = input.extractedEducation.map((e) => ({
+      id: newEducationId(),
+      institution: e.institution,
+      degree: e.degree,
+      startMonth: e.startMonth ?? "",
+      endMonth: e.endMonth ?? "",
+      notes: e.notes,
+    }));
+    await setEducationListAsync(education, user.id);
+  }
+
+  if (input.extractedExperience && input.extractedExperience.length > 0) {
+    const experience: Experience[] = input.extractedExperience.map((e) => ({
+      id: newExperienceId(),
+      position: e.position,
+      company: e.company,
+      startMonth: e.startMonth ?? "",
+      endMonth: e.endMonth ?? "",
+      duties: e.duties,
+    }));
+    await setExperienceListAsync(experience, user.id);
+  }
+
   revalidateProfileSurfaces();
   redirect("/app/profil?cv=1");
 }
 
-export async function setProfileVisibility(formData: FormData) {
-  const value = String(formData.get("visibility") ?? "");
-  if (value !== "applied-only" && value !== "all-companies") return;
-  setVisibility(value);
-  revalidatePath("/app/pengaturan");
-  revalidatePath("/app/profil");
-}
-
 export async function deleteCandidateAccount() {
-  // Demo: log out and bring user back to landing page.
-  // Production: hard delete from Cosmos + Blob, send confirmation email.
+  const user = await requireUser();
+  const profile = await getProfileOrSeedAsync(user.id).catch(() => null);
+  const blobName = profile?.cv?.blobName;
+  if (blobName && isBlobConfigured()) {
+    try {
+      await deleteBlob(blobName);
+    } catch (err) {
+      console.error("[delete] Blob cleanup failed:", err);
+    }
+  }
+  await deleteProfileAsync(user.id);
+  await deleteUserById(user.id);
+  await signOut({ redirect: false });
   redirect("/?account-deleted=1");
 }
 
-export async function deleteCompanyAccount() {
-  redirect("/?account-deleted=1");
+// ----- Section save actions (used by ProfileEditUI) -----
+
+export type PersonalInput = {
+  name: string;
+  email: string;
+  location: string;
+  bio: string;
+  experienceYears?: number;
+  expectedSalary?: number;
+  phone?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
+};
+
+export type SectionResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+function failSection(errors: Record<string, string>): SectionResult {
+  return {
+    ok: false,
+    error: Object.values(errors)[0] ?? "Periksa kembali isian.",
+  };
+}
+
+export async function savePersonalSection(
+  input: PersonalInput,
+): Promise<SectionResult> {
+  const errors: Record<string, string> = {};
+  if (!input.name?.trim()) errors.name = "Nama tidak boleh kosong.";
+  if (!input.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email))
+    errors.email = "Email tidak valid.";
+  if (input.bio && input.bio.length > 280)
+    errors.bio = "Bio terlalu panjang, batasi 280 karakter.";
+  const expYears = input.experienceYears ?? 0;
+  const expSalary = input.expectedSalary ?? 0;
+  if (expYears < 0 || expYears > 60)
+    errors.experienceYears = "Isi 0 sampai 60 tahun.";
+  if (expSalary < 0)
+    errors.expectedSalary = "Ekspektasi gaji tidak boleh negatif.";
+  if (Object.keys(errors).length > 0) return failSection(errors);
+
+  const user = await requireUser();
+  await updateProfileBasicAsync(
+    {
+      name: input.name,
+      email: input.email,
+      location: input.location,
+      bio: input.bio,
+      experienceYears: input.experienceYears ?? 0,
+      expectedSalary: input.expectedSalary ?? 0,
+    },
+    user.id,
+  );
+  await setContactAsync(
+    {
+      phone: input.phone,
+      linkedin: input.linkedin,
+      github: input.github,
+      portfolio: input.portfolio,
+    },
+    user.id,
+  );
+  revalidateProfileSurfaces();
+  return { ok: true };
+}
+
+export type EducationDraft = {
+  id?: string;
+  institution: string;
+  degree: string;
+  startMonth?: string;
+  endMonth?: string;
+  notes?: string;
+  gpa?: string;
+};
+
+export async function saveEducationSection(
+  drafts: EducationDraft[],
+): Promise<SectionResult> {
+  const errors: Record<string, string> = {};
+  const cleaned: Education[] = [];
+  for (let i = 0; i < drafts.length; i++) {
+    const d = drafts[i];
+    const institution = d.institution?.trim() ?? "";
+    const degree = d.degree?.trim() ?? "";
+    if (!institution && !degree) continue;
+    if (!institution || !degree) {
+      errors[`edu-${i}`] = "Institusi dan gelar wajib diisi.";
+      continue;
+    }
+    cleaned.push({
+      id: d.id || newEducationId(),
+      institution,
+      degree,
+      startMonth: d.startMonth || "",
+      endMonth: d.endMonth || "",
+      gpa: d.gpa?.trim() || undefined,
+      notes: d.notes?.trim() || undefined,
+    });
+  }
+  if (Object.keys(errors).length > 0) return failSection(errors);
+  const user = await requireUser();
+  await setEducationListAsync(cleaned, user.id);
+  revalidateProfileSurfaces();
+  return { ok: true };
+}
+
+export type ExperienceDraft = {
+  id?: string;
+  position: string;
+  company: string;
+  startMonth?: string;
+  endMonth?: string;
+  duties?: string;
+};
+
+export async function saveExperienceSection(
+  drafts: ExperienceDraft[],
+): Promise<SectionResult> {
+  const errors: Record<string, string> = {};
+  const cleaned: Experience[] = [];
+  for (let i = 0; i < drafts.length; i++) {
+    const d = drafts[i];
+    const position = d.position?.trim() ?? "";
+    const company = d.company?.trim() ?? "";
+    if (!position && !company) continue;
+    if (!position || !company) {
+      errors[`exp-${i}`] = "Posisi dan perusahaan wajib diisi.";
+      continue;
+    }
+    cleaned.push({
+      id: d.id || newExperienceId(),
+      position,
+      company,
+      startMonth: d.startMonth || "",
+      endMonth: d.endMonth || "",
+      duties: d.duties?.trim() || undefined,
+    });
+  }
+  if (Object.keys(errors).length > 0) return failSection(errors);
+  const user = await requireUser();
+  await setExperienceListAsync(cleaned, user.id);
+  revalidateProfileSurfaces();
+  return { ok: true };
+}
+
+export type SkillDraft = {
+  id: string;
+  name?: string;
+};
+
+export async function saveSkillsSection(
+  drafts: SkillDraft[],
+): Promise<SectionResult> {
+  const cleaned = drafts
+    .filter((d) => d.id && d.id.trim().length > 0)
+    .map((d) => ({
+      skillId: d.id,
+      level: 2 as const,
+      name: d.name,
+    }));
+  const user = await requireUser();
+  await setSkillsAsync(cleaned, user.id);
+  revalidateProfileSurfaces();
+  return { ok: true };
+}
+
+// ----- Onboarding -----
+
+export type OnboardingPreferencesInput = {
+  preferredJobTypes: JobType[];
+  preferredWorkModes: WorkMode[];
+  preferredCities: string[];
+  industries: string[];
+};
+
+export type OnboardingInput = {
+  preferences: OnboardingPreferencesInput;
+  cv?: {
+    filename: string;
+    sizeBytes: number;
+    blobName?: string;
+    contentType?: string;
+    skills: { id: string; name: string }[];
+    education: ParsedCvPreview["education"];
+    experience: ParsedCvPreview["experience"];
+  };
+};
+
+export async function completeOnboarding(input: OnboardingInput) {
+  const user = await requireUser();
+  const name = user.name ?? "Pencari Kerja";
+  const email = user.email ?? "";
+  const prefs = input.preferences;
+  const primaryCity = prefs.preferredCities[0] ?? "";
+
+  await updateProfileBasicAsync(
+    {
+      name,
+      email,
+      location: primaryCity,
+      bio: "",
+      experienceYears: 0,
+      expectedSalary: 0,
+    },
+    user.id,
+  );
+
+  await setPreferencesAsync(
+    {
+      preferredJobTypes: prefs.preferredJobTypes,
+      preferredWorkModes: prefs.preferredWorkModes,
+      preferredCities: prefs.preferredCities,
+      industries: prefs.industries,
+      location: primaryCity,
+    },
+    user.id,
+  );
+
+  if (input.cv) {
+    const cv = input.cv;
+
+    await setCvAsync(
+      {
+        filename: cv.filename,
+        sizeBytes: cv.sizeBytes,
+        uploadedAt: new Date().toISOString(),
+        blobName: cv.blobName,
+        contentType: cv.contentType,
+      },
+      user.id,
+    );
+
+    if (cv.education.length > 0) {
+      const education: Education[] = cv.education.map((e) => ({
+        id: newEducationId(),
+        institution: e.institution,
+        degree: e.degree,
+        startMonth: e.startMonth ?? "",
+        endMonth: e.endMonth ?? "",
+        notes: e.notes,
+      }));
+      await setEducationListAsync(education, user.id);
+    }
+
+    if (cv.experience.length > 0) {
+      const experience: Experience[] = cv.experience.map((e) => ({
+        id: newExperienceId(),
+        position: e.position,
+        company: e.company,
+        startMonth: e.startMonth ?? "",
+        endMonth: e.endMonth ?? "",
+        duties: e.duties,
+      }));
+      await setExperienceListAsync(experience, user.id);
+
+      const totalMonths = experience.reduce(
+        (acc, e) => acc + monthsBetween(e.startMonth, e.endMonth),
+        0,
+      );
+      const years = Math.max(0, Math.round(totalMonths / 12));
+      if (years > 0) {
+        await updateProfileBasicAsync(
+          {
+            name,
+            email,
+            location: primaryCity,
+            bio: "",
+            experienceYears: years,
+            expectedSalary: 0,
+          },
+          user.id,
+        );
+      }
+    }
+
+    if (cv.skills.length > 0) {
+      await setSkillsAsync(
+        cv.skills.map((s) => ({ skillId: s.id, level: 2, name: s.name })),
+        user.id,
+      );
+    }
+  }
+
+  // Default visibility for new candidates.
+  await setVisibilityAsync("applied-only", user.id);
+
+  revalidatePath("/app");
+  revalidatePath("/app/profil");
+  scheduleProfileEmbed(user.id);
+}
+
+// ----- Assessments -----
+
+export async function submitAssessmentAttempt(input: {
+  slug: string;
+  correct: number;
+  total: number;
+}):
+  | Promise<
+      | { ok: true; score: number; correct: number; total: number; level: 1 | 2 | 3 }
+      | { ok: false; error: string }
+    > {
+  const user = await requireUser();
+  const assessment = await getAssessmentBySlugAsync(input.slug);
+  if (!assessment)
+    return { ok: false as const, error: "Assessment tidak ditemukan." };
+  const score =
+    input.total > 0 ? Math.round((input.correct / input.total) * 100) : 0;
+  const level: 1 | 2 | 3 = score >= 80 ? 3 : score >= 50 ? 2 : 1;
+  await recordAttemptStore({
+    userId: user.id,
+    skillId: assessment.skillId,
+    assessmentId: assessment.id,
+    assessmentSlug: input.slug,
+    correct: input.correct,
+    total: input.total,
+  });
+  revalidatePath("/app/assessment");
+  revalidatePath("/app/profil");
+  return {
+    ok: true as const,
+    score,
+    correct: input.correct,
+    total: input.total,
+    level,
+  };
+}
+
+function monthsBetween(startMonth?: string, endMonth?: string): number {
+  if (!startMonth) return 0;
+  const start = parseMonth(startMonth);
+  if (!start) return 0;
+  const end = endMonth ? parseMonth(endMonth) : new Date();
+  if (!end) return 0;
+  const months =
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    (end.getMonth() - start.getMonth());
+  return Math.max(0, months);
+}
+
+function parseMonth(value: string): Date | null {
+  const m = value.match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, 1);
 }

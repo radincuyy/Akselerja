@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import Providers from "@/components/Providers";
 
 const generalSans = localFont({
   src: [
@@ -57,7 +58,7 @@ export default function RootLayout({
         <a href="#main" className="skip-link">
           Lewat ke konten utama
         </a>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

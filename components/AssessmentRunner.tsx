@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { submitAssessmentAttempt } from "@/lib/profile-actions";
 import type { AssessmentQuestion } from "@/lib/types";
 
 type Props = {
@@ -10,9 +11,22 @@ type Props = {
   assessmentTitle: string;
 };
 
-export default function AssessmentRunner({ questions, assessmentTitle }: Props) {
+type ResultState = {
+  score: number;
+  correct: number;
+  total: number;
+  level: 1 | 2 | 3;
+};
+
+export default function AssessmentRunner({
+  slug,
+  questions,
+  assessmentTitle,
+}: Props) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
+  const [result, setResult] = useState<ResultState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   if (questions.length === 0) {
     return (
@@ -22,13 +36,9 @@ export default function AssessmentRunner({ questions, assessmentTitle }: Props) 
     );
   }
 
-  if (submitted) {
-    const correct = questions.reduce(
-      (n, q) => (answers[q.id] === q.correctOptionId ? n + 1 : n),
-      0,
-    );
-    const pct = Math.round((correct / questions.length) * 100);
-    const level = pct >= 80 ? "Mahir" : pct >= 50 ? "Menengah" : "Dasar";
+  if (result) {
+    const level =
+      result.level === 3 ? "Mahir" : result.level === 2 ? "Menengah" : "Dasar";
     return (
       <section
         aria-labelledby="result-heading"
@@ -45,7 +55,7 @@ export default function AssessmentRunner({ questions, assessmentTitle }: Props) 
         </h2>
         <div className="mt-5 flex items-baseline gap-3">
           <span className="text-6xl font-semibold leading-none tabular-nums text-(--color-teal)">
-            {pct}
+            {result.score}
           </span>
           <span className="text-2xl text-(--color-muted)">%</span>
           <span className="ml-3 rounded-full bg-(--color-tint) px-3 py-1 text-sm font-medium text-(--color-ink)">
@@ -53,7 +63,7 @@ export default function AssessmentRunner({ questions, assessmentTitle }: Props) 
           </span>
         </div>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-(--color-ink)">
-          Kamu menjawab {correct} dari {questions.length} soal dengan benar.
+          Kamu menjawab {result.correct} dari {result.total} soal dengan benar.
           Skor ini sudah ditambahkan ke profilmu, dan match score lowonganmu
           akan diperbarui otomatis.
         </p>
@@ -78,7 +88,28 @@ export default function AssessmentRunner({ questions, assessmentTitle }: Props) 
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
+    setError(null);
+    const correct = questions.reduce(
+      (n, q) => (answers[q.id] === q.correctOptionId ? n + 1 : n),
+      0,
+    );
+    startTransition(async () => {
+      const res = await submitAssessmentAttempt({
+        slug,
+        total: questions.length,
+        correct,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setResult({
+        score: res.score,
+        correct: res.correct,
+        total: res.total,
+        level: res.level,
+      });
+    });
   }
 
   const allAnswered = questions.every((q) => answers[q.id]);
@@ -130,16 +161,22 @@ export default function AssessmentRunner({ questions, assessmentTitle }: Props) 
         </fieldset>
       ))}
 
+      {error ? (
+        <p role="alert" className="text-sm text-(--color-signal-clay)">
+          {error}
+        </p>
+      ) : null}
+
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-(--color-muted)">
           {Object.keys(answers).length} dari {questions.length} dijawab
         </p>
         <button
           type="submit"
-          disabled={!allAnswered}
+          disabled={!allAnswered || pending}
           className="inline-flex items-center justify-center gap-2 rounded-md bg-(--color-teal) px-5 py-3 text-sm font-semibold text-(--color-paper-on-teal) transition-colors hover:bg-(--color-teal-deep) disabled:opacity-60"
         >
-          Kirim jawaban
+          {pending ? "Menyimpan..." : "Kirim jawaban"}
         </button>
       </div>
     </form>

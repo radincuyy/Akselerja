@@ -1,7 +1,6 @@
 import type { Skill } from "./types";
 
 export const skills: Skill[] = [
-  // --- Original 17 (preserved verbatim for backwards compatibility) ---
   { id: "excel", name: "Microsoft Excel", level: 2 },
   { id: "komunikasi", name: "Komunikasi", level: 2 },
   { id: "inventory", name: "Inventory Management", level: 1 },
@@ -20,8 +19,6 @@ export const skills: Skill[] = [
   { id: "laporan-stok", name: "Laporan Stok", level: 1 },
   { id: "sap-inventory", name: "SAP Inventory", level: 1 },
 
-  // --- Extensions to cover Karirhub job distribution ---
-  // Foundational productivity & soft skills
   { id: "ms-office", name: "Microsoft Office", level: 2 },
   { id: "google-workspace", name: "Google Workspace", level: 1 },
   { id: "teamwork", name: "Kerja Sama Tim", level: 2 },
@@ -30,7 +27,6 @@ export const skills: Skill[] = [
   { id: "english", name: "Bahasa Inggris", level: 2 },
   { id: "public-speaking", name: "Public Speaking", level: 2 },
 
-  // Sales, marketing, content, design
   { id: "negotiation", name: "Negosiasi", level: 2 },
   { id: "marketing", name: "Marketing", level: 2 },
   { id: "digital-marketing", name: "Digital Marketing", level: 2 },
@@ -45,12 +41,10 @@ export const skills: Skill[] = [
   { id: "adobe-photoshop", name: "Adobe Photoshop", level: 2 },
   { id: "video-editing", name: "Video Editing", level: 2 },
 
-  // Customer-facing
   { id: "customer-relationship", name: "Customer Relationship Management", level: 2 },
   { id: "telemarketing", name: "Telemarketing", level: 2 },
   { id: "cashier", name: "Kasir", level: 1 },
 
-  // Finance, accounting, admin
   { id: "accounting", name: "Akuntansi", level: 2 },
   { id: "tax", name: "Perpajakan", level: 2 },
   { id: "financial-analysis", name: "Analisis Keuangan", level: 2 },
@@ -58,29 +52,23 @@ export const skills: Skill[] = [
   { id: "data-entry", name: "Data Entry", level: 1 },
   { id: "office-administration", name: "Office Administration", level: 2 },
 
-  // Data
   { id: "data-analysis", name: "Analisis Data", level: 2 },
 
-  // Logistics, manufacturing
   { id: "logistics", name: "Logistik", level: 2 },
   { id: "stock-opname", name: "Stock Opname", level: 1 },
   { id: "maintenance", name: "Maintenance Engineering", level: 2 },
 
-  // Education
   { id: "teaching", name: "Mengajar", level: 2 },
   { id: "lesson-planning", name: "Lesson Planning", level: 2 },
   { id: "classroom-management", name: "Classroom Management", level: 2 },
 
-  // HR
   { id: "recruitment", name: "Rekrutmen", level: 2 },
   { id: "hr-development", name: "Human Resource Development", level: 2 },
 
-  // Food & hospitality
   { id: "cooking", name: "Memasak", level: 2 },
   { id: "baking", name: "Baking", level: 2 },
   { id: "food-decoration", name: "Food Decoration", level: 2 },
 
-  // Design tools
   { id: "autocad", name: "AutoCAD", level: 2 },
   { id: "sketchup", name: "SketchUp", level: 2 },
 ];
@@ -88,4 +76,3 @@ export const skills: Skill[] = [
 export const skillById: Record<string, Skill> = Object.fromEntries(
   skills.map((s) => [s.id, s]),
 );
-

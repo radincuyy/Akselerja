@@ -1,12 +1,19 @@
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
-import { assessments, skillById } from "@/lib/mock-data";
-import { completedAssessmentIds } from "@/lib/format";
+import { skillById } from "@/lib/skills";
+import { listAssessmentsAsync } from "@/lib/assessments-store";
+import { completedAssessmentIdsForUser } from "@/lib/attempts-store";
+import { requireUser } from "@/lib/session";
 
-export default function AssessmentListPage() {
+export default async function AssessmentListPage() {
+  const user = await requireUser();
+  const [assessments, completedIds] = await Promise.all([
+    listAssessmentsAsync(),
+    completedAssessmentIdsForUser(user.id),
+  ]);
   return (
-    <AppShell variant="candidate" active="/app/assessment">
+    <AppShell active="/app/assessment">
       <PageHeader
         eyebrow="Assessment"
         title="Buktikan skill kamu, bukan hanya tulis"
@@ -15,7 +22,7 @@ export default function AssessmentListPage() {
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {assessments.map((a) => {
-          const isDone = completedAssessmentIds.has(a.id);
+          const isDone = completedIds.has(a.id);
           return (
             <article
               key={a.id}

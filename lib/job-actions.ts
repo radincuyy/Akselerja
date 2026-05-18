@@ -2,7 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { closeJob, createJob, getJobById, reopenJob, updateJob, type JobInput } from "./jobs-store";
+import {
+  closeJobAsync,
+  createJobAsync,
+  getJobByIdAsync,
+  reopenJobAsync,
+  updateJobAsync,
+  type JobInput,
+} from "./jobs-store";
+import { indexJob } from "./search-store";
 import type { Job, SkillRequirement } from "./types";
 
 const TYPES: Job["type"][] = ["Full-time", "Part-time", "Kontrak", "Magang"];
@@ -56,7 +64,6 @@ function parseInput(formData: FormData): {
     errors.salaryMax = "Gaji maksimum tidak boleh lebih kecil dari minimum.";
   }
 
-  // Skill requirements: parallel arrays
   const skillIds = formData.getAll("reqSkillId").map((x) => String(x));
   const skillLevels = formData.getAll("reqLevel").map((x) => String(x));
   const skillWeights = formData.getAll("reqWeight").map((x) => String(x));
@@ -119,7 +126,8 @@ export async function createJobAction(
 ): Promise<SaveJobResult> {
   const { input, errors } = parseInput(formData);
   if (!input) return { ok: false, errors };
-  const job = createJob(input);
+  const job = await createJobAsync(input);
+  await indexJob(job);
   revalidateJobSurfaces();
   redirect(`/hr/lowongan/${job.id}`);
 }
@@ -130,24 +138,27 @@ export async function updateJobAction(
   formData: FormData,
 ): Promise<SaveJobResult> {
   if (!jobId) return { ok: false, errors: { _form: "ID lowongan tidak ditemukan." } };
-  if (!getJobById(jobId)) {
+  if (!(await getJobByIdAsync(jobId))) {
     return { ok: false, errors: { _form: "Lowongan tidak ditemukan." } };
   }
   const { input, errors } = parseInput(formData);
   if (!input) return { ok: false, errors };
-  updateJob(jobId, input);
+  const updated = await updateJobAsync(jobId, input);
+  if (updated) await indexJob(updated);
   revalidateJobSurfaces();
   redirect(`/hr/lowongan/${jobId}?saved=1`);
 }
 
 export async function closeJobAction(jobId: string) {
   if (!jobId) return;
-  closeJob(jobId);
+  const closed = await closeJobAsync(jobId);
+  if (closed) await indexJob(closed);
   revalidateJobSurfaces();
 }
 
 export async function reopenJobAction(jobId: string) {
   if (!jobId) return;
-  reopenJob(jobId);
+  const reopened = await reopenJobAsync(jobId);
+  if (reopened) await indexJob(reopened);
   revalidateJobSurfaces();
 }

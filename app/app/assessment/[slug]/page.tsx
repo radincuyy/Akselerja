@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import AssessmentRunner from "@/components/AssessmentRunner";
-import { assessments, assessmentQuestions, skillById } from "@/lib/mock-data";
+import { skillById } from "@/lib/skills";
+import {
+  getAssessmentBySlugAsync,
+  getAssessmentQuestionsBySlugAsync,
+} from "@/lib/assessments-store";
 
 type Params = Promise<{ slug: string }>;
 
@@ -11,12 +15,12 @@ export default async function AssessmentRunPage({
   params: Params;
 }) {
   const { slug } = await params;
-  const assessment = assessments.find((a) => a.slug === slug);
+  const assessment = await getAssessmentBySlugAsync(slug);
   if (!assessment) notFound();
-  const questions = assessmentQuestions[slug] ?? [];
+  const questions = await getAssessmentQuestionsBySlugAsync(slug);
 
   return (
-    <AppShell variant="candidate" active="/app/assessment">
+    <AppShell active="/app/assessment">
       <div className="mx-auto max-w-2xl">
         <p className="text-sm font-medium text-(--color-muted)">
           Assessment · {skillById[assessment.skillId]?.name}

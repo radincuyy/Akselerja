@@ -1,15 +1,18 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
-import LoginForm from "@/components/LoginForm";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import CredentialsLoginForm from "@/components/CredentialsLoginForm";
+import DemoLoginForm from "@/components/DemoLoginForm";
 
-type SearchParams = Promise<{ reset?: string }>;
+type SearchParams = Promise<{ reset?: string; error?: string; next?: string }>;
 
 export default async function MasukPage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  const { reset } = await searchParams;
+  const { reset, error, next } = await searchParams;
+  const callbackUrl = next && next.startsWith("/") ? next : "/app";
   return (
     <main id="main" className="min-h-svh bg-(--color-paper)">
       <header className="border-b border-(--color-line)">
@@ -20,12 +23,11 @@ export default async function MasukPage({
         </div>
       </header>
       <div className="mx-auto max-w-md px-5 py-16 sm:px-8 sm:py-24">
-        <h1 className="text-[clamp(1.75rem,3.5vw,2.25rem)] font-semibold tracking-tight text-(--color-ink)">
+        <h1 className="text-2xl font-semibold tracking-tight text-(--color-ink) sm:text-3xl">
           Masuk ke Akselerja
         </h1>
         <p className="mt-3 text-base leading-relaxed text-(--color-muted)">
-          Pakai email yang kamu daftarkan. Kami akan arahkan ke beranda yang
-          tepat berdasarkan tipe akunmu.
+          Pakai akun email yang sudah terdaftar, atau lanjut dengan Google.
         </p>
 
         {reset === "1" ? (
@@ -42,16 +44,59 @@ export default async function MasukPage({
           </div>
         ) : null}
 
+        {error ? (
+          <div
+            role="alert"
+            className="mt-6 rounded-lg border border-(--color-signal-clay) bg-(--color-tint) p-4"
+          >
+            <p className="text-sm font-semibold text-(--color-ink)">
+              Gagal masuk
+            </p>
+            <p className="mt-1 text-sm text-(--color-muted)">
+              Terjadi kesalahan saat proses masuk. Coba lagi atau pakai akun lain.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-8">
-          <LoginForm />
+          <CredentialsLoginForm callbackUrl={callbackUrl} />
+          <p className="mt-3 text-right text-xs text-(--color-muted)">
+            <Link href="/lupa-password" className="hover:text-(--color-ink)">
+              Lupa password?
+            </Link>
+          </p>
         </div>
 
-        <p className="mt-8 text-sm text-(--color-muted)">
+        <div className="my-8 flex items-center gap-3">
+          <span aria-hidden className="h-px flex-1 bg-(--color-line)" />
+          <span className="text-xs uppercase tracking-wider text-(--color-muted)">
+            atau
+          </span>
+          <span aria-hidden className="h-px flex-1 bg-(--color-line)" />
+        </div>
+
+        <GoogleSignInButton />
+
+        <p className="mt-6 text-sm text-(--color-muted)">
           Belum punya akun?{" "}
-          <Link href="/daftar" className="font-medium text-(--color-teal) hover:text-(--color-teal-deep)">
+          <Link
+            href="/daftar"
+            className="font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
+          >
             Daftar gratis
           </Link>
         </p>
+
+        <div className="mt-10 border-t border-(--color-line) pt-8">
+          <p className="text-sm font-medium text-(--color-muted)">
+            Demo cepat untuk juri
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
+            Coba alur kandidat atau alur HR tanpa register. Data demo
+            pre-populated.
+          </p>
+          <DemoLoginForm />
+        </div>
       </div>
     </main>
   );

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { signupWithEmailPassword } from "@/lib/auth-actions";
 
 export default function KandidatSignupForm() {
-  const router = useRouter();
   const emailId = useId();
   const pwId = useId();
   const nameId = useId();
@@ -33,10 +33,26 @@ export default function KandidatSignupForm() {
       return;
     }
 
-    // eslint-disable-next-line no-console
-    console.log("[Akselerja kandidat signup]", { name, email });
-    await new Promise((r) => setTimeout(r, 500));
-    router.push("/onboarding");
+    const result = await signupWithEmailPassword({ name, email, password: pw });
+    if (!result.ok) {
+      setError(result.error);
+      setSubmitting(false);
+      return;
+    }
+
+    // Auto-login dengan credentials yang baru saja dibuat, lalu redirect ke onboarding.
+    const signInRes = await signIn("credentials", {
+      email,
+      password: pw,
+      redirect: false,
+      callbackUrl: "/onboarding",
+    });
+    if (!signInRes || signInRes.error) {
+      // Akun sudah dibuat tapi auto-login gagal — arahkan ke /masuk.
+      window.location.assign("/masuk?email=" + encodeURIComponent(email));
+      return;
+    }
+    window.location.assign(signInRes.url ?? "/onboarding");
   }
 
   return (

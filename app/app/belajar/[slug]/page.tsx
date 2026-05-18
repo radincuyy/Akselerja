@@ -3,17 +3,22 @@ import { notFound } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
 import SkillPracticeRunner from "@/components/SkillPracticeRunner";
-import { practiceBySlug, practiceTasks, skillById } from "@/lib/mock-data";
+import { skillById } from "@/lib/skills";
+import {
+  getPracticeTaskBySlugAsync,
+  listPracticeTasksAsync,
+} from "@/lib/practice-store";
 
 type Params = Promise<{ slug: string }>;
 
-export function generateStaticParams() {
-  return practiceTasks.map((task) => ({ slug: task.slug }));
+export async function generateStaticParams() {
+  const tasks = await listPracticeTasksAsync();
+  return tasks.map((task) => ({ slug: task.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Params }) {
   const { slug } = await params;
-  const task = practiceBySlug[slug];
+  const task = await getPracticeTaskBySlugAsync(slug);
   if (!task) return {};
   return {
     title: `${task.title} · Akselerja`,
@@ -26,13 +31,13 @@ export default async function SkillPracticePage({
   params: Params;
 }) {
   const { slug } = await params;
-  const task = practiceBySlug[slug];
+  const task = await getPracticeTaskBySlugAsync(slug);
   if (!task) notFound();
 
   const skillName = skillById[task.skillId]?.name ?? "Skill";
 
   return (
-    <AppShell variant="candidate" active="/app/belajar">
+    <AppShell active="/app/belajar">
       <Link
         href="/app/belajar"
         className="inline-flex items-center gap-1.5 text-sm text-(--color-muted) hover:text-(--color-ink)"

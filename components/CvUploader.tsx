@@ -64,7 +64,6 @@ export default function CvUploader({ currentCv }: Props) {
       return;
     }
     setState({ kind: "uploading" });
-    // Brief delay to show uploading state, then parsing.
     await new Promise((r) => setTimeout(r, 600));
     setState({ kind: "parsing" });
 
@@ -97,9 +96,17 @@ export default function CvUploader({ currentCv }: Props) {
   function confirm() {
     if (state.kind !== "review") return;
     setState({ kind: "confirming" });
-    const { filename, sizeBytes } = state.preview;
+    const { filename, sizeBytes, blobName, contentType, skills, education, experience } = state.preview;
     startTransition(async () => {
-      await confirmCvUpdate(filename, sizeBytes);
+      await confirmCvUpdate({
+        filename,
+        sizeBytes,
+        blobName,
+        contentType,
+        extractedSkills: skills,
+        extractedEducation: education,
+        extractedExperience: experience,
+      });
     });
   }
 
@@ -273,12 +280,12 @@ function ReviewPanel({
             Skill yang ditemukan
           </p>
           <ul className="mt-3 flex flex-wrap gap-1.5">
-            {preview.skillsFound.map((s) => (
+            {preview.skills.map((s) => (
               <li
-                key={s}
+                key={s.id}
                 className="rounded-full bg-(--color-tint) px-3 py-1 text-xs font-medium text-(--color-ink)"
               >
-                {s}
+                {s.name}
               </li>
             ))}
           </ul>
@@ -290,13 +297,13 @@ function ReviewPanel({
           <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-(--color-muted)">
             <li>
               <span className="font-medium text-(--color-ink)">
-                {preview.educationFound}
+                {preview.education.length}
               </span>{" "}
               entri pendidikan
             </li>
             <li>
               <span className="font-medium text-(--color-ink)">
-                {preview.experienceFound}
+                {preview.experience.length}
               </span>{" "}
               entri pengalaman kerja
             </li>

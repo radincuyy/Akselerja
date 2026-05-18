@@ -1,14 +1,14 @@
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
-import {
-  calcMatch,
-  courses,
-  jobs,
-  levelLabel,
-  me,
-  practiceTasks,
-} from "@/lib/mock-data";
+import { levelLabel } from "@/lib/format";
+import { calcMatch } from "@/lib/match";
+import { listJobsAsync } from "@/lib/jobs-store";
+import { listCoursesAsync } from "@/lib/courses-store";
+import { listPracticeTasksAsync } from "@/lib/practice-store";
+import { getProfileOrSeedAsync } from "@/lib/profile-store";
+import { requireUser } from "@/lib/session";
+import type { Job } from "@/lib/types";
 
 const targetJobId = "j-001";
 const nextTargetJobId = "j-007";
@@ -57,6 +57,11 @@ export default async function BelajarPage({
   searchParams: SearchParams;
 }) {
   const { mode, target } = await searchParams;
+  const user = await requireUser();
+  const me = await getProfileOrSeedAsync(user.id);
+  const jobs = await listJobsAsync();
+  const courses = await listCoursesAsync();
+  const practiceTasks = await listPracticeTasksAsync();
   const targetOverrideJob = target
     ? jobs.find((job) => job.id === target)
     : undefined;
@@ -87,7 +92,7 @@ export default async function BelajarPage({
       : [targetJob.id, "j-002", "j-003"];
   const nearbyMatches = nearbySeedIds
     .map((jobId) => jobs.find((job) => job.id === jobId))
-    .filter((job): job is (typeof jobs)[number] => Boolean(job))
+    .filter((job): job is Job => Boolean(job))
     .filter(
       (job, index, list) =>
         list.findIndex((item) => item.id === job.id) === index,
@@ -303,7 +308,7 @@ export default async function BelajarPage({
       : "Disusun dari profil Rahmat, pengalaman magang gudang ritel, dan gap skill pada lowongan logistik yang paling dekat.";
 
   return (
-    <AppShell variant="candidate" active="/app/belajar">
+    <AppShell active="/app/belajar">
       <PageHeader
         eyebrow="Belajar"
         title={pageTitle}
@@ -540,7 +545,7 @@ function ProfileSignal({ label }: { label: string }) {
 function NearbyJobsCard({
   matches,
 }: {
-  matches: { job: (typeof jobs)[number]; score: number }[];
+  matches: { job: Job; score: number }[];
 }) {
   return (
     <section className="mt-4 rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
@@ -640,9 +645,7 @@ function LevelStatus({
   item: ReturnType<typeof calcMatch>["breakdown"][number];
   tone: "green" | "amber";
 }) {
-  const have = levelLabel(item.have);
-  const required = levelLabel(item.required);
-  if (item.have >= item.required) {
+  if (item.state === "match") {
     return (
       <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-(--color-paper) px-2.5 py-1 text-xs font-medium text-(--color-signal-green)">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
@@ -654,29 +657,20 @@ function LevelStatus({
             strokeLinejoin="round"
           />
         </svg>
-        Memenuhi · {have}
+        Sudah ada
       </span>
     );
   }
 
-  const arrowColor =
-    tone === "green"
-      ? "text-(--color-signal-green)"
-      : "text-(--color-signal-amber)";
-
   return (
-    <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs">
-      <span className="rounded-full bg-(--color-paper) px-2 py-1 font-medium text-(--color-muted)">
-        {have}
-      </span>
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 12 12"
-        fill="none"
-        aria-hidden
-        className={arrowColor}
-      >
+    <span
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-(--color-paper) px-2.5 py-1 text-xs font-medium ${
+        tone === "green"
+          ? "text-(--color-signal-green)"
+          : "text-(--color-signal-amber)"
+      }`}
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
         <path
           d="M3 7.5 6 4l3 3.5M6 4v6"
           stroke="currentColor"
@@ -685,15 +679,7 @@ function LevelStatus({
           strokeLinejoin="round"
         />
       </svg>
-      <span
-        className={
-          tone === "green"
-            ? "rounded-full bg-(--color-paper) px-2 py-1 font-medium text-(--color-signal-green)"
-            : "rounded-full bg-(--color-paper) px-2 py-1 font-medium text-(--color-signal-amber)"
-        }
-      >
-        {required}
-      </span>
+      Belum ada
     </span>
   );
 }

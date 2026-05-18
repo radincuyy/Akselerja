@@ -10,22 +10,46 @@ export type SkillRequirement = {
   skillId: string;
   required: 1 | 2 | 3;
   weight?: number;
+  name?: string;
 };
+
+export type WorkMode = "onsite" | "hybrid" | "remote";
+
+export type JobType = "Full-time" | "Part-time" | "Kontrak" | "Magang";
 
 export type Job = {
   id: string;
   title: string;
   company: string;
+  companyId?: string;
+  companyLogo?: string;
+  companyVerified?: boolean;
+  companySize?: string;
+  companyOverview?: string;
+  companyWebsite?: string;
+  companyInstagramUrl?: string;
+  companyFacebookUrl?: string;
+  companyLinkedInUrl?: string;
+  industryBreadcrumb?: string[];
+  officeAddress?: string;
   location: string;
   salaryMin: number;
   salaryMax: number;
-  type: "Full-time" | "Part-time" | "Kontrak" | "Magang";
+  bonusMin?: number;
+  bonusMax?: number;
+  type: JobType;
   industry: string;
+  workMode?: WorkMode;
   description: string;
   requirements: SkillRequirement[];
   postedAt: string;
   status?: "open" | "closed";
   closedAt?: string;
+  applyUrl?: string;
+  minEducation?: string;
+  minExperienceYears?: number;
+  maxExperienceYears?: number;
+  benefits?: string[];
 };
 
 export type Course = {
@@ -75,8 +99,9 @@ export type Education = {
   id: string;
   institution: string;
   degree: string;
-  startMonth: string; // YYYY-MM
-  endMonth: string; // YYYY-MM atau "" kalau masih berjalan
+  startMonth: string;
+  endMonth: string;
+  gpa?: string;
   notes?: string;
 };
 
@@ -91,9 +116,10 @@ export type Experience = {
 
 export type CvFile = {
   filename: string;
-  uploadedAt: string; // ISO
+  uploadedAt: string;
   sizeBytes?: number;
-  // url?: string; akan diisi saat Azure Blob hidup
+  blobName?: string;
+  contentType?: string;
 };
 
 export type Candidate = {
@@ -101,15 +127,26 @@ export type Candidate = {
   name: string;
   email: string;
   location: string;
+  phone?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
   experienceYears: number;
   expectedSalary: number;
   readinessScore: number;
-  skills: { skillId: string; level: 1 | 2 | 3 }[];
+  skills: { skillId: string; level: 1 | 2 | 3; name?: string }[];
   bio: string;
   status?: "ready" | "trainable";
+  preferredJobTypes?: JobType[];
+  preferredWorkModes?: WorkMode[];
+  preferredCities?: string[];
+  industries?: string[];
   education?: Education[];
   experience?: Experience[];
   cv?: CvFile;
+  profileSummary?: string;
+  profileVector?: number[];
+  profileVectorUpdatedAt?: string;
 };
 
 export type Assessment = {
@@ -161,7 +198,7 @@ export type Application = {
   history: ApplicationEvent[];
   rejectReason?: RejectReasonId;
   hrRating?: 1 | 2 | 3 | 4 | 5;
-  candidateSeenAt?: string; // last time candidate opened detail
+  candidateSeenAt?: string;
 };
 
 export type HrNote = {

@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function CoachPage() {
   return (
-    <AppShell variant="candidate" active="/app/coach">
+    <AppShell active="/app/coach">
       <div className="mx-auto max-w-3xl">
         <PageHeader
           eyebrow="Coach"

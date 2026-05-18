@@ -1,13 +1,15 @@
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import CvUploader from "@/components/CvUploader";
-import { getProfile } from "@/lib/profile-store";
+import { getProfileOrSeedAsync } from "@/lib/profile-store";
+import { requireUser } from "@/lib/session";
 
-export default function UpdateCvPage() {
-  const profile = getProfile();
+export default async function UpdateCvPage() {
+  const user = await requireUser();
+  const profile = await getProfileOrSeedAsync(user.id);
 
   return (
-    <AppShell variant="candidate" active="/app/profil">
+    <AppShell active="/app/profil">
       <Link
         href="/app/profil"
         className="inline-flex items-center gap-1.5 text-sm text-(--color-muted) hover:text-(--color-ink)"

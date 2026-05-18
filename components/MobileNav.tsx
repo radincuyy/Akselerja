@@ -8,10 +8,9 @@ type Item = { href: string; label: string };
 type Props = {
   items: Item[];
   active?: string;
-  lamaranNewCount: number;
 };
 
-export default function MobileNav({ items, active, lamaranNewCount }: Props) {
+export default function MobileNav({ items, active }: Props) {
   const activeRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
@@ -36,7 +35,6 @@ export default function MobileNav({ items, active, lamaranNewCount }: Props) {
       >
         {items.map((item) => {
           const isActive = active === item.href;
-          const showBadge = item.href === "/app/lamaran" && lamaranNewCount > 0;
           return (
             <li
               key={item.href}
@@ -53,14 +51,6 @@ export default function MobileNav({ items, active, lamaranNewCount }: Props) {
                 }
               >
                 {item.label}
-                {showBadge ? (
-                  <span
-                    aria-label={`${lamaranNewCount} update baru`}
-                    className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-(--color-teal) px-1.5 text-xs font-semibold leading-none text-(--color-paper-on-teal)"
-                  >
-                    {lamaranNewCount}
-                  </span>
-                ) : null}
               </Link>
             </li>
           );

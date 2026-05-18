@@ -1,9 +1,3 @@
-// Pure formatters and label helpers. No data, no side effects.
-// Safe to import from server or client components.
-
-// Mock assessment completion. In production this is per-user state from Cosmos.
-export const completedAssessmentIds = new Set(["a-001"]);
-
 export function formatIdr(amount: number, locale = "id-ID") {
   if (!Number.isFinite(amount) || amount <= 0) return "";
   return new Intl.NumberFormat(locale, {
@@ -45,8 +39,6 @@ export function levelLabel(n: number) {
   return "Belum ada";
 }
 
-// Score band: same boundaries as score tone (75/50). Used for color-blind-safe
-// labeling alongside the colored number.
 export type ScoreBand = "siap" | "trainable" | "jauh";
 
 export function scoreBand(score: number): ScoreBand {
@@ -57,8 +49,6 @@ export function scoreBand(score: number): ScoreBand {
 
 export type ScoreAudience = "candidate" | "hr";
 
-// Audience matters: PRODUCT.md says candidate-side never uses shame language.
-// HR-side describes pipeline state directly. Same band, different framing.
 export function scoreBandLabel(
   score: number,
   audience: ScoreAudience = "candidate",
@@ -69,7 +59,6 @@ export function scoreBandLabel(
     if (band === "trainable") return "Trainable";
     return "Masih jauh";
   }
-  // Candidate-facing: focus on what is, not what's missing.
   if (band === "siap") return "Cocok";
   if (band === "trainable") return "Bisa dikejar";
   return "Butuh persiapan";
