@@ -3,11 +3,12 @@ import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
 import { calcMatch } from "@/lib/match";
 import { searchJobs } from "@/lib/search-store";
-import { listCoursesAsync } from "@/lib/courses-store";
+import { findCoursesForGapsAsync } from "@/lib/courses-store";
+import { explainGaps } from "@/lib/gap-explain";
 import { getProfileOrSeedAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
 import { skillById } from "@/lib/skills";
-import type { Candidate, Course, Job } from "@/lib/types";
+import type { Course, Job } from "@/lib/types";
 
 type SearchParams = Promise<{ target?: string }>;
 
@@ -62,6 +63,7 @@ function buildRoadmap(
   gaps: { skillId: string; name: string }[],
   courses: Course[],
   targetJob: Job,
+  explanations: Map<string, string>,
 ): RoadmapStep[] {
   if (gaps.length === 0) {
     return [
@@ -88,15 +90,19 @@ function buildRoadmap(
   const labels = ["Hari 1", "Hari 3-4", "Minggu 1", "Minggu 2"];
 
   const steps: RoadmapStep[] = slots.map((gap, idx) => {
-    const course = courses.find((c) => c.skillId === gap.skillId);
+    const course = courses.find((c) => c.skillId === gap.skillId) ?? courses[idx];
     const name = skillName(gap.skillId, gap.name);
+    const ragBody = explanations.get(gap.skillId);
+    const fallbackBody = course
+      ? `${course.provider} sediakan ${course.title} dengan durasi ${course.durationHours} jam. Skill ini muncul sebagai syarat di lowongan target kamu.`
+      : `Latih ${name} via materi terbuka. Skill ini muncul sebagai syarat di lowongan target kamu, jadi menutupnya menaikkan match score.`;
     return {
       label: labels[idx] ?? `Tahap ${idx + 1}`,
       title: `Tutup gap ${name}`,
-      body: course
-        ? `${course.provider} sediakan ${course.title} dengan durasi ${course.durationHours} jam. Skill ini muncul sebagai syarat di lowongan target kamu.`
-        : `Latih ${name} via materi terbuka. Skill ini muncul sebagai syarat di lowongan target kamu, jadi menutupnya menaikkan match score.`,
-      evidence: `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
+      body: ragBody ?? fallbackBody,
+      evidence: course
+        ? `${course.title} (${course.provider}, ${course.durationHours} jam${course.free ? ", gratis" : ""}).`
+        : `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
       action: course ? "Mulai kursus" : "Cari materi",
       calendarHref: googleCalendarHref({
         title: `Belajar ${name}`,
@@ -168,8 +174,17 @@ export default async function BelajarPage({
   const gaps = breakdown.filter((b) => b.state !== "match");
   const matched = breakdown.filter((b) => b.state === "match");
 
-  const courses = await listCoursesAsync();
-  const roadmap = buildRoadmap(gaps, courses, targetJob);
+  const courses = await findCoursesForGapsAsync(
+    gaps.map((g) => g.skillId),
+    4,
+  );
+  const explanations = await explainGaps({
+    job: targetJob,
+    gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
+    candidateSkillIds: me.skills.map((s) => s.skillId),
+    limit: 4,
+  });
+  const roadmap = buildRoadmap(gaps, courses, targetJob, explanations);
 
   const nearbyMatches = ranked
     .filter((r) => r.job.id !== targetJob.id)

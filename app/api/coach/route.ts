@@ -5,7 +5,9 @@ import { getProfileAsync } from "@/lib/profile-store";
 import { searchJobs } from "@/lib/search-store";
 import { calcMatch } from "@/lib/match";
 import { skillById } from "@/lib/skills";
-import type { Candidate, Job } from "@/lib/types";
+import { findCoursesForGapsAsync } from "@/lib/courses-store";
+import { listPracticeTasksAsync } from "@/lib/practice-store";
+import type { Candidate, Course, Job, PracticeTask } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -112,14 +114,53 @@ Aturan penting:
 
 Kalau user nanya soal skor, skill gap, lowongan, atau langkah belajar, gunakan data konteks di bawah ini.`;
 
-function buildContext(profile: Candidate, ranked: { job: Job; score: number }[]) {
+function buildContext(
+  profile: Candidate,
+  ranked: { job: Job; score: number }[],
+  courses: Course[],
+  practices: PracticeTask[],
+) {
   const profileBlock = summarizeProfile(profile);
   const top = ranked.slice(0, 3);
   const matchBlock =
     top.length === 0
       ? "Belum ada lowongan yang ke-rank untuk profil ini."
       : top.map((r) => summarizeMatch(profile, r.job, r.score)).join("\n");
-  return `PROFIL USER:\n${profileBlock}\n\nLOWONGAN PALING COCOK SAAT INI:\n${matchBlock}`;
+  const coursesBlock =
+    courses.length === 0
+      ? "Tidak ada kursus terkurasi yang relevan."
+      : courses
+          .slice(0, 3)
+          .map(
+            (c) =>
+              `- ${c.title} (${c.provider}, ${c.durationHours} jam${c.free ? ", gratis" : ""}) untuk skill ${skillById[c.skillId]?.name ?? c.skillId}`,
+          )
+          .join("\n");
+  const practicesBlock =
+    practices.length === 0
+      ? "Tidak ada latihan praktik untuk skill prioritas user."
+      : practices
+          .slice(0, 3)
+          .map(
+            (p) =>
+              `- ${p.title} (${p.estimatedMinutes} menit) untuk skill ${skillById[p.skillId]?.name ?? p.skillId}`,
+          )
+          .join("\n");
+  return `PROFIL USER:\n${profileBlock}\n\nLOWONGAN PALING COCOK SAAT INI:\n${matchBlock}\n\nKURSUS RELEVAN UNTUK GAP USER:\n${coursesBlock}\n\nLATIHAN PRAKTIK UNTUK GAP USER:\n${practicesBlock}`;
+}
+
+function gatherGapSkillIds(
+  profile: Candidate,
+  ranked: { job: Job; score: number }[],
+): string[] {
+  const have = new Set(profile.skills.map((s) => s.skillId));
+  const gaps = new Set<string>();
+  for (const r of ranked.slice(0, 5)) {
+    for (const req of r.job.requirements ?? []) {
+      if (!have.has(req.skillId)) gaps.add(req.skillId);
+    }
+  }
+  return [...gaps];
 }
 
 export async function POST(req: Request) {
@@ -197,7 +238,27 @@ export async function POST(req: Request) {
     console.error("[coach] match search failed:", err);
   }
 
-  const context = buildContext(profile, ranked);
+  // Retrieve materials in parallel so the prompt has concrete next steps.
+  // Both are non-fatal: if quota or Cosmos hiccups, we just skip the section.
+  const gapSkillIds = gatherGapSkillIds(profile, ranked);
+  const [courses, practices] = await Promise.all([
+    gapSkillIds.length > 0
+      ? findCoursesForGapsAsync(gapSkillIds, 3).catch((err) => {
+          console.warn("[coach] course retrieval failed:", err);
+          return [] as Course[];
+        })
+      : Promise.resolve([] as Course[]),
+    listPracticeTasksAsync()
+      .then((all) =>
+        all.filter((p) => gapSkillIds.includes(p.skillId)).slice(0, 3),
+      )
+      .catch((err) => {
+        console.warn("[coach] practice retrieval failed:", err);
+        return [] as PracticeTask[];
+      }),
+  ]);
+
+  const context = buildContext(profile, ranked, courses, practices);
   const trimmed = cleaned.slice(-MAX_HISTORY);
   const history = trimmed.slice(0, -1).map((m) => ({
     role: m.role === "user" ? "user" : "model",

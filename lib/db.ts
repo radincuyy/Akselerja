@@ -38,6 +38,7 @@ export const CONTAINERS = {
   practiceTasks: "practiceTasks",
   assessments: "assessments",
   assessmentQuestions: "assessmentQuestions",
+  aiCache: "aiCache",
 } as const;
 
 export type ContainerName = (typeof CONTAINERS)[keyof typeof CONTAINERS];

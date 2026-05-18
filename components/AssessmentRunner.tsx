@@ -16,6 +16,7 @@ type ResultState = {
   correct: number;
   total: number;
   passed: boolean;
+  feedback: string;
 };
 
 export default function AssessmentRunner({
@@ -73,6 +74,17 @@ export default function AssessmentRunner({
             : " Coba lagi setelah belajar lebih dalam, atau lihat rekomendasi materi di halaman Belajar."}
         </p>
 
+        {result.feedback ? (
+          <div className="mt-6 rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-(--color-teal-deep)">
+              Saran personal
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-(--color-ink)">
+              {result.feedback}
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-7 flex flex-wrap gap-3">
           <Link
             href="/app/assessment"
@@ -113,6 +125,7 @@ export default function AssessmentRunner({
         correct: res.correct,
         total: res.total,
         passed: res.passed,
+        feedback: res.feedback,
       });
     });
   }

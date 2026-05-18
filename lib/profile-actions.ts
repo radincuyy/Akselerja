@@ -25,6 +25,12 @@ import { parseCv } from "./cv-parser";
 import { requireUser } from "./session";
 import { deleteUserById } from "./user-store";
 import { refreshProfileVector } from "./profile-summary";
+import {
+  gatherFeedbackContext,
+  generateAssessmentFeedback,
+} from "./assessment-feedback";
+import { searchJobs } from "./search-store";
+import { skillById } from "./skills";
 import type {
   Education,
   Experience,
@@ -533,7 +539,14 @@ export async function submitAssessmentAttempt(input: {
   total: number;
 }):
   | Promise<
-      | { ok: true; score: number; correct: number; total: number; passed: boolean }
+      | {
+          ok: true;
+          score: number;
+          correct: number;
+          total: number;
+          passed: boolean;
+          feedback: string;
+        }
       | { ok: false; error: string }
     > {
   const user = await requireUser();
@@ -554,12 +567,46 @@ export async function submitAssessmentAttempt(input: {
   revalidateTag(profileCacheTag(user.id));
   revalidatePath("/app/assessment");
   revalidatePath("/app/profil");
+
+  // Generate personal feedback. This adds 1-3s but turns a numeric score into
+  // an actionable next step, which is the whole point of an assessment in an
+  // upskilling app. Failures fall back to a static template inside the lib.
+  const skillName = skillById[assessment.skillId]?.name ?? assessment.skillId;
+  let feedback = "";
+  try {
+    const profile = await getProfileOrSeedAsync(user.id);
+    const search = await searchJobs({
+      top: 20,
+      profileVector: profile.profileVector,
+      includeClosed: false,
+    });
+    const ctx = await gatherFeedbackContext(
+      profile,
+      assessment.skillId,
+      search.jobs,
+    );
+    feedback = await generateAssessmentFeedback({
+      profile,
+      skillId: assessment.skillId,
+      skillName,
+      score,
+      passed,
+      correct: input.correct,
+      total: input.total,
+      topJobsRequiringSkill: ctx.jobs,
+      recommendedCourses: ctx.courses,
+    });
+  } catch (err) {
+    console.warn("[assessment] feedback generation failed:", err);
+  }
+
   return {
     ok: true as const,
     score,
     correct: input.correct,
     total: input.total,
     passed,
+    feedback,
   };
 }
 

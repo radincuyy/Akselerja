@@ -26,6 +26,7 @@ const containers = [
   { id: "practiceTasks", partitionKey: "/id" },
   { id: "assessments", partitionKey: "/id" },
   { id: "assessmentQuestions", partitionKey: "/assessmentId" },
+  { id: "aiCache", partitionKey: "/key" },
 ];
 
 async function main() {
