@@ -67,7 +67,7 @@ export default function KandidatSignupForm() {
           type="text"
           required
           autoComplete="name"
-          placeholder="Rahmat Saputra"
+          placeholder="Nama lengkap kamu"
           className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) placeholder:text-(--color-muted) focus:border-(--color-teal)"
         />
       </div>

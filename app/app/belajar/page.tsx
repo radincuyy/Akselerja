@@ -1,24 +1,17 @@
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
-import { levelLabel } from "@/lib/format";
 import { calcMatch } from "@/lib/match";
-import { listJobsAsync } from "@/lib/jobs-store";
+import { searchJobs } from "@/lib/search-store";
 import { listCoursesAsync } from "@/lib/courses-store";
-import { listPracticeTasksAsync } from "@/lib/practice-store";
 import { getProfileOrSeedAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
-import type { Job } from "@/lib/types";
+import { skillById } from "@/lib/skills";
+import type { Candidate, Course, Job } from "@/lib/types";
 
-const targetJobId = "j-001";
-const nextTargetJobId = "j-007";
-const rahmatPracticeSlugs = [
-  "admin-gudang-alur-wms-dasar",
-  "admin-gudang-receiving-wms",
-  "admin-gudang-stock-opname-fifo",
-];
+type SearchParams = Promise<{ target?: string }>;
 
-type SearchParams = Promise<{ mode?: string; target?: string }>;
+const MAX_GAP_STEPS = 4;
 
 function formatGoogleDate(date: Date): string {
   const year = date.getFullYear();
@@ -51,294 +44,174 @@ function googleCalendarHref({
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
+type RoadmapStep = {
+  label: string;
+  title: string;
+  body: string;
+  evidence: string;
+  href?: string;
+  action: string;
+  calendarHref: string;
+};
+
+function skillName(skillId: string, fallback?: string): string {
+  return fallback ?? skillById[skillId]?.name ?? skillId;
+}
+
+function buildRoadmap(
+  gaps: { skillId: string; name: string }[],
+  courses: Course[],
+  targetJob: Job,
+): RoadmapStep[] {
+  if (gaps.length === 0) {
+    return [
+      {
+        label: "Hari 1",
+        title: "Profilmu sudah cocok",
+        body: "Semua skill yang diminta lowongan ini sudah ada di profilmu. Lanjutkan dengan menulis surat lamaran yang spesifik untuk perusahaan ini.",
+        evidence:
+          "Bisa menjelaskan dua pengalaman paling relevan dan satu hasil terukur.",
+        href: `/app/lowongan/${targetJob.id}`,
+        action: "Lihat lowongan",
+        calendarHref: googleCalendarHref({
+          title: `Siapkan lamaran ${targetJob.title}`,
+          details: `Roadmap Akselerja: tulis lamaran spesifik untuk ${targetJob.company}.`,
+          dayOffset: 0,
+        }),
+      },
+    ];
+  }
+
+  const slots = gaps.slice(0, MAX_GAP_STEPS);
+  const dayOffsets = [0, 2, 5, 9];
+  const daySpans = [1, 2, 3, 3];
+  const labels = ["Hari 1", "Hari 3-4", "Minggu 1", "Minggu 2"];
+
+  const steps: RoadmapStep[] = slots.map((gap, idx) => {
+    const course = courses.find((c) => c.skillId === gap.skillId);
+    const name = skillName(gap.skillId, gap.name);
+    return {
+      label: labels[idx] ?? `Tahap ${idx + 1}`,
+      title: `Tutup gap ${name}`,
+      body: course
+        ? `${course.provider} sediakan ${course.title} dengan durasi ${course.durationHours} jam. Skill ini muncul sebagai syarat di lowongan target kamu.`
+        : `Latih ${name} via materi terbuka. Skill ini muncul sebagai syarat di lowongan target kamu, jadi menutupnya menaikkan match score.`,
+      evidence: `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
+      action: course ? "Mulai kursus" : "Cari materi",
+      calendarHref: googleCalendarHref({
+        title: `Belajar ${name}`,
+        details: `Roadmap Akselerja: tutup gap ${name} untuk ${targetJob.title} di ${targetJob.company}.`,
+        dayOffset: dayOffsets[idx] ?? idx * 3,
+        daySpan: daySpans[idx] ?? 2,
+      }),
+    };
+  });
+
+  steps.push({
+    label: "Minggu 2",
+    title: "Update profil dan lamar",
+    body: "Setelah dua sampai tiga gap teratas selesai, hasil belajar jadi bukti kesiapan kerja. Update profil supaya match score-nya ikut naik, lalu lamar.",
+    evidence:
+      "Profil punya skill baru, dan kamu siap menjelaskan satu hal konkret untuk tiap skill.",
+    href: `/app/lowongan/${targetJob.id}`,
+    action: "Lihat lowongan",
+    calendarHref: googleCalendarHref({
+      title: `Update profil dan lamar ${targetJob.title}`,
+      details: `Roadmap Akselerja: tambah skill baru ke profil, lalu cek lowongan target.`,
+      dayOffset: 13,
+    }),
+  });
+
+  return steps;
+}
+
+function describeProgress(score: number): string {
+  if (score >= 80) {
+    return "Kamu sangat cocok untuk posisi ini. Roadmap di bawah membantu memperdalam beberapa hal yang masih bisa diperbaiki.";
+  }
+  if (score >= 60) {
+    return "Posisi ini cukup cocok denganmu. Tutup beberapa skill di bawah supaya peluangmu makin besar.";
+  }
+  if (score >= 40) {
+    return "Posisi ini bisa kamu kejar, tapi butuh waktu di skill prioritas dulu. Roadmap di bawah memetakan langkahnya.";
+  }
+  return "Profilmu masih jauh dari posisi ini. Pertimbangkan target lain dulu, atau mulai dari skill paling dasar.";
+}
+
 export default async function BelajarPage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  const { mode, target } = await searchParams;
+  const { target } = await searchParams;
   const user = await requireUser();
   const me = await getProfileOrSeedAsync(user.id);
-  const jobs = await listJobsAsync();
-  const courses = await listCoursesAsync();
-  const practiceTasks = await listPracticeTasksAsync();
-  const targetOverrideJob = target
-    ? jobs.find((job) => job.id === target)
-    : undefined;
-  const isJobSpecificMode = Boolean(targetOverrideJob);
-  const isNextMode = mode === "next";
-  const baseJob = jobs.find((job) => job.id === targetJobId) ?? jobs[0];
-  const nextJob = jobs.find((job) => job.id === nextTargetJobId) ?? baseJob;
-  const targetJob = targetOverrideJob ?? (isNextMode ? nextJob : baseJob);
-  const { score, breakdown } = calcMatch(me, targetJob);
-  const baseMatch = calcMatch(me, baseJob);
+
+  const search = await searchJobs({
+    top: 20,
+    profileVector: me.profileVector,
+    includeClosed: false,
+  });
+  const ranked = search.jobs
+    .map((job) => ({ job, ...calcMatch(me, job) }))
+    .sort((a, b) => b.score - a.score);
+
+  if (ranked.length === 0) {
+    return <NoJobsState />;
+  }
+
+  const overrideJob = target ? ranked.find((r) => r.job.id === target) : null;
+  const top = overrideJob ?? ranked[0];
+  const targetJob = top.job;
+  const score = top.score;
+  const breakdown = top.breakdown;
   const gaps = breakdown.filter((b) => b.state !== "match");
   const matched = breakdown.filter((b) => b.state === "match");
-  const practices = rahmatPracticeSlugs
-    .map((slug) => practiceTasks.find((task) => task.slug === slug))
-    .filter((task): task is (typeof practiceTasks)[number] => Boolean(task));
-  const firstPractice = practices[0] ?? practiceTasks[0];
-  const receivingPractice =
-    practices.find((task) => task.slug === "admin-gudang-receiving-wms") ??
-    firstPractice;
-  const stockPractice =
-    practices.find((task) => task.slug === "admin-gudang-stock-opname-fifo") ??
-    firstPractice;
-  const wmsCourse = courses.find((course) => course.skillId === "wms");
-  const nearbySeedIds = isJobSpecificMode
-    ? [targetJob.id, targetJobId, nextTargetJobId]
-    : isNextMode
-      ? [targetJob.id, targetJobId, "j-008"]
-      : [targetJob.id, "j-002", "j-003"];
-  const nearbyMatches = nearbySeedIds
-    .map((jobId) => jobs.find((job) => job.id === jobId))
-    .filter((job): job is Job => Boolean(job))
-    .filter(
-      (job, index, list) =>
-        list.findIndex((item) => item.id === job.id) === index,
-    )
-    .map((job) => ({ job, score: calcMatch(me, job).score }))
-    .slice(0, 3);
 
-  const gapRoadmap = [
-    {
-      label: "Hari 1",
-      title: "Pahami alur WMS gudang",
-      body: "Rahmat sudah punya pengalaman gudang ritel, jadi langkah pertama adalah menerjemahkan pengalaman itu ke proses gudang formal.",
-      evidence:
-        "Bisa menjelaskan receiving, hold, release, dan data yang masuk ke WMS.",
-      href: `/app/belajar/${firstPractice.slug}`,
-      action: wmsCourse ? wmsCourse.title : "Materi WMS dasar",
-      calendarHref: googleCalendarHref({
-        title: "Belajar WMS dasar",
-        details:
-          "Roadmap Akselerja: pahami receiving, hold, release, dan data WMS untuk Junior Admin Gudang.",
-        dayOffset: 0,
-      }),
-    },
-    {
-      label: "Hari 2-3",
-      title: "Latihan receiving barang",
-      body: "Kerjakan kasus PO, barang rusak, dan nomor batch hilang. Ini menutup gap WMS utama untuk Junior Admin Gudang.",
-      evidence: "Skor rubrik menunjukkan kepatuhan SOP dan akurasi pencatatan.",
-      href: `/app/belajar/${receivingPractice.slug}`,
-      action: "Mulai simulasi",
-      calendarHref: googleCalendarHref({
-        title: "Latihan receiving barang",
-        details:
-          "Roadmap Akselerja: kerjakan simulasi PO, barang rusak, nomor batch hilang, dan input WMS.",
-        dayOffset: 1,
-        daySpan: 2,
-      }),
-    },
-    {
-      label: "Minggu 1",
-      title: "Perkuat inventory formal",
-      body: "Skill inventory Rahmat sudah menengah, tapi perlu dibuktikan lewat kasus stock opname dan FIFO.",
-      evidence:
-        "Bisa memisahkan stok layak jual, barang bermasalah, dan prioritas rotasi.",
-      href: "/app/belajar/admin-gudang-stock-opname-fifo",
-      action: "Latihan lanjutan",
-      calendarHref: googleCalendarHref({
-        title: "Latihan stock opname dan FIFO",
-        details:
-          "Roadmap Akselerja: perkuat inventory formal lewat kasus stock opname dan FIFO/FEFO.",
-        dayOffset: 6,
-      }),
-    },
-    {
-      label: "Minggu 2",
-      title: "Update profil dan lamar",
-      body: "Setelah dua latihan selesai, hasil rubrik menjadi bukti kesiapan kerja yang bisa menaikkan confidence saat melamar.",
-      evidence:
-        "Profil punya bukti praktik WMS dan inventory, bukan hanya daftar skill.",
-      href: `/app/lowongan/${targetJob.id}`,
-      action: "Lihat lowongan",
-      calendarHref: googleCalendarHref({
-        title: "Update profil dan lamar Junior Admin Gudang",
-        details:
-          "Roadmap Akselerja: update bukti praktik WMS dan inventory, lalu cek lowongan target.",
-        dayOffset: 13,
-      }),
-    },
-  ];
+  const courses = await listCoursesAsync();
+  const roadmap = buildRoadmap(gaps, courses, targetJob);
 
-  const nextRoadmap = [
-    {
-      label: "Hari 1",
-      title: "Naikkan akurasi inventory",
-      body: "Rahmat sudah siap untuk admin gudang dasar. Target berikutnya adalah memperkuat inventory agar bisa masuk role Admin Inventory.",
-      evidence:
-        "Bisa membaca selisih stok, memisahkan barang bermasalah, dan menjelaskan dampaknya ke laporan.",
-      href: "/app/belajar/admin-gudang-stock-opname-fifo",
-      action: "Latihan inventory",
-      calendarHref: googleCalendarHref({
-        title: "Latihan inventory untuk Admin Inventory",
-        details:
-          "Roadmap Akselerja: perkuat inventory formal lewat kasus stock opname dan FIFO/FEFO.",
-        dayOffset: 0,
-      }),
-    },
-    {
-      label: "Hari 2-4",
-      title: "Rapikan laporan stok",
-      body: "Fokus ke kebiasaan membuat laporan stok yang bisa dibaca supervisor dan tim operasional.",
-      evidence:
-        "Bisa menulis catatan selisih, kondisi barang, dan rekomendasi tindak lanjut.",
-      href: "/app/belajar/excel-laporan-stok-gudang",
-      action: "Latihan tabel stok",
-      calendarHref: googleCalendarHref({
-        title: "Latihan tabel laporan stok",
-        details:
-          "Roadmap Akselerja: hitung stok sistem, selisih stok fisik, dan ringkasan supervisor.",
-        dayOffset: 1,
-        daySpan: 3,
-      }),
-    },
-    {
-      label: "Minggu 1",
-      title: "Buat bukti praktik",
-      body: "Simpan hasil feedback rubrik sebagai bukti bahwa Rahmat bukan hanya punya pengalaman magang, tapi juga bisa mengikuti alur gudang formal.",
-      evidence:
-        "Profil punya bukti latihan inventory dan feedback rubrik yang bisa dilihat sebelum melamar.",
-      href: "/app/profil",
-      action: "Update profil",
-      calendarHref: googleCalendarHref({
-        title: "Update bukti praktik inventory",
-        details:
-          "Roadmap Akselerja: tambahkan bukti praktik inventory dan feedback rubrik ke profil.",
-        dayOffset: 6,
-      }),
-    },
-    {
-      label: "Minggu 2",
-      title: "Lamar target lanjutan",
-      body: "Setelah bukti praktik siap, Rahmat bisa mencoba role Admin Inventory yang masih dekat dengan jalur gudang.",
-      evidence:
-        "Target berikutnya tidak meloncat terlalu jauh, tapi membuka peluang salary dan tanggung jawab lebih tinggi.",
-      href: `/app/lowongan/${nextJob.id}`,
-      action: "Lihat target",
-      calendarHref: googleCalendarHref({
-        title: "Lamar Admin Inventory",
-        details:
-          "Roadmap Akselerja: cek target lanjutan Admin Inventory setelah bukti praktik siap.",
-        dayOffset: 13,
-      }),
-    },
-  ];
+  const nearbyMatches = ranked
+    .filter((r) => r.job.id !== targetJob.id)
+    .slice(0, 3)
+    .map((r) => ({ job: r.job, score: r.score }));
 
-  const jobSpecificRoadmap = [
-    {
-      label: "Hari 1",
-      title: "Naikkan WMS ke level perusahaan ini",
-      body: "Roadmap WMS dasar sudah selesai, tapi lowongan ini meminta WMS level menengah sehingga Rahmat perlu latihan kasus yang lebih lengkap.",
-      evidence:
-        "Bisa menangani dokumen tidak lengkap, barang rusak, dan pencatatan WMS tanpa arahan detail.",
-      href: `/app/belajar/${receivingPractice.slug}`,
-      action: "Review WMS",
-      calendarHref: googleCalendarHref({
-        title: "Review WMS untuk PT Bina Distribusi Retail",
-        details:
-          "Roadmap Akselerja: naikkan WMS ke level perusahaan ini lewat simulasi receiving dan input data.",
-        dayOffset: 0,
-      }),
-    },
-    {
-      label: "Hari 2-3",
-      title: "Kenali SAP Inventory",
-      body: "Perusahaan ini meminta SAP Inventory dasar. Untuk demo, Rahmat belajar konsep transaksi inventory dan data yang biasanya masuk ke sistem ERP.",
-      evidence:
-        "Bisa menjelaskan SKU, movement type, quantity, batch, dan alasan koreksi stok.",
-      href: `/app/belajar/${stockPractice.slug}`,
-      action: "Latihan sistem stok",
-      calendarHref: googleCalendarHref({
-        title: "Pengenalan SAP Inventory dasar",
-        details:
-          "Roadmap Akselerja: pahami konsep transaksi inventory dan data stok untuk sistem ERP.",
-        dayOffset: 1,
-        daySpan: 2,
-      }),
-    },
-    {
-      label: "Minggu 1",
-      title: "Buat laporan stok harian",
-      body: "Judul lowongan sama, tapi perusahaan ini menekankan laporan stok. Latihan utamanya bukan quiz, melainkan tabel kerja.",
-      evidence:
-        "Bisa menghitung stok sistem, selisih stok fisik, dan catatan tindak lanjut untuk supervisor.",
-      href: "/app/belajar/excel-laporan-stok-gudang",
-      action: "Latihan tabel stok",
-      calendarHref: googleCalendarHref({
-        title: "Latihan tabel laporan stok",
-        details:
-          "Roadmap Akselerja: hitung stok sistem, selisih fisik, dan ringkasan supervisor.",
-        dayOffset: 6,
-      }),
-    },
-    {
-      label: "Minggu 2",
-      title: "Lamar dengan gap spesifik tertutup",
-      body: "Setelah WMS, SAP Inventory dasar, dan laporan stok dilatih, Rahmat bisa melamar ke perusahaan ini dengan bukti yang lebih cocok.",
-      evidence:
-        "Roadmap ini dibuat untuk requirement PT Bina Distribusi Retail, bukan hanya judul Junior Admin Gudang.",
-      href: `/app/lowongan/${targetJob.id}`,
-      action: "Kembali ke lowongan",
-      calendarHref: googleCalendarHref({
-        title: "Cek ulang lowongan PT Bina Distribusi Retail",
-        details:
-          "Roadmap Akselerja: cek kembali requirement setelah latihan tambahan selesai.",
-        dayOffset: 13,
-      }),
-    },
-  ];
+  const hasGaps = gaps.length > 0;
+  const focusGap = gaps[0];
+  const focusCourse = focusGap
+    ? courses.find((c) => c.skillId === focusGap.skillId)
+    : null;
 
-  const roadmap = isJobSpecificMode
-    ? jobSpecificRoadmap
-    : isNextMode
-      ? nextRoadmap
-      : gapRoadmap;
-  const pageTitle = isJobSpecificMode
-    ? `Roadmap tambahan untuk ${targetJob.title}`
-    : isNextMode
-      ? `Target berikutnya: ${targetJob.title}`
-      : `Roadmap Rahmat menuju ${targetJob.title}`;
-  const pageDescription = isJobSpecificMode
-    ? `Disusun dari requirement spesifik ${targetJob.company}, bukan hanya dari judul pekerjaan yang sama.`
-    : isNextMode
-      ? "Rahmat disimulasikan sudah siap untuk Junior Admin Gudang, jadi roadmap berpindah ke role berdekatan yang masih realistis."
-      : "Disusun dari profil Rahmat, pengalaman magang gudang ritel, dan gap skill pada lowongan logistik yang paling dekat.";
+  const description = overrideJob
+    ? `Roadmap dari requirement spesifik ${targetJob.company}, disesuaikan dengan profilmu.`
+    : "Roadmap ini berbasis lowongan paling cocok denganmu sekarang. Kalau kamu update profil atau pilih target lain, roadmap-nya ikut berubah.";
 
   return (
     <AppShell active="/app/belajar">
       <PageHeader
         eyebrow="Belajar"
-        title={pageTitle}
-        description={pageDescription}
+        title={
+          hasGaps
+            ? `Roadmap menuju ${targetJob.title}`
+            : `Kamu sudah cocok untuk ${targetJob.title}`
+        }
+        description={description}
         action={
           <div className="flex flex-wrap gap-2">
             <Link
-              href={isNextMode ? "/app/belajar" : "/app/belajar?mode=next"}
+              href={`/app/lowongan/${targetJob.id}`}
               className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2.5 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
             >
-              {isJobSpecificMode || isNextMode
-                ? "Lihat target awal"
-                : "Simulasikan target tercapai"}
+              Lihat lowongan
             </Link>
-            <Link
-              href={
-                isNextMode
-                  ? "/app/belajar/admin-gudang-stock-opname-fifo"
-                  : isJobSpecificMode
-                    ? "/app/belajar/excel-laporan-stok-gudang"
-                    : `/app/belajar/${firstPractice.slug}`
-              }
-              className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
-            >
-              {isJobSpecificMode
-                ? "Latihan tabel stok"
-                : isNextMode
-                  ? "Latihan inventory"
-                  : "Mulai gap utama"}
-            </Link>
+            {focusGap ? (
+              <Link
+                href={`/app/lowongan/${targetJob.id}`}
+                className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+              >
+                Mulai dari {skillName(focusGap.skillId, focusGap.name)}
+              </Link>
+            ) : null}
           </div>
         }
       />
@@ -346,11 +219,7 @@ export default async function BelajarPage({
       <section className="mt-10 grid gap-6 lg:grid-cols-[1.15fr_0.85fr] items-start">
         <div className="rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7">
           <p className="text-sm font-medium text-(--color-muted)">
-            {isJobSpecificMode
-              ? "Target dari lowongan detail"
-              : isNextMode
-                ? "Target lanjutan"
-                : "Target kerja paling dekat"}
+            Target kerja saat ini
           </p>
           <div className="mt-3 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -362,9 +231,7 @@ export default async function BelajarPage({
               </p>
             </div>
             <div className="rounded-lg bg-(--color-tint) px-4 py-3 text-right">
-              <p className="text-xs text-(--color-muted)">
-                Match score
-              </p>
+              <p className="text-xs text-(--color-muted)">Match score</p>
               <p className="text-3xl font-semibold tabular-nums text-(--color-teal)">
                 {score}%
               </p>
@@ -372,83 +239,86 @@ export default async function BelajarPage({
           </div>
 
           <p className="mt-6 text-sm leading-relaxed text-(--color-ink)">
-            {isJobSpecificMode
-              ? "Roadmap ini dibuat dari skill yang diminta perusahaan ini: WMS lebih tinggi, SAP Inventory dasar, dan laporan stok. Jadi meski judulnya sama, latihan tetap berbeda."
-              : isNextMode
-                ? "Karena target awal sudah disimulasikan tercapai, sistem mencari role berdekatan yang masih satu industri dan hanya membutuhkan beberapa penguatan skill."
-                : "Rahmat sudah punya dasar Excel, inventory, komunikasi, dan ketelitian. Yang perlu dibuat terlihat adalah pengalaman WMS formal, lalu inventory-nya dibuktikan lewat kasus gudang yang lebih rapi."}
+            {describeProgress(score)}
           </p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <SkillGroup
-              title="Sudah mendukung"
+              title="Sudah ada di profilmu"
               items={matched.slice(0, 4)}
               tone="green"
             />
             <SkillGroup title="Perlu ditutup" items={gaps} tone="amber" />
           </div>
-          {isNextMode || isJobSpecificMode ? (
-            <ArchiveSummary score={baseMatch.score} />
-          ) : null}
         </div>
 
         <div>
           <h2 className="text-sm font-medium text-(--color-muted)">
-            Sedang dipelajari
+            {focusCourse ? "Mulai dari sini" : "Fokus utama"}
           </h2>
           <div className="mt-4 rounded-lg border border-(--color-line) bg-(--color-paper) p-6">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-xs font-medium text-(--color-teal)">
-                Warehouse Management System
-              </p>
-              <span className="text-xs text-(--color-muted)">Gratis</span>
-            </div>
-            <h3 className="mt-2 text-lg font-semibold text-(--color-ink)">
-              {isNextMode
-                ? "Stock opname singkat dan keputusan FIFO"
-                : isJobSpecificMode
-                  ? "Latihan tabel laporan stok gudang"
-                  : "Pengenalan Warehouse Management System"}
-            </h3>
-            <p className="mt-1 text-sm text-(--color-muted)">
-              {isNextMode || isJobSpecificMode
-                ? "Akselerja Practice Lab"
-                : "Akselerja Learning · 4 jam"}
-            </p>
-            <p className="mt-4 text-sm leading-relaxed text-(--color-ink)">
-              {isJobSpecificMode
-                ? "Latihan kerja berbasis tabel untuk menghitung stok sistem, selisih stok fisik, dan ringkasan supervisor."
-                : isNextMode
-                  ? "Latihan lanjutan untuk memperkuat inventory formal sebelum Rahmat mencoba role Admin Inventory."
-                  : "Dasar-dasar WMS, alur barang dari penerimaan sampai pengiriman, dan praktik di simulator receiving barang."}
-            </p>
-            <div className="mt-5">
-              <div className="flex items-center justify-between text-xs text-(--color-muted)">
-                <span>Progress</span>
-                <span className="text-(--color-ink)">2 dari 6 modul</span>
-              </div>
-              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-(--color-line)">
-                <div
-                  className="h-full rounded-full bg-(--color-teal)"
-                  style={{ width: "33%" }}
-                />
-              </div>
-            </div>
-            <Link
-              href={
-                isNextMode
-                  ? "/app/belajar/admin-gudang-stock-opname-fifo"
-                  : isJobSpecificMode
-                    ? "/app/belajar/excel-laporan-stok-gudang"
-                    : `/app/belajar/${firstPractice.slug}`
-              }
-              className="mt-6 inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
-            >
-              Lanjutkan
-            </Link>
+            {focusCourse && focusGap ? (
+              <>
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-xs font-medium text-(--color-teal)">
+                    {skillName(focusGap.skillId, focusGap.name)}
+                  </p>
+                  <span className="text-xs text-(--color-muted)">
+                    {focusCourse.free ? "Gratis" : "Berbayar"}
+                  </span>
+                </div>
+                <h3 className="mt-2 text-lg font-semibold text-(--color-ink)">
+                  {focusCourse.title}
+                </h3>
+                <p className="mt-1 text-sm text-(--color-muted)">
+                  {focusCourse.provider} · {focusCourse.durationHours} jam
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-(--color-ink)">
+                  {focusCourse.description}
+                </p>
+                <Link
+                  href={`/app/lowongan/${targetJob.id}`}
+                  className="mt-6 inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+                >
+                  Cek dampak ke skor
+                </Link>
+              </>
+            ) : focusGap ? (
+              <>
+                <p className="text-xs font-medium text-(--color-teal)">
+                  {skillName(focusGap.skillId, focusGap.name)}
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-(--color-ink)">
+                  Cari materi {skillName(focusGap.skillId, focusGap.name)}
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-(--color-ink)">
+                  Belum ada kursus terkurasi untuk skill ini. Cari materi bebas
+                  dari sumber yang kamu percaya. Setelah belajar, tambahkan ke
+                  profil supaya match score ikut naik.
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-(--color-ink)">
+                  Lanjut ke lamaran
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-(--color-ink)">
+                  Tidak ada gap yang harus kamu tutup untuk lowongan ini.
+                  Saatnya melamar dengan rasa percaya diri.
+                </p>
+                <Link
+                  href={`/app/lowongan/${targetJob.id}`}
+                  className="mt-6 inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+                >
+                  Lihat lowongan
+                </Link>
+              </>
+            )}
           </div>
 
-          <NearbyJobsCard matches={nearbyMatches} />
+          {nearbyMatches.length > 0 ? (
+            <NearbyJobsCard matches={nearbyMatches} />
+          ) : null}
         </div>
       </section>
 
@@ -462,19 +332,24 @@ export default async function BelajarPage({
               Roadmap belajar 2 minggu
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-(--color-muted)">
-              Setiap langkah punya bukti yang bisa dipakai untuk memperbarui
-              skill profile dan menjelaskan kesiapan Rahmat ke HR.
+              Setiap langkah punya bukti yang bisa kamu pakai untuk update profil
+              dan menjelaskan kesiapan ke HR.
             </p>
           </div>
-          <span className="text-sm text-(--color-muted)">
-            Fokus: WMS dasar + inventory formal
-          </span>
+          {hasGaps ? (
+            <span className="text-sm text-(--color-muted)">
+              Fokus: {gaps
+                .slice(0, 2)
+                .map((g) => skillName(g.skillId, g.name))
+                .join(" + ")}
+            </span>
+          ) : null}
         </div>
 
         <ol className="mt-6 grid gap-4 lg:grid-cols-4">
           {roadmap.map((step, i) => (
             <li
-              key={step.title}
+              key={`${step.label}-${i}`}
               className="flex flex-col rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
             >
               <div className="flex items-center justify-between gap-3">
@@ -494,38 +369,28 @@ export default async function BelajarPage({
               <p className="mt-4 rounded-md bg-(--color-tint) p-3 text-xs leading-relaxed text-(--color-ink)">
                 {step.evidence}
               </p>
-              {step.href ? (
-                <div className="mt-4 grid gap-2">
+              <div className="mt-4 grid gap-2">
+                {step.href ? (
                   <Link
                     href={step.href}
                     className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
                   >
                     {step.action}
                   </Link>
-                  <a
-                    href={step.calendarHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center justify-center rounded-md bg-(--color-tint) px-4 py-2 text-sm font-medium text-(--color-muted) hover:text-(--color-ink)"
-                  >
-                    Tambah ke Google Calendar
-                  </a>
-                </div>
-              ) : (
-                <div className="mt-4 grid gap-2">
+                ) : (
                   <span className="inline-flex items-center justify-center rounded-md bg-(--color-tint) px-4 py-2 text-sm font-medium text-(--color-muted)">
                     {step.action}
                   </span>
-                  <a
-                    href={step.calendarHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
-                  >
-                    Tambah ke Google Calendar
-                  </a>
-                </div>
-              )}
+                )}
+                <a
+                  href={step.calendarHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+                >
+                  Tambah ke Google Calendar
+                </a>
+              </div>
             </li>
           ))}
         </ol>
@@ -534,11 +399,30 @@ export default async function BelajarPage({
   );
 }
 
-function ProfileSignal({ label }: { label: string }) {
+function NoJobsState() {
   return (
-    <span className="rounded-full bg-(--color-paper) px-3 py-1 text-xs font-medium text-(--color-ink)">
-      {label}
-    </span>
+    <AppShell active="/app/belajar">
+      <PageHeader
+        eyebrow="Belajar"
+        title="Belum ada target kerja"
+        description="Kami belum menemukan lowongan yang cocok dengan profilmu. Lengkapi profil atau upload CV supaya kami bisa menyusun roadmap belajar yang tepat."
+      />
+      <div className="mt-10 rounded-lg border border-(--color-line) bg-(--color-tint) p-8">
+        <p className="text-sm font-semibold text-(--color-ink)">
+          Mulai dari profilmu
+        </p>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-(--color-muted)">
+          Setelah profil terisi, kami otomatis memilih satu lowongan target dan
+          menyusun roadmap belajar dua minggu yang spesifik untukmu.
+        </p>
+        <Link
+          href="/app/profil"
+          className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
+        >
+          Lengkapi profil →
+        </Link>
+      </div>
+    </AppShell>
   );
 }
 
@@ -556,7 +440,7 @@ function NearbyJobsCard({
         {matches.map(({ job, score }) => (
           <Link
             key={job.id}
-            href={`/app/lowongan/${job.id}`}
+            href={`/app/belajar?target=${job.id}`}
             className="group grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 rounded-md border border-(--color-line) bg-(--color-paper) px-4 py-3.5 transition-colors hover:border-(--color-teal)"
           >
             <span className="min-w-0">
@@ -577,32 +461,6 @@ function NearbyJobsCard({
   );
 }
 
-function ArchiveSummary({ score }: { score: number }) {
-  return (
-    <Link
-      href="/app/belajar/arsip/junior-admin-gudang"
-      className="mt-5 block rounded-md border border-(--color-line) bg-(--color-tint) p-4 hover:border-(--color-teal)"
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-medium text-(--color-muted)">
-            Roadmap selesai
-          </p>
-          <p className="mt-1 text-sm font-medium text-(--color-ink)">
-            Junior Admin Gudang · PT Cipta Logistik Nusantara
-          </p>
-          <p className="mt-1 text-xs text-(--color-muted)">
-            3 latihan selesai · bukti WMS dasar dan inventory tersimpan
-          </p>
-        </div>
-        <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-(--color-paper) px-3 py-1 text-xs font-semibold text-(--color-signal-green)">
-          Lihat arsip · {Math.max(score, 84)}%
-        </span>
-      </div>
-    </Link>
-  );
-}
-
 function SkillGroup({
   title,
   items,
@@ -614,9 +472,7 @@ function SkillGroup({
 }) {
   return (
     <div className="rounded-md border border-(--color-line) bg-(--color-tint) p-4">
-      <p className="text-xs font-medium text-(--color-muted)">
-        {title}
-      </p>
+      <p className="text-xs font-medium text-(--color-muted)">{title}</p>
       <ul className="mt-3 space-y-2">
         {items.length === 0 ? (
           <li className="text-sm text-(--color-muted)">Tidak ada.</li>

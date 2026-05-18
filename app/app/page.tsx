@@ -27,17 +27,22 @@ export default async function CandidateHome() {
     .sort((a, b) => b.score - a.score);
   const top3 = ranked.slice(0, 3);
   const matchingCount = ranked.filter((r) => r.score >= 60).length;
+  const hasSkills = (profile.skills?.length ?? 0) > 0;
+  const hasProfileVector = Array.isArray(profile.profileVector) && profile.profileVector.length > 0;
+  const profileReady = hasSkills && hasProfileVector;
 
   const firstName = profile.name.split(" ")[0] || "kamu";
-  const heading =
-    matchingCount === 0
+  const heading = !profileReady
+    ? `Halo ${firstName}, profilmu masih perlu diisi.`
+    : matchingCount === 0
       ? `Belum ada lowongan yang cocok hari ini, ${firstName}.`
       : matchingCount === 1
         ? `Hari ini ada 1 lowongan yang cocok denganmu.`
         : `Hari ini ada ${matchingCount} lowongan yang cocok denganmu.`;
 
-  const subhead =
-    matchingCount === 0
+  const subhead = !profileReady
+    ? "Lengkapi skill dan pengalaman supaya kami bisa memilihkan lowongan yang benar-benar cocok untukmu, bukan asal urut."
+    : matchingCount === 0
       ? "Lengkapi profil atau ikuti satu assessment supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk."
       : `Lowongan dihitung cocok kalau match score-nya 60% ke atas. Skor naik begitu kamu menambah skill, mengikuti assessment, atau melengkapi pengalaman.`;
 
@@ -83,17 +88,36 @@ export default async function CandidateHome() {
             Lihat semua →
           </Link>
         </div>
-        <div className="mt-6 grid gap-4">
-          {top3.map(({ job, score, breakdown }) => {
-            const top = breakdown.find((b) => b.state === "match");
-            const reason = top
-              ? `Cocok karena ${skillById[top.skillId]?.name ?? top.name}.`
-              : "Lihat detail untuk rincian skor.";
-            return (
-              <JobCard key={job.id} job={job} matchScore={score} topReason={reason} />
-            );
-          })}
-        </div>
+        {profileReady ? (
+          <div className="mt-6 grid gap-4">
+            {top3.map(({ job, score, breakdown }) => {
+              const top = breakdown.find((b) => b.state === "match");
+              const reason = top
+                ? `Cocok karena ${skillById[top.skillId]?.name ?? top.name}.`
+                : "Lihat detail untuk rincian skor.";
+              return (
+                <JobCard key={job.id} job={job} matchScore={score} topReason={reason} />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-6 rounded-lg border border-(--color-line) bg-(--color-tint) p-6">
+            <p className="text-sm font-semibold text-(--color-ink)">
+              Rekomendasi belum personal
+            </p>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-(--color-muted)">
+              Kami butuh skill dan pengalamanmu untuk memilih lowongan yang
+              spesifik. Setelah profil lengkap, kotak ini berisi tiga lowongan
+              paling cocok denganmu, bukan acak.
+            </p>
+            <Link
+              href={profile.cv ? "/app/profil" : "/app/profil/cv"}
+              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
+            >
+              {profile.cv ? "Lengkapi profil" : "Upload CV"} →
+            </Link>
+          </div>
+        )}
       </section>
 
       <section className="mt-14" aria-labelledby="next-heading">

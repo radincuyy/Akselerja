@@ -2,7 +2,6 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import CredentialsLoginForm from "@/components/CredentialsLoginForm";
-import DemoLoginForm from "@/components/DemoLoginForm";
 
 type SearchParams = Promise<{ reset?: string; error?: string; next?: string }>;
 
@@ -86,17 +85,6 @@ export default async function MasukPage({
             Daftar gratis
           </Link>
         </p>
-
-        <div className="mt-10 border-t border-(--color-line) pt-8">
-          <p className="text-sm font-medium text-(--color-muted)">
-            Demo cepat untuk juri
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
-            Coba alur kandidat atau alur HR tanpa register. Data demo
-            pre-populated.
-          </p>
-          <DemoLoginForm />
-        </div>
       </div>
     </main>
   );

@@ -4,17 +4,26 @@ import dynamic from "next/dynamic";
 import type { ComponentProps } from "react";
 import type ProfileEditUI from "./ProfileEditUI";
 
-const LazyProfileEditUI = dynamic(() => import("./ProfileEditUI"), {
-  ssr: false,
-  loading: () => (
+function ProfileEditSkeleton() {
+  return (
     <div
       role="status"
       aria-live="polite"
-      className="mt-8 rounded-lg border border-(--color-line) bg-(--color-paper) p-8 text-sm text-(--color-muted)"
+      aria-label="Memuat editor profil"
+      className="mt-8 flex flex-col gap-4 motion-safe:animate-pulse"
     >
-      Memuat editor profil...
+      <div className="h-32 rounded-lg border border-(--color-line) bg-(--color-tint)" />
+      <div className="h-44 rounded-lg border border-(--color-line) bg-(--color-tint)" />
+      <div className="h-44 rounded-lg border border-(--color-line) bg-(--color-tint)" />
+      <div className="h-44 rounded-lg border border-(--color-line) bg-(--color-tint)" />
+      <span className="sr-only">Memuat editor profil...</span>
     </div>
-  ),
+  );
+}
+
+const LazyProfileEditUI = dynamic(() => import("./ProfileEditUI"), {
+  ssr: false,
+  loading: () => <ProfileEditSkeleton />,
 });
 
 export default function ProfileEditMount(

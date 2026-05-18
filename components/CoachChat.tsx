@@ -9,12 +9,14 @@ type SuggestedPrompt = { label: string; prompt: string };
 
 const SUGGESTED: SuggestedPrompt[] = [
   {
-    label: "Kenapa match score saya 72?",
-    prompt: "Tolong jelaskan kenapa skor saya 72 untuk Junior Admin Gudang.",
+    label: "Kenapa match score saya segini?",
+    prompt:
+      "Tolong jelaskan kenapa match score saya untuk lowongan target saya seperti itu.",
   },
   {
     label: "Skill apa yang harus saya pelajari dulu?",
-    prompt: "Dari skill gap saya, mana yang paling penting saya pelajari duluan?",
+    prompt:
+      "Dari skill gap saya, mana yang paling penting saya pelajari duluan?",
   },
   {
     label: "Berapa lama saya siap kerja?",
@@ -22,110 +24,29 @@ const SUGGESTED: SuggestedPrompt[] = [
   },
   {
     label: "Saya minder, bantu saya",
-    prompt: "Saya merasa minder lihat kandidat lain. Bagaimana cara berpikir yang sehat?",
+    prompt:
+      "Saya merasa minder lihat kandidat lain. Bagaimana cara berpikir yang sehat?",
   },
 ];
 
 const INITIAL_MESSAGE: Message = {
   id: "m-0",
   role: "coach",
-  text: "Halo Rahmat. Saya pendamping karier kamu di Akselerja. Saya bisa bantu jelaskan skor kecocokan, urutin skill yang perlu kamu pelajari, atau bantu kamu pikir realistis soal target kerja. Mau mulai dari mana?",
+  text: "Halo. Saya pendamping karier kamu di Akselerja. Saya bisa bantu jelaskan skor kecocokan, urutin skill yang perlu kamu pelajari, atau bantu kamu pikir realistis soal target kerja. Mau mulai dari mana?",
 };
-
-function generateResponse(prompt: string): string {
-  const p = prompt.toLowerCase();
-
-  if (p.includes("skor") || p.includes("match") || p.includes("kenapa") && p.includes("72")) {
-    return [
-      "Skor 72 untuk Junior Admin Gudang itu posisinya \"trainable\", artinya kamu cocok tapi ada 1-2 hal yang masih perlu diasah.",
-      "",
-      "Yang bikin skor kamu tinggi: kamu sudah punya basic Excel, kamu pernah handle stok di toko orang tua kamu, dan kamu domisili Bekasi (cocok lokasi).",
-      "",
-      "Yang menahan: pengalaman formal kamu masih 1 tahun (mereka ekspektasi 1-2 tahun), dan satu skill SOP gudang formal kamu belum ada. Itu bisa kamu tutup lewat satu kursus dasar 4-6 jam.",
-      "",
-      "Mau saya buatkan urutan belajar yang paling cepat naikkan skor ini?",
-    ].join("\n");
-  }
-
-  if (p.includes("skill") && (p.includes("duluan") || p.includes("pertama") || p.includes("prioritas"))) {
-    return [
-      "Saran saya, ambil dua skill ini berurutan:",
-      "",
-      "1. **SOP gudang dasar** (4-6 jam). Ini yang paling banyak diminta lowongan logistik di Bekasi, dan paling cepat selesai. Setelah ini, skor kamu naik ke ~78.",
-      "",
-      "2. **Excel intermediate (pivot table, vlookup)** (8-10 jam). Skill ini muncul di 70% lowongan admin. Kalau kamu lulus assessment Excel intermediate, skor naik ke ~82 dan kamu masuk kategori \"siap kerja\".",
-      "",
-      "Pelajaran softskill seperti komunikasi tim biarkan nanti. Itu lebih cocok diasah sambil kerja.",
-    ].join("\n");
-  }
-
-  if (p.includes("lama") || p.includes("kapan") || p.includes("berapa") && p.includes("waktu")) {
-    return [
-      "Realistisnya, untuk masuk kategori \"siap kerja\" (skor 80+) di posisi yang kamu incar sekarang, kamu butuh sekitar **2-3 minggu** kalau kamu konsisten 1 jam per hari.",
-      "",
-      "Rinciannya: SOP gudang 1 minggu, Excel intermediate 1.5 minggu, plus satu kali kerjakan ulang assessment supaya skornya terupdate.",
-      "",
-      "Tapi kamu nggak harus tunggu 80 untuk mulai melamar. Skor 72 kamu sekarang ini sudah bisa melamar posisi \"trainable\". Banyak perusahaan terbuka kandidat trainable kalau motivasinya jelas.",
-    ].join("\n");
-  }
-
-  if (p.includes("minder") || p.includes("rendah") || p.includes("malu") || p.includes("takut")) {
-    return [
-      "Wajar kok merasa begitu. Tapi saya mau bantu kamu lihat dari angle lain.",
-      "",
-      "Skor di Akselerja itu bukan nilai kamu sebagai orang. Itu cuma deskripsi: \"untuk posisi spesifik ini, kamu masih perlu apa\". Kandidat dengan skor 90 untuk satu posisi bisa jadi skor 55 untuk posisi lain.",
-      "",
-      "Kamu sudah selangkah di depan ribuan kandidat yang nggak tahu skill mereka apa. Kamu tahu kekuatan kamu, kamu tahu gap kamu, dan kamu lagi kerjain gap itu. Itu yang HR cari.",
-      "",
-      "Coba satu hal dulu: kerjain satu assessment hari ini. Nggak harus lulus. Cuma supaya kamu lihat \"oh, saya bisa kok\".",
-    ].join("\n");
-  }
-
-  if (p.includes("lamar") || p.includes("apply") || p.includes("interview")) {
-    return [
-      "Saran saya, lamar sekarang juga ke lowongan dengan skor kamu 75+, dan paralel kerjakan upskilling.",
-      "",
-      "Untuk interview, tiga hal yang biasanya ditanya HR untuk posisi entry-level:",
-      "",
-      "1. \"Ceritain pengalaman kamu yang paling related ke pekerjaan ini\". Siapkan satu cerita konkret, dengan angka kalau bisa.",
-      "2. \"Kenapa kami harus pilih kamu?\". Jangan jawab generik, sebut satu hal spesifik dari job desc yang kamu bisa berikan.",
-      "3. \"Kapan kamu bisa mulai?\". Jawab langsung, jangan ragu.",
-      "",
-      "Mau saya bantu kamu latihan satu pertanyaan?",
-    ].join("\n");
-  }
-
-  if (p.includes("salary") || p.includes("gaji") || p.includes("upah")) {
-    return [
-      "Untuk posisi Junior Admin Gudang di Bekasi tahun 2026, rentang gaji wajarnya **Rp 4.2-5.5 juta** per bulan untuk kandidat dengan pengalaman 1 tahun.",
-      "",
-      "Yang menentukan posisi kamu di rentang itu:",
-      "- Sertifikasi Excel intermediate bisa naikkan ~Rp 300-500 ribu",
-      "- Kemampuan bahasa Inggris dasar bisa naikkan ~Rp 200-400 ribu",
-      "- Pengalaman pakai sistem WMS (Warehouse Management System) bisa naikkan ~Rp 500 ribu",
-      "",
-      "Saat negosiasi, jangan sebut angka duluan. Tanya balik: \"Berapa range yang sudah disiapkan untuk posisi ini?\"",
-    ].join("\n");
-  }
-
-  return [
-    "Saya catat pertanyaan kamu. Untuk sekarang, saya bisa bantu spesifik di tiga area: **menjelaskan match score**, **menyusun urutan belajar**, dan **strategi melamar**.",
-    "",
-    "Coba pilih salah satu pertanyaan saran di bawah, atau tanya saya lebih spesifik. Misalnya: \"untuk lowongan X, skill apa yang paling kurang dari saya?\"",
-  ].join("\n");
-}
 
 export default function CoachChat() {
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, thinking]);
 
-  const send = (text: string) => {
+  async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || thinking) return;
     const userMsg: Message = {
@@ -133,20 +54,40 @@ export default function CoachChat() {
       role: "user",
       text: trimmed,
     };
-    setMessages((prev) => [...prev, userMsg]);
+    const nextHistory = [...messages, userMsg];
+    setMessages(nextHistory);
     setInput("");
     setThinking(true);
-    const delay = 600 + Math.min(trimmed.length * 12, 1400);
-    setTimeout(() => {
+    setErrorMsg(null);
+
+    try {
+      const payload = nextHistory
+        .filter((m) => m.id !== "m-0")
+        .map((m) => ({ role: m.role, text: m.text }));
+      const res = await fetch("/api/coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: payload }),
+      });
+      const data = (await res.json()) as { reply?: string; error?: string };
+      if (!res.ok || !data.reply) {
+        setErrorMsg(data.error ?? "Coach belum bisa menjawab sekarang.");
+        setThinking(false);
+        return;
+      }
       const reply: Message = {
         id: `c-${Date.now()}`,
         role: "coach",
-        text: generateResponse(trimmed),
+        text: data.reply,
       };
       setMessages((prev) => [...prev, reply]);
+    } catch (err) {
+      console.error("[coach] fetch failed:", err);
+      setErrorMsg("Tidak bisa menghubungi coach. Cek koneksi internetmu.");
+    } finally {
       setThinking(false);
-    }, delay);
-  };
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -160,6 +101,14 @@ export default function CoachChat() {
           <MessageBubble key={msg.id} role={msg.role} text={msg.text} />
         ))}
         {thinking && <TypingIndicator />}
+        {errorMsg ? (
+          <p
+            role="alert"
+            className="rounded-md border border-(--color-signal-clay) bg-(--color-tint) px-4 py-3 text-sm text-(--color-ink)"
+          >
+            {errorMsg}
+          </p>
+        ) : null}
         <div ref={endRef} />
       </div>
 
@@ -204,7 +153,7 @@ export default function CoachChat() {
             }
           }}
           rows={1}
-          placeholder="Tanya apa saja soal karier kamu…"
+          placeholder="Tanya apa saja soal karier kamu..."
           className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-2 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)"
         />
         <button
@@ -217,7 +166,8 @@ export default function CoachChat() {
       </form>
 
       <p className="text-xs text-(--color-muted)">
-        Coach ini panduan, bukan pengganti keputusan kamu. Untuk konteks demo, jawaban di-script. Pada versi produksi, coach akan terhubung ke Azure OpenAI dengan akses ke profil dan riwayat assessment kamu.
+        Coach ini panduan, bukan pengganti keputusan kamu. Jawaban dibuat
+        berdasarkan profil dan lowongan paling cocok yang ada di akunmu.
       </p>
     </div>
   );

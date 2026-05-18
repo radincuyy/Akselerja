@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
@@ -13,6 +14,32 @@ import { getProfileOrSeedAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
 
 type Params = Promise<{ id: string }>;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Params;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const job = await getJobByIdAsync(id);
+  if (!job) {
+    return { title: "Lowongan tidak ditemukan · Akselerja" };
+  }
+  const description =
+    `${job.title} di ${job.company}, ${job.location}.` +
+    (job.salaryMax > 0
+      ? ` Gaji ${formatIdr(job.salaryMin)} - ${formatIdr(job.salaryMax)} per bulan.`
+      : "");
+  return {
+    title: `${job.title} - ${job.company} · Akselerja`,
+    description,
+    openGraph: {
+      title: `${job.title} di ${job.company}`,
+      description,
+      type: "article",
+    },
+  };
+}
 
 const TYPE_LABEL: Record<string, string> = {
   "Full-time": "Penuh Waktu",
