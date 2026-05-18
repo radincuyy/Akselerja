@@ -11,7 +11,7 @@ export function isCosmosConfigured(): boolean {
   return Boolean(COSMOS_ENDPOINT && COSMOS_KEY);
 }
 
-export function getCosmos(): { client: CosmosClient; database: Database } {
+function getCosmos(): { client: CosmosClient; database: Database } {
   if (!isCosmosConfigured()) {
     throw new Error(
       "Cosmos DB not configured. Set COSMOS_ENDPOINT and COSMOS_KEY in .env.local",

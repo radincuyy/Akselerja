@@ -9,26 +9,6 @@ export async function listAssessmentsAsync(): Promise<Assessment[]> {
   return resources;
 }
 
-export async function getAssessmentByIdAsync(
-  id: string,
-): Promise<Assessment | undefined> {
-  const container = getContainer(CONTAINERS.assessments);
-  try {
-    const { resource } = await container.item(id, id).read<Assessment>();
-    return resource ?? undefined;
-  } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: number }).code === 404
-    ) {
-      return undefined;
-    }
-    throw err;
-  }
-}
-
 export async function getAssessmentBySlugAsync(
   slug: string,
 ): Promise<Assessment | undefined> {

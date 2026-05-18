@@ -3,7 +3,7 @@ import type { Candidate } from "./types";
 import { embedText } from "./gemini-embed";
 import { CONTAINERS, getContainer } from "./db";
 
-export function buildProfileText(profile: Candidate): string {
+function buildProfileText(profile: Candidate): string {
   const skills = (profile.skills ?? [])
     .map((s) => {
       const name = s.name ?? skillById[s.skillId]?.name ?? s.skillId;

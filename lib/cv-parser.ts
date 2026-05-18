@@ -1,12 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { skillById } from "./skills";
 
-export type ParsedSkill = {
+type ParsedSkill = {
   id: string;
   name: string;
 };
 
-export type ParsedEducation = {
+type ParsedEducation = {
   institution: string;
   degree: string;
   startMonth?: string;
@@ -14,7 +14,7 @@ export type ParsedEducation = {
   notes?: string;
 };
 
-export type ParsedExperience = {
+type ParsedExperience = {
   position: string;
   company: string;
   startMonth?: string;
@@ -38,7 +38,7 @@ export type CvParseInput = {
 type CvParserEngine = (input: CvParseInput) => Promise<ParsedCv>;
 
 // Slug stabil supaya re-upload CV tidak bikin skill duplikat.
-export function slugifySkillName(name: string): string {
+function slugifySkillName(name: string): string {
   return (
     name
       .normalize("NFKD")

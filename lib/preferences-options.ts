@@ -55,5 +55,3 @@ export const INDUSTRY_OPTIONS = [
   "NGO",
 ] as const;
 
-export type CityOption = (typeof CITY_OPTIONS)[number];
-export type IndustryOption = (typeof INDUSTRY_OPTIONS)[number];

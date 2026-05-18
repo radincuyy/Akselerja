@@ -1,6 +1,6 @@
 import type { Skill } from "./types";
 
-export const skills: Skill[] = [
+const skills: Skill[] = [
   { id: "excel", name: "Microsoft Excel", level: 2 },
   { id: "komunikasi", name: "Komunikasi", level: 2 },
   { id: "inventory", name: "Inventory Management", level: 1 },

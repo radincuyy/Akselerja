@@ -67,7 +67,7 @@ export async function recordAttempt(
   return attempt;
 }
 
-export async function listAttemptsForUser(
+async function listAttemptsForUser(
   userId: string,
 ): Promise<AssessmentAttempt[]> {
   if (!isCosmosConfigured()) return [];

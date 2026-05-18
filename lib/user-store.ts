@@ -4,7 +4,7 @@ import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
 
 export type UserRole = "candidate" | "company";
 
-export type UserRecord = {
+type UserRecord = {
   id: string;
   email: string;
   userId: string;
@@ -93,7 +93,7 @@ export async function createUserWithPassword(
   };
 }
 
-export type VerifiedUser = {
+type VerifiedUser = {
   id: string;
   name: string;
   email: string;

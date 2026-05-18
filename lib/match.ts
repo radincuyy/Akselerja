@@ -3,7 +3,7 @@ import { skillById } from "./skills";
 
 type SkillState = "match" | "missing";
 
-export type MatchBreakdownItem = {
+type MatchBreakdownItem = {
   skillId: string;
   name: string;
   state: SkillState;

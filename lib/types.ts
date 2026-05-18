@@ -62,7 +62,7 @@ export type Course = {
   description: string;
 };
 
-export type PracticeType =
+type PracticeType =
   | "case-simulation"
   | "roleplay"
   | "document-review"

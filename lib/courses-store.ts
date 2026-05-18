@@ -9,26 +9,6 @@ export async function listCoursesAsync(): Promise<Course[]> {
   return resources;
 }
 
-export async function getCourseByIdAsync(
-  id: string,
-): Promise<Course | undefined> {
-  const container = getContainer(CONTAINERS.courses);
-  try {
-    const { resource } = await container.item(id, id).read<Course>();
-    return resource ?? undefined;
-  } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: number }).code === 404
-    ) {
-      return undefined;
-    }
-    throw err;
-  }
-}
-
 export async function getCoursesForSkillsAsync(
   skillIds: string[],
 ): Promise<Course[]> {
