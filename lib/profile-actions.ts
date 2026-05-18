@@ -198,7 +198,6 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
     await mergeSkillsAsync(
       input.extractedSkills.map((s) => ({
         skillId: s.id,
-        level: 2 as const,
         name: s.name,
       })),
       user.id,
@@ -410,7 +409,6 @@ export async function saveSkillsSection(
     .filter((d) => d.id && d.id.trim().length > 0)
     .map((d) => ({
       skillId: d.id,
-      level: 2 as const,
       name: d.name,
     }));
   const user = await requireUser();
@@ -475,7 +473,6 @@ export async function completeOnboarding(input: OnboardingInput) {
   const skills =
     cv?.skills.map((s) => ({
       skillId: s.id,
-      level: 2 as const,
       name: s.name,
     })) ?? [];
 
@@ -536,7 +533,7 @@ export async function submitAssessmentAttempt(input: {
   total: number;
 }):
   | Promise<
-      | { ok: true; score: number; correct: number; total: number; level: 1 | 2 | 3 }
+      | { ok: true; score: number; correct: number; total: number; passed: boolean }
       | { ok: false; error: string }
     > {
   const user = await requireUser();
@@ -545,7 +542,7 @@ export async function submitAssessmentAttempt(input: {
     return { ok: false as const, error: "Assessment tidak ditemukan." };
   const score =
     input.total > 0 ? Math.round((input.correct / input.total) * 100) : 0;
-  const level: 1 | 2 | 3 = score >= 80 ? 3 : score >= 50 ? 2 : 1;
+  const passed = score >= 50;
   await recordAttemptStore({
     userId: user.id,
     skillId: assessment.skillId,
@@ -562,7 +559,7 @@ export async function submitAssessmentAttempt(input: {
     score,
     correct: input.correct,
     total: input.total,
-    level,
+    passed,
   };
 }
 

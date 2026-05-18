@@ -23,13 +23,6 @@ export function formatRelativeId(iso: string, now: Date = new Date()): string {
   return `${Math.round(day / 365)} tahun lalu`;
 }
 
-export function levelLabel(n: number) {
-  if (n >= 3) return "Mahir";
-  if (n === 2) return "Menengah";
-  if (n === 1) return "Dasar";
-  return "Belum ada";
-}
-
 type ScoreBand = "siap" | "trainable" | "jauh";
 
 function scoreBand(score: number): ScoreBand {

@@ -115,8 +115,7 @@ export default async function LowonganListPage({
   );
   const total = totalCount ?? ranked.length;
   const hasMore = ranked.length < total;
-  const profileReady =
-    Array.isArray(me.profileVector) && me.profileVector.length > 0;
+  const hasSkills = (me.skills?.length ?? 0) > 0;
 
   function buildPageHref(nextPage: number): string {
     const params = new URLSearchParams();
@@ -145,7 +144,7 @@ export default async function LowonganListPage({
 
       <div className="mt-8 max-w-2xl">
         <JobSearchInput defaultValue={q ?? ""} />
-        {fromSearch && profileReady ? (
+        {fromSearch && hasSkills ? (
           <p className="mt-2 text-xs text-(--color-muted)">
             Pencarian semantik berdasarkan profilmu, jadi urutan menyesuaikan
             kekuatan skill yang sudah kamu masukkan.
@@ -153,7 +152,7 @@ export default async function LowonganListPage({
         ) : null}
       </div>
 
-      {!profileReady ? (
+      {!hasSkills ? (
         <div className="mt-6 max-w-2xl rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
           <p className="text-sm font-semibold text-(--color-ink)">
             Urutan masih generic

@@ -15,7 +15,7 @@ type ResultState = {
   score: number;
   correct: number;
   total: number;
-  level: 1 | 2 | 3;
+  passed: boolean;
 };
 
 export default function AssessmentRunner({
@@ -37,8 +37,6 @@ export default function AssessmentRunner({
   }
 
   if (result) {
-    const level =
-      result.level === 3 ? "Mahir" : result.level === 2 ? "Menengah" : "Dasar";
     return (
       <section
         aria-labelledby="result-heading"
@@ -58,14 +56,21 @@ export default function AssessmentRunner({
             {result.score}
           </span>
           <span className="text-2xl text-(--color-muted)">%</span>
-          <span className="ml-3 rounded-full bg-(--color-tint) px-3 py-1 text-sm font-medium text-(--color-ink)">
-            Level: {level}
+          <span
+            className={
+              result.passed
+                ? "ml-3 rounded-full bg-(--color-tint) px-3 py-1 text-sm font-medium text-(--color-signal-green)"
+                : "ml-3 rounded-full bg-(--color-tint) px-3 py-1 text-sm font-medium text-(--color-signal-clay)"
+            }
+          >
+            {result.passed ? "Lulus" : "Belum lulus"}
           </span>
         </div>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-(--color-ink)">
           Kamu menjawab {result.correct} dari {result.total} soal dengan benar.
-          Skor ini sudah ditambahkan ke profilmu, dan match score lowonganmu
-          akan diperbarui otomatis.
+          {result.passed
+            ? " Skill ini sudah ditambahkan ke profilmu, dan match score lowonganmu akan diperbarui otomatis."
+            : " Coba lagi setelah belajar lebih dalam, atau lihat rekomendasi materi di halaman Belajar."}
         </p>
 
         <div className="mt-7 flex flex-wrap gap-3">
@@ -107,7 +112,7 @@ export default function AssessmentRunner({
         score: res.score,
         correct: res.correct,
         total: res.total,
-        level: res.level,
+        passed: res.passed,
       });
     });
   }

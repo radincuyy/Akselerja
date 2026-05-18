@@ -289,27 +289,29 @@ function cleanDescription(html: string | null): string {
 function buildRequirements(
   skills: { name: string; mustHave: boolean }[],
 ): SkillRequirement[] {
-  const matched = new Map<
-    string,
-    { required: 1 | 2 | 3; name: string }
-  >();
+  // Dedupe by skill id; if the same skill appears as both must-have and
+  // nice-to-have, must-have wins because the harder requirement governs.
+  const matched = new Map<string, { mustHave: boolean; name: string }>();
   for (const s of skills) {
     const trimmed = s.name?.trim();
     if (!trimmed) continue;
     const slug = slugify(trimmed);
     if (!slug) continue;
     const id = TAXONOMY_ALIASES[slug] ?? slug;
-    const required: 1 | 2 | 3 = s.mustHave ? 2 : 1;
     const existing = matched.get(id);
-    if (!existing || (existing.required as number) < required) {
-      matched.set(id, { required, name: existing?.name ?? trimmed });
+    if (!existing) {
+      matched.set(id, { mustHave: s.mustHave, name: trimmed });
+    } else if (s.mustHave && !existing.mustHave) {
+      matched.set(id, { mustHave: true, name: existing.name });
     }
   }
   if (matched.size === 0) return [];
+  // Equal default weight; calcMatch already amplifies must-have via its own
+  // weight policy, so we don't need to skew here.
   const w = 1 / matched.size;
   return [...matched.entries()].map(([skillId, v]) => ({
     skillId,
-    required: v.required,
+    mustHave: v.mustHave,
     weight: w,
     name: v.name,
   }));

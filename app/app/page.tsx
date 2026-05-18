@@ -28,11 +28,11 @@ export default async function CandidateHome() {
   const top3 = ranked.slice(0, 3);
   const matchingCount = ranked.filter((r) => r.score >= 60).length;
   const hasSkills = (profile.skills?.length ?? 0) > 0;
-  const hasProfileVector = Array.isArray(profile.profileVector) && profile.profileVector.length > 0;
-  const profileReady = hasSkills && hasProfileVector;
+  const hasJobs = top3.length > 0;
+  const canShowRecommendations = hasSkills && hasJobs;
 
   const firstName = profile.name.split(" ")[0] || "kamu";
-  const heading = !profileReady
+  const heading = !hasSkills
     ? `Halo ${firstName}, profilmu masih perlu diisi.`
     : matchingCount === 0
       ? `Belum ada lowongan yang cocok hari ini, ${firstName}.`
@@ -40,7 +40,7 @@ export default async function CandidateHome() {
         ? `Hari ini ada 1 lowongan yang cocok denganmu.`
         : `Hari ini ada ${matchingCount} lowongan yang cocok denganmu.`;
 
-  const subhead = !profileReady
+  const subhead = !hasSkills
     ? "Lengkapi skill dan pengalaman supaya kami bisa memilihkan lowongan yang benar-benar cocok untukmu, bukan asal urut."
     : matchingCount === 0
       ? "Lengkapi profil atau ikuti satu assessment supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk."
@@ -88,7 +88,7 @@ export default async function CandidateHome() {
             Lihat semua →
           </Link>
         </div>
-        {profileReady ? (
+        {canShowRecommendations ? (
           <div className="mt-6 grid gap-4">
             {top3.map(({ job, score, breakdown }) => {
               const top = breakdown.find((b) => b.state === "match");

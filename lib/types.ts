@@ -1,12 +1,11 @@
 export type Skill = {
   id: string;
   name: string;
-  level: 1 | 2 | 3; // 1=Beginner 2=Intermediate 3=Advanced
 };
 
 export type SkillRequirement = {
   skillId: string;
-  required: 1 | 2 | 3;
+  mustHave: boolean;
   weight?: number;
   name?: string;
 };
@@ -55,7 +54,6 @@ export type Course = {
   title: string;
   provider: string;
   durationHours: number;
-  level: 1 | 2 | 3;
   free: boolean;
   priceIdr?: number;
   skillId: string;
@@ -82,7 +80,6 @@ export type PracticeTask = {
   role: string;
   title: string;
   skillId: string;
-  level: 1 | 2 | 3;
   type: PracticeType;
   estimatedMinutes: number;
   sourceLabel: string;
@@ -132,7 +129,7 @@ export type Candidate = {
   experienceYears: number;
   expectedSalary: number;
   readinessScore: number;
-  skills: { skillId: string; level: 1 | 2 | 3; name?: string }[];
+  skills: { skillId: string; name?: string }[];
   bio: string;
   status?: "ready" | "trainable";
   preferredJobTypes?: JobType[];

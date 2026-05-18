@@ -396,8 +396,19 @@ export default async function LowonganDetailPage({
               <ul className="mt-4 flex flex-wrap gap-2">
                 {job.requirements.map((r) => (
                   <li key={r.skillId}>
-                    <span className="inline-flex items-center rounded-full border border-(--color-line) bg-(--color-paper) px-3 py-1 text-sm text-(--color-ink)">
+                    <span
+                      className={
+                        r.mustHave
+                          ? "inline-flex items-center gap-1.5 rounded-full border border-(--color-line) bg-(--color-paper) px-3 py-1 text-sm text-(--color-ink)"
+                          : "inline-flex items-center rounded-full border border-(--color-line) bg-(--color-paper) px-3 py-1 text-sm text-(--color-muted)"
+                      }
+                    >
                       {r.name ?? skillById[r.skillId]?.name ?? r.skillId}
+                      {r.mustHave ? (
+                        <span className="rounded-full bg-(--color-tint) px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-(--color-teal-deep)">
+                          Wajib
+                        </span>
+                      ) : null}
                     </span>
                   </li>
                 ))}

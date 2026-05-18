@@ -1,4 +1,4 @@
-import type { Candidate, Job } from "./types";
+import type { Candidate, Job, SkillRequirement } from "./types";
 import { skillById } from "./skills";
 
 type SkillState = "match" | "missing";
@@ -8,12 +8,24 @@ type MatchBreakdownItem = {
   name: string;
   state: SkillState;
   contribution: number;
+  mustHave: boolean;
 };
 
 export type MatchResult = {
   score: number;
   breakdown: MatchBreakdownItem[];
 };
+
+// Required skills carry full weight; nice-to-have skills carry less so missing
+// them is a smaller penalty. Tweak ratios here if the scoring distribution
+// looks too forgiving or too harsh.
+const WEIGHT_MUST_HAVE = 1.0;
+const WEIGHT_NICE_TO_HAVE = 0.4;
+
+function effectiveWeight(req: SkillRequirement): number {
+  if (typeof req.weight === "number" && req.weight > 0) return req.weight;
+  return req.mustHave ? WEIGHT_MUST_HAVE : WEIGHT_NICE_TO_HAVE;
+}
 
 export function calcMatch(candidate: Candidate, job: Job): MatchResult {
   const candidateSkillIds = new Set(candidate.skills.map((s) => s.skillId));
@@ -22,7 +34,7 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
   const breakdown: MatchBreakdownItem[] = [];
 
   for (const req of job.requirements) {
-    const weight = req.weight ?? 1 / job.requirements.length;
+    const weight = effectiveWeight(req);
     const has = candidateSkillIds.has(req.skillId);
     const state: SkillState = has ? "match" : "missing";
     const pct = has ? 1 : 0;
@@ -33,6 +45,7 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
       name: req.name ?? skillById[req.skillId]?.name ?? req.skillId,
       state,
       contribution: Math.round(weight * pct * 100),
+      mustHave: req.mustHave,
     });
   }
 
@@ -41,7 +54,11 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
 
   return {
     score: adjustedScore,
-    breakdown: breakdown.sort((a, b) => b.contribution - a.contribution),
+    breakdown: breakdown.sort((a, b) => {
+      if (a.state !== b.state) return a.state === "match" ? -1 : 1;
+      if (a.mustHave !== b.mustHave) return a.mustHave ? -1 : 1;
+      return b.contribution - a.contribution;
+    }),
   };
 }
 

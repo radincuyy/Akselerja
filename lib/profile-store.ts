@@ -108,7 +108,6 @@ export async function updateProfileBasicAsync(
 ): Promise<Candidate> {
   const container = getContainer(CONTAINERS.candidates);
   const current = await readRecord(userId);
-  // Build a baseline candidate when this is the first write (post-onboarding).
   const base: Candidate = current
     ? stripCosmos(current)
     : {
@@ -185,8 +184,6 @@ export async function setCvAsync(cv: CvFile, userId = ME_ID): Promise<Candidate>
   return stripCosmos(next);
 }
 
-// Replace the candidate's skill list outright. Used by onboarding when seeding
-// a fresh profile.
 export async function setSkillsAsync(
   skills: CandidateSkill[],
   userId = ME_ID,
@@ -203,9 +200,6 @@ export async function setSkillsAsync(
   return stripCosmos(next);
 }
 
-// Merge incoming skills into the existing list. New skill ids are appended;
-// existing ids keep the highest level seen so CV uploads can't accidentally
-// downgrade a skill the user already proved via assessment.
 export async function mergeSkillsAsync(
   incoming: CandidateSkill[],
   userId = ME_ID,
@@ -219,8 +213,7 @@ export async function mergeSkillsAsync(
   const byId = new Map<string, CandidateSkill>();
   for (const s of existing.skills ?? []) byId.set(s.skillId, s);
   for (const s of incoming) {
-    const merged = byId.get(s.skillId);
-    if (!merged || s.level > merged.level) byId.set(s.skillId, s);
+    if (!byId.has(s.skillId)) byId.set(s.skillId, s);
   }
   const container = getContainer(CONTAINERS.candidates);
   const next: CandidateRecord = {
@@ -231,7 +224,6 @@ export async function mergeSkillsAsync(
   return stripCosmos(next);
 }
 
-// Hard delete the candidate profile row. Tolerates 404 (already gone).
 export async function deleteProfileAsync(userId: string): Promise<void> {
   const container = getContainer(CONTAINERS.candidates);
   try {
@@ -286,10 +278,6 @@ export function newExperienceId() {
   return uid("ex");
 }
 
-// Single read + single upsert. Used by onboarding to avoid 7 sequential
-// round-trips. The patch callback receives the existing record (or a seeded
-// baseline if none exists) and returns the next state. Visibility defaults to
-// "applied-only" for new candidates.
 export async function patchProfileAsync(
   userId: string,
   patch: (existing: CandidateRecord) => CandidateRecord,
@@ -314,7 +302,6 @@ export async function patchProfileAsync(
   return stripCosmos(next);
 }
 
-// Format helpers, used in UI.
 function formatMonthYear(monthIso: string, locale = "id-ID") {
   if (!monthIso) return "";
   const d = new Date(`${monthIso}-01`);

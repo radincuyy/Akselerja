@@ -967,7 +967,7 @@ function SkillsForm({
         />
       </div>
       <p className="text-xs text-(--color-muted)">
-        Skill yang sudah punya level dari assessment akan dipertahankan. Skill baru dimulai di level Menengah.
+        Tekan Enter untuk menambah skill. Skill yang sudah ada di profilmu tetap tersimpan.
       </p>
 
       <FormFooter

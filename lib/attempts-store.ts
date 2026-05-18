@@ -8,20 +8,16 @@ export type AssessmentAttempt = {
   id: string;
   userId: string;
   assessmentId: string;
-  assessmentSlug: string; 
+  assessmentSlug: string;
   skillId: string;
   score: number;
-  level: 1 | 2 | 3;
+  passed: boolean;
   total: number;
   correct: number;
   takenAt: string;
 };
 
-function levelFromScore(score: number): 1 | 2 | 3 {
-  if (score >= 80) return 3;
-  if (score >= 50) return 2;
-  return 1;
-}
+const PASS_THRESHOLD = 50;
 
 function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
@@ -43,7 +39,7 @@ export async function recordAttempt(
     throw new Error("Cosmos DB not configured");
   }
   const score = Math.round((input.correct / Math.max(1, input.total)) * 100);
-  const level = levelFromScore(score);
+  const passed = score >= PASS_THRESHOLD;
   const attempt: AssessmentAttempt = {
     id: uid("at"),
     userId: input.userId,
@@ -51,7 +47,7 @@ export async function recordAttempt(
     assessmentSlug: input.assessmentSlug,
     skillId: input.skillId,
     score,
-    level,
+    passed,
     total: input.total,
     correct: input.correct,
     takenAt: new Date().toISOString(),
@@ -60,8 +56,8 @@ export async function recordAttempt(
   const container = getContainer(CONTAINERS.practiceAttempts);
   await container.items.create(attempt);
 
-  if (skillById[input.skillId]) {
-    await mergeSkillsAsync([{ skillId: input.skillId, level }], input.userId);
+  if (passed && skillById[input.skillId]) {
+    await mergeSkillsAsync([{ skillId: input.skillId }], input.userId);
   }
 
   return attempt;

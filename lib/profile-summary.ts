@@ -7,12 +7,8 @@ import { profileCacheTag } from "./profile-store";
 
 function buildProfileText(profile: Candidate): string {
   const skills = (profile.skills ?? [])
-    .map((s) => {
-      const name = s.name ?? skillById[s.skillId]?.name ?? s.skillId;
-      const level =
-        s.level === 3 ? "mahir" : s.level === 2 ? "menengah" : "dasar";
-      return `${name} (${level})`;
-    })
+    .map((s) => s.name ?? skillById[s.skillId]?.name ?? s.skillId)
+    .filter(Boolean)
     .join(", ");
 
   const experience = (profile.experience ?? [])
