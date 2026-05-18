@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 const EMBED_MODEL = process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-001";
-export const EMBED_DIMENSIONS = 768;
+const EMBED_DIMENSIONS = 768;
 
 let _client: GoogleGenAI | null = null;
 
@@ -55,11 +55,4 @@ function normalize(v: number[]): number[] {
   const out = new Array<number>(v.length);
   for (let i = 0; i < v.length; i++) out[i] = v[i] / norm;
   return out;
-}
-
-export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-  let dot = 0;
-  for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
-  return dot;
 }

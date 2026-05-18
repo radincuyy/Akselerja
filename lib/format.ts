@@ -7,15 +7,6 @@ export function formatIdr(amount: number, locale = "id-ID") {
   }).format(amount);
 }
 
-export function formatDateId(iso: string) {
-  if (!iso) return "";
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(iso));
-}
-
 export function formatRelativeId(iso: string, now: Date = new Date()): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -39,9 +30,9 @@ export function levelLabel(n: number) {
   return "Belum ada";
 }
 
-export type ScoreBand = "siap" | "trainable" | "jauh";
+type ScoreBand = "siap" | "trainable" | "jauh";
 
-export function scoreBand(score: number): ScoreBand {
+function scoreBand(score: number): ScoreBand {
   if (score >= 75) return "siap";
   if (score >= 50) return "trainable";
   return "jauh";

@@ -304,15 +304,6 @@ export function newExperienceId() {
   return uid("ex");
 }
 
-// Visibility used to be in-memory module state (sync). Now persisted on the
-// candidate record so it survives restarts and follows the user.
-export async function getVisibilityAsync(
-  userId = ME_ID,
-): Promise<Visibility> {
-  const record = await readRecord(userId);
-  return record?.visibility ?? "applied-only";
-}
-
 export async function setVisibilityAsync(
   v: Visibility,
   userId = ME_ID,
@@ -328,7 +319,7 @@ export async function setVisibilityAsync(
 }
 
 // Format helpers, used in UI.
-export function formatMonthYear(monthIso: string, locale = "id-ID") {
+function formatMonthYear(monthIso: string, locale = "id-ID") {
   if (!monthIso) return "";
   const d = new Date(`${monthIso}-01`);
   return new Intl.DateTimeFormat(locale, {

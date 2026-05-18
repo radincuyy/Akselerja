@@ -114,7 +114,7 @@ async function fallbackSearch(
   };
 }
 
-export function applyJobFilter(j: Job, params: SearchJobsParams): boolean {
+function applyJobFilter(j: Job, params: SearchJobsParams): boolean {
   if (!params.includeClosed && j.status === "closed") return false;
   if (params.city) {
     const city = j.location.split(",")[0].trim().toLowerCase();
@@ -154,43 +154,6 @@ export function applyJobFilter(j: Job, params: SearchJobsParams): boolean {
 
 function shortCity(location: string): string {
   return location.split(",")[0].trim();
-}
-
-function toIndexedJob(job: Job): IndexedJob {
-  return {
-    id: job.id,
-    title: job.title,
-    company: job.company,
-    description: job.description,
-    industry: job.industry,
-    location: job.location,
-    city: shortCity(job.location),
-    skillIds: (job.requirements ?? []).map((r) => r.skillId),
-    salaryMin: job.salaryMin,
-    salaryMax: job.salaryMax,
-    type: job.type,
-    status: job.status ?? "open",
-    postedAt: job.postedAt,
-    companyId: job.companyId ?? "",
-  };
-}
-
-export async function indexJob(job: Job): Promise<void> {
-  if (!isSearchConfigured()) return;
-  try {
-    await getClient().mergeOrUploadDocuments([toIndexedJob(job)]);
-  } catch (err) {
-    console.error("[search] indexJob failed for", job.id, err);
-  }
-}
-
-export async function removeJobFromIndex(id: string): Promise<void> {
-  if (!isSearchConfigured()) return;
-  try {
-    await getClient().deleteDocuments([{ id } as IndexedJob]);
-  } catch (err) {
-    console.error("[search] removeJobFromIndex failed for", id, err);
-  }
 }
 
 export async function searchJobs(
@@ -263,11 +226,6 @@ export async function searchJobs(
     console.error("[search] AI Search query failed, falling back:", err);
     return fallbackSearch(params);
   }
-}
-
-export async function listCitiesAsync(): Promise<string[]> {
-  const facets = await listCityFacetsAsync();
-  return facets.map((f) => f.value);
 }
 
 export async function listCityFacetsAsync(

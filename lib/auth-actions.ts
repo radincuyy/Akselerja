@@ -68,24 +68,3 @@ export async function signupWithEmailPassword(input: {
 }): Promise<SignupResult> {
   return signupCommon({ ...input, role: "candidate" });
 }
-
-export async function signupCompany(input: {
-  name: string;
-  email: string;
-  password: string;
-  company: string;
-  sector: string;
-}): Promise<SignupResult> {
-  if (!input.company.trim()) {
-    return { ok: false, error: "Nama perusahaan tidak boleh kosong." };
-  }
-  if (!input.sector.trim()) {
-    return { ok: false, error: "Pilih sektor industri." };
-  }
-  return signupCommon({
-    name: input.name,
-    email: input.email,
-    password: input.password,
-    role: "company",
-  });
-}

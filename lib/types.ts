@@ -1,5 +1,3 @@
-export type SkillState = "match" | "improve" | "missing";
-
 export type Skill = {
   id: string;
   name: string;
@@ -164,47 +162,4 @@ export type AssessmentQuestion = {
   prompt: string;
   options: { id: string; label: string }[];
   correctOptionId: string;
-};
-
-// --- Loop lamaran ---
-
-export type ApplicationStatus =
-  | "submitted" // Terkirim
-  | "reviewing" // Direview
-  | "invited" // Diundang interview
-  | "accepted" // Diterima
-  | "rejected"; // Ditolak
-
-export type RejectReasonId =
-  | "skill-gap"
-  | "experience"
-  | "location"
-  | "salary"
-  | "filled";
-
-export type ApplicationEvent = {
-  status: ApplicationStatus;
-  at: string; // ISO
-  by: "candidate" | "hr" | "system";
-};
-
-export type Application = {
-  id: string;
-  candidateId: string;
-  jobId: string;
-  status: ApplicationStatus;
-  scoreAtApply: number;
-  createdAt: string;
-  history: ApplicationEvent[];
-  rejectReason?: RejectReasonId;
-  hrRating?: 1 | 2 | 3 | 4 | 5;
-  candidateSeenAt?: string;
-};
-
-export type HrNote = {
-  id: string;
-  applicationId: string;
-  text: string;
-  createdAt: string;
-  authorName: string;
 };

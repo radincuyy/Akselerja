@@ -1,9 +1,6 @@
 import {
   BlobServiceClient,
   StorageSharedKeyCredential,
-  generateBlobSASQueryParameters,
-  BlobSASPermissions,
-  SASProtocol,
   type ContainerClient,
 } from "@azure/storage-blob";
 
@@ -110,36 +107,6 @@ export async function uploadCv(
     contentType,
     sizeBytes: buffer.byteLength,
   };
-}
-
-export function makeReadSasUrl(
-  blobName: string,
-  expiresInMinutes = 30,
-): string {
-  if (!isBlobConfigured()) return "";
-  const parsed = parseAccountFromConnectionString();
-  if (!parsed && (!ACCOUNT_NAME || !ACCOUNT_KEY)) {
-    throw new Error(
-      "Cannot mint SAS: no AccountKey available (connection string or AZURE_STORAGE_KEY required)",
-    );
-  }
-  const account = parsed?.account ?? ACCOUNT_NAME!;
-  const key = parsed?.key ?? ACCOUNT_KEY!;
-  const cred = new StorageSharedKeyCredential(account, key);
-  const startsOn = new Date(Date.now() - 60_000); // toleransi clock skew 1 menit
-  const expiresOn = new Date(Date.now() + expiresInMinutes * 60_000);
-  const sas = generateBlobSASQueryParameters(
-    {
-      containerName: CONTAINER_NAME,
-      blobName,
-      permissions: BlobSASPermissions.parse("r"),
-      startsOn,
-      expiresOn,
-      protocol: SASProtocol.Https,
-    },
-    cred,
-  ).toString();
-  return `https://${account}.blob.core.windows.net/${CONTAINER_NAME}/${blobName}?${sas}`;
 }
 
 export async function deleteBlob(blobName: string): Promise<void> {

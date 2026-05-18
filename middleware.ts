@@ -9,28 +9,19 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const path = nextUrl.pathname;
 
+  // Candidate-only MVP: /hr is gone, but in case any user lands on a stale
+  // bookmark we send them to the candidate app instead of returning 404.
+  if (path.startsWith("/hr")) {
+    return NextResponse.redirect(new URL("/app", nextUrl.origin));
+  }
+
   const isProtected =
-    path.startsWith("/app") ||
-    path.startsWith("/hr") ||
-    path.startsWith("/onboarding");
+    path.startsWith("/app") || path.startsWith("/onboarding");
 
   if (isProtected && !isLoggedIn) {
     const url = new URL("/masuk", nextUrl.origin);
     url.searchParams.set("next", path);
     return NextResponse.redirect(url);
-  }
-
-  if (isLoggedIn && req.auth?.user) {
-    const role = req.auth.user.role;
-    if (path.startsWith("/hr") && role !== "company") {
-      return NextResponse.redirect(new URL("/app", nextUrl.origin));
-    }
-    if (
-      (path.startsWith("/app") || path.startsWith("/onboarding")) &&
-      role === "company"
-    ) {
-      return NextResponse.redirect(new URL("/hr", nextUrl.origin));
-    }
   }
 
   return NextResponse.next();

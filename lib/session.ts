@@ -1,11 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
-export async function getCurrentUserId(): Promise<string | null> {
-  const session = await auth();
-  return session?.user?.id ?? null;
-}
-
 export type CurrentUser = {
   id: string;
   name?: string | null;
