@@ -153,9 +153,13 @@ export default async function BelajarPage({
   const user = await requireUser();
   const me = await getProfileOrSeedAsync(user.id);
 
+  const userSkillIds = me.skills?.map((s) => s.skillId) ?? [];
+  // Same as dashboard: filter to jobs that share at least one skill with the
+  // user so the "target job" the roadmap is built for is actually relevant.
   const search = await searchJobs({
     top: 20,
     profileVector: me.profileVector,
+    skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
     includeClosed: false,
   });
   const ranked = search.jobs

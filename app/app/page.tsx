@@ -13,10 +13,12 @@ import { completedAssessmentIdsForUser } from "@/lib/attempts-store";
 export default async function CandidateHome() {
   const user = await requireUser();
   const profile = await getProfileOrSeedAsync(user.id);
+  const userSkillIds = profile.skills?.map((s) => s.skillId) ?? [];
   const [search, assessments, completedIds] = await Promise.all([
     searchJobs({
       top: 50,
       profileVector: profile.profileVector,
+      skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
       includeClosed: false,
     }),
     listAssessmentsAsync(),
@@ -24,10 +26,11 @@ export default async function CandidateHome() {
   ]);
   const ranked = search.jobs
     .map((job) => ({ job, ...calcMatch(profile, job) }))
+    .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score);
   const top3 = ranked.slice(0, 3);
   const matchingCount = ranked.filter((r) => r.score >= 60).length;
-  const hasSkills = (profile.skills?.length ?? 0) > 0;
+  const hasSkills = userSkillIds.length > 0;
   const hasJobs = top3.length > 0;
   const canShowRecommendations = hasSkills && hasJobs;
 
