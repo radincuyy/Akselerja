@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    optimizePackageImports: ["@azure/cosmos", "@azure/search-documents"],
+  },
   images: {
     remotePatterns: [
       // Glints company logos served via their image proxy.

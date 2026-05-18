@@ -10,14 +10,13 @@ import {
   mergeSkillsAsync,
   newEducationId,
   newExperienceId,
+  patchProfileAsync,
   profileCacheTag,
   setContactAsync,
   setCvAsync,
   setEducationListAsync,
   setExperienceListAsync,
-  setPreferencesAsync,
   setSkillsAsync,
-  setVisibilityAsync,
   updateProfileBasicAsync,
 } from "./profile-store";
 import { recordAttempt as recordAttemptStore } from "./attempts-store";
@@ -449,96 +448,66 @@ export async function completeOnboarding(input: OnboardingInput) {
   const prefs = input.preferences;
   const primaryCity = prefs.preferredCities[0] ?? "";
 
-  await updateProfileBasicAsync(
-    {
-      name,
-      email,
-      location: primaryCity,
-      bio: "",
-      experienceYears: 0,
-      expectedSalary: 0,
-    },
-    user.id,
+  const cv = input.cv;
+  const education =
+    cv?.education.map((e) => ({
+      id: newEducationId(),
+      institution: e.institution,
+      degree: e.degree,
+      startMonth: e.startMonth ?? "",
+      endMonth: e.endMonth ?? "",
+      notes: e.notes,
+    })) ?? [];
+  const experience =
+    cv?.experience.map((e) => ({
+      id: newExperienceId(),
+      position: e.position,
+      company: e.company,
+      startMonth: e.startMonth ?? "",
+      endMonth: e.endMonth ?? "",
+      duties: e.duties,
+    })) ?? [];
+  const totalMonths = experience.reduce(
+    (acc, e) => acc + monthsBetween(e.startMonth, e.endMonth),
+    0,
   );
+  const experienceYears = Math.max(0, Math.round(totalMonths / 12));
+  const skills =
+    cv?.skills.map((s) => ({
+      skillId: s.id,
+      level: 2 as const,
+      name: s.name,
+    })) ?? [];
 
-  await setPreferencesAsync(
-    {
-      preferredJobTypes: prefs.preferredJobTypes,
-      preferredWorkModes: prefs.preferredWorkModes,
-      preferredCities: prefs.preferredCities,
-      industries: prefs.industries,
-      location: primaryCity,
-    },
-    user.id,
-  );
-
-  if (input.cv) {
-    const cv = input.cv;
-
-    await setCvAsync(
-      {
-        filename: cv.filename,
-        sizeBytes: cv.sizeBytes,
-        uploadedAt: new Date().toISOString(),
-        blobName: cv.blobName,
-        contentType: cv.contentType,
-      },
-      user.id,
-    );
-
-    if (cv.education.length > 0) {
-      const education: Education[] = cv.education.map((e) => ({
-        id: newEducationId(),
-        institution: e.institution,
-        degree: e.degree,
-        startMonth: e.startMonth ?? "",
-        endMonth: e.endMonth ?? "",
-        notes: e.notes,
-      }));
-      await setEducationListAsync(education, user.id);
-    }
-
-    if (cv.experience.length > 0) {
-      const experience: Experience[] = cv.experience.map((e) => ({
-        id: newExperienceId(),
-        position: e.position,
-        company: e.company,
-        startMonth: e.startMonth ?? "",
-        endMonth: e.endMonth ?? "",
-        duties: e.duties,
-      }));
-      await setExperienceListAsync(experience, user.id);
-
-      const totalMonths = experience.reduce(
-        (acc, e) => acc + monthsBetween(e.startMonth, e.endMonth),
-        0,
-      );
-      const years = Math.max(0, Math.round(totalMonths / 12));
-      if (years > 0) {
-        await updateProfileBasicAsync(
-          {
-            name,
-            email,
-            location: primaryCity,
-            bio: "",
-            experienceYears: years,
-            expectedSalary: 0,
-          },
-          user.id,
-        );
-      }
-    }
-
-    if (cv.skills.length > 0) {
-      await setSkillsAsync(
-        cv.skills.map((s) => ({ skillId: s.id, level: 2, name: s.name })),
-        user.id,
-      );
-    }
-  }
-
-  // Default visibility for new candidates.
-  await setVisibilityAsync("applied-only", user.id);
+  await patchProfileAsync(user.id, (base) => ({
+    ...base,
+    id: user.id,
+    userId: user.id,
+    name,
+    email,
+    location: primaryCity,
+    bio: base.bio ?? "",
+    experienceYears,
+    expectedSalary: base.expectedSalary ?? 0,
+    readinessScore: base.readinessScore ?? 0,
+    preferredJobTypes: prefs.preferredJobTypes,
+    preferredWorkModes: prefs.preferredWorkModes,
+    preferredCities: prefs.preferredCities,
+    industries: prefs.industries,
+    skills: skills.length > 0 ? skills : base.skills ?? [],
+    education: education.length > 0 ? education : base.education,
+    experience: experience.length > 0 ? experience : base.experience,
+    cv: cv
+      ? {
+          filename: cv.filename,
+          sizeBytes: cv.sizeBytes,
+          uploadedAt: new Date().toISOString(),
+          blobName: cv.blobName,
+          contentType: cv.contentType,
+        }
+      : base.cv,
+    visibility: base.visibility ?? "applied-only",
+  }));
 
   revalidateTag(profileCacheTag(user.id));
   revalidatePath("/app");

@@ -142,6 +142,8 @@ export default async function LowonganDetailPage({
                 alt={job.company}
                 width={64}
                 height={64}
+                sizes="(max-width: 640px) 56px, 64px"
+                priority
                 className="h-14 w-14 rounded-md object-contain ring-1 ring-(--color-line) sm:h-16 sm:w-16"
                 unoptimized
               />
@@ -413,6 +415,8 @@ export default async function LowonganDetailPage({
                   alt={job.company}
                   width={48}
                   height={48}
+                  sizes="48px"
+                  loading="lazy"
                   className="h-12 w-12 rounded-md object-contain ring-1 ring-(--color-line)"
                   unoptimized
                 />

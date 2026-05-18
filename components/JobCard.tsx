@@ -59,6 +59,8 @@ export default function JobCard({ job, matchScore, topReason, ctaPath }: Props) 
                 alt={job.company}
                 width={48}
                 height={48}
+                sizes="48px"
+                loading="lazy"
                 className="h-12 w-12 rounded-md object-contain ring-1 ring-(--color-line)"
                 unoptimized
               />

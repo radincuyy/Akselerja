@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import AppShell from "@/components/AppShell";
-import ProfileEditUI from "@/components/ProfileEditUI";
+import ProfileEditMount from "@/components/ProfileEditMount";
 import { getProfileAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
 
@@ -22,7 +22,7 @@ export default async function ProfilPage({
       {cvFlag === "1" ? (
         <SuccessBanner text="Profilmu terupdate dari CV terbaru." />
       ) : null}
-      <ProfileEditUI me={me} />
+      <ProfileEditMount me={me} />
     </AppShell>
   );
 }

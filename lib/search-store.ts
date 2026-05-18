@@ -38,6 +38,9 @@ type IndexedJob = {
   status: "open" | "closed";
   postedAt: string;
   companyId: string;
+  minExperienceYears?: number | null;
+  maxExperienceYears?: number | null;
+  minEducation?: string | null;
   descriptionVector?: number[];
 };
 
@@ -94,6 +97,21 @@ function buildFilter(params: SearchJobsParams): string | undefined {
   }
   if (typeof params.salaryMaxCeiling === "number") {
     clauses.push(`salaryMin gt 0 and salaryMin le ${params.salaryMaxCeiling}`);
+  }
+  if (typeof params.experienceMin === "number") {
+    clauses.push(
+      `(maxExperienceYears ge ${params.experienceMin} or minExperienceYears ge ${params.experienceMin})`,
+    );
+  }
+  if (typeof params.experienceMax === "number") {
+    clauses.push(
+      `(minExperienceYears le ${params.experienceMax} or minExperienceYears eq null)`,
+    );
+  }
+  if (params.education) {
+    clauses.push(
+      `minEducation eq '${escapeOdataString(params.education)}'`,
+    );
   }
   return clauses.length === 0 ? undefined : clauses.join(" and ");
 }
@@ -172,13 +190,10 @@ export async function searchJobs(
   const client = getClient();
   const top = params.top ?? 50;
   const skip = params.skip ?? 0;
-  const hasClientFilter =
-    typeof params.experienceMin === "number" ||
-    typeof params.experienceMax === "number" ||
-    Boolean(params.education);
-  const fetchSize = hasClientFilter
-    ? Math.min(500, Math.max(top + skip, 200))
-    : Math.min(200, top + skip + 20);
+  // All filters now run server-side via OData. Fetch a small headroom over
+  // top+skip in case some hits 404 during hydrate (rare but possible if a
+  // job was just removed from Cosmos).
+  const fetchSize = Math.min(200, top + skip + 20);
   const filter = buildFilter({
     city: params.city,
     type: params.type,
@@ -186,6 +201,9 @@ export async function searchJobs(
     skillIds: params.skillIds,
     salaryMinFloor: params.salaryMinFloor,
     salaryMaxCeiling: params.salaryMaxCeiling,
+    experienceMin: params.experienceMin,
+    experienceMax: params.experienceMax,
+    education: params.education,
     includeClosed: params.includeClosed,
   });
   const searchText =

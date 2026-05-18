@@ -3,8 +3,6 @@ import type {
   CvFile,
   Education,
   Experience,
-  JobType,
-  WorkMode,
 } from "./types";
 import { unstable_cache } from "next/cache";
 import { CONTAINERS, getContainer } from "./db";
@@ -147,15 +145,15 @@ export async function setEducationListAsync(
   userId = ME_ID,
 ): Promise<Candidate> {
   const container = getContainer(CONTAINERS.candidates);
-  const current = await getProfileOrSeedAsync(userId);
   const existing = await readRecord(userId);
-  const next: Candidate = { ...current, id: current.id || userId, education: list };
-  await container.items.upsert({
-    ...next,
-    userId,
-    visibility: existing?.visibility,
-  });
-  return next;
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
+  }
+  const next: CandidateRecord = { ...existing, education: list };
+  await container.items.upsert(next);
+  return stripCosmos(next);
 }
 
 export async function setExperienceListAsync(
@@ -163,28 +161,28 @@ export async function setExperienceListAsync(
   userId = ME_ID,
 ): Promise<Candidate> {
   const container = getContainer(CONTAINERS.candidates);
-  const current = await getProfileOrSeedAsync(userId);
   const existing = await readRecord(userId);
-  const next: Candidate = { ...current, id: current.id || userId, experience: list };
-  await container.items.upsert({
-    ...next,
-    userId,
-    visibility: existing?.visibility,
-  });
-  return next;
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
+  }
+  const next: CandidateRecord = { ...existing, experience: list };
+  await container.items.upsert(next);
+  return stripCosmos(next);
 }
 
 export async function setCvAsync(cv: CvFile, userId = ME_ID): Promise<Candidate> {
   const container = getContainer(CONTAINERS.candidates);
-  const current = await getProfileOrSeedAsync(userId);
   const existing = await readRecord(userId);
-  const next: Candidate = { ...current, id: current.id || userId, cv };
-  await container.items.upsert({
-    ...next,
-    userId,
-    visibility: existing?.visibility,
-  });
-  return next;
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
+  }
+  const next: CandidateRecord = { ...existing, cv };
+  await container.items.upsert(next);
+  return stripCosmos(next);
 }
 
 // Replace the candidate's skill list outright. Used by onboarding when seeding
@@ -194,15 +192,15 @@ export async function setSkillsAsync(
   userId = ME_ID,
 ): Promise<Candidate> {
   const container = getContainer(CONTAINERS.candidates);
-  const current = await getProfileOrSeedAsync(userId);
   const existing = await readRecord(userId);
-  const next: Candidate = { ...current, id: current.id || userId, skills };
-  await container.items.upsert({
-    ...next,
-    userId,
-    visibility: existing?.visibility,
-  });
-  return next;
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
+  }
+  const next: CandidateRecord = { ...existing, skills };
+  await container.items.upsert(next);
+  return stripCosmos(next);
 }
 
 // Merge incoming skills into the existing list. New skill ids are appended;
@@ -212,14 +210,25 @@ export async function mergeSkillsAsync(
   incoming: CandidateSkill[],
   userId = ME_ID,
 ): Promise<Candidate> {
-  const current = await getProfileOrSeedAsync(userId);
-  const byId = new Map<string, CandidateSkill>();
-  for (const s of current.skills ?? []) byId.set(s.skillId, s);
-  for (const s of incoming) {
-    const existing = byId.get(s.skillId);
-    if (!existing || s.level > existing.level) byId.set(s.skillId, s);
+  const existing = await readRecord(userId);
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
   }
-  return setSkillsAsync(Array.from(byId.values()), userId);
+  const byId = new Map<string, CandidateSkill>();
+  for (const s of existing.skills ?? []) byId.set(s.skillId, s);
+  for (const s of incoming) {
+    const merged = byId.get(s.skillId);
+    if (!merged || s.level > merged.level) byId.set(s.skillId, s);
+  }
+  const container = getContainer(CONTAINERS.candidates);
+  const next: CandidateRecord = {
+    ...existing,
+    skills: Array.from(byId.values()),
+  };
+  await container.items.upsert(next);
+  return stripCosmos(next);
 }
 
 // Hard delete the candidate profile row. Tolerates 404 (already gone).
@@ -252,68 +261,21 @@ export async function setContactAsync(
   userId = ME_ID,
 ): Promise<Candidate> {
   const container = getContainer(CONTAINERS.candidates);
-  const current = await getProfileOrSeedAsync(userId);
   const existing = await readRecord(userId);
-  const next: Candidate = {
-    ...current,
-    id: current.id || userId,
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
+  }
+  const next: CandidateRecord = {
+    ...existing,
     phone: input.phone,
     linkedin: input.linkedin,
     github: input.github,
     portfolio: input.portfolio,
   };
-  await container.items.upsert({
-    ...next,
-    userId,
-    visibility: existing?.visibility,
-  });
-  return next;
-}
-
-export type ProfilePreferencesInput = {
-  preferredJobTypes?: JobType[];
-  preferredWorkModes?: WorkMode[];
-  preferredCities?: string[];
-  industries?: string[];
-  location?: string;
-  expectedSalary?: number;
-};
-
-export async function setPreferencesAsync(
-  input: ProfilePreferencesInput,
-  userId = ME_ID,
-): Promise<Candidate> {
-  const container = getContainer(CONTAINERS.candidates);
-  const existing = await readRecord(userId);
-  const base: Candidate = existing
-    ? stripCosmos(existing)
-    : {
-        id: userId,
-        name: "",
-        email: "",
-        location: input.location ?? "",
-        experienceYears: 0,
-        expectedSalary: input.expectedSalary ?? 0,
-        readinessScore: 0,
-        bio: "",
-        skills: [],
-      };
-  const next: Candidate = {
-    ...base,
-    id: base.id || userId,
-    location: input.location ?? base.location,
-    expectedSalary: input.expectedSalary ?? base.expectedSalary,
-    preferredJobTypes: input.preferredJobTypes ?? base.preferredJobTypes,
-    preferredWorkModes: input.preferredWorkModes ?? base.preferredWorkModes,
-    preferredCities: input.preferredCities ?? base.preferredCities,
-    industries: input.industries ?? base.industries,
-  };
-  await container.items.upsert({
-    ...next,
-    userId,
-    visibility: existing?.visibility,
-  });
-  return next;
+  await container.items.upsert(next);
+  return stripCosmos(next);
 }
 
 export function newEducationId() {
@@ -324,18 +286,32 @@ export function newExperienceId() {
   return uid("ex");
 }
 
-export async function setVisibilityAsync(
-  v: Visibility,
-  userId = ME_ID,
-): Promise<void> {
+// Single read + single upsert. Used by onboarding to avoid 7 sequential
+// round-trips. The patch callback receives the existing record (or a seeded
+// baseline if none exists) and returns the next state. Visibility defaults to
+// "applied-only" for new candidates.
+export async function patchProfileAsync(
+  userId: string,
+  patch: (existing: CandidateRecord) => CandidateRecord,
+): Promise<Candidate> {
   const container = getContainer(CONTAINERS.candidates);
   const existing = await readRecord(userId);
-  if (!existing) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". Cannot set visibility before profile exists.`,
-    );
-  }
-  await container.items.upsert({ ...existing, visibility: v });
+  const baseline: CandidateRecord = existing ?? {
+    id: userId,
+    userId,
+    name: "",
+    email: "",
+    location: "",
+    experienceYears: 0,
+    expectedSalary: 0,
+    readinessScore: 0,
+    bio: "",
+    skills: [],
+    visibility: "applied-only",
+  };
+  const next = patch(baseline);
+  await container.items.upsert(next);
+  return stripCosmos(next);
 }
 
 // Format helpers, used in UI.

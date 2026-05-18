@@ -107,6 +107,26 @@ async function main() {
         retrievable: true,
       },
       {
+        name: "minExperienceYears",
+        type: "Edm.Int32" as const,
+        filterable: true,
+        sortable: false,
+        retrievable: true,
+      },
+      {
+        name: "maxExperienceYears",
+        type: "Edm.Int32" as const,
+        filterable: true,
+        sortable: false,
+        retrievable: true,
+      },
+      {
+        name: "minEducation",
+        type: "Edm.String" as const,
+        filterable: true,
+        retrievable: true,
+      },
+      {
         name: "type",
         type: "Edm.String" as const,
         filterable: true,

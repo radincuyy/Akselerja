@@ -38,6 +38,9 @@ type CosmosJob = {
   requirements: { skillId: string; required: number; weight?: number }[];
   postedAt: string;
   status?: "open" | "closed";
+  minExperienceYears?: number;
+  maxExperienceYears?: number;
+  minEducation?: string;
 };
 
 type IndexedJob = {
@@ -55,6 +58,9 @@ type IndexedJob = {
   status: "open" | "closed";
   postedAt: string;
   companyId: string;
+  minExperienceYears: number | null;
+  maxExperienceYears: number | null;
+  minEducation: string | null;
 };
 
 function shortCity(location: string): string {
@@ -93,6 +99,11 @@ async function main() {
     status: j.status ?? "open",
     postedAt: j.postedAt,
     companyId: j.companyId ?? slugifyCompany(j.company),
+    minExperienceYears:
+      typeof j.minExperienceYears === "number" ? j.minExperienceYears : null,
+    maxExperienceYears:
+      typeof j.maxExperienceYears === "number" ? j.maxExperienceYears : null,
+    minEducation: j.minEducation ?? null,
   }));
 
   const searchClient = new SearchClient<IndexedJob>(
