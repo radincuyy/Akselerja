@@ -4,8 +4,8 @@ import PageHeader from "@/components/PageHeader";
 import JobCard from "@/components/JobCard";
 import JobSearchInput from "@/components/JobSearchInput";
 import JobFilterSheet from "@/components/JobFilterSheet";
-import { skillById } from "@/lib/skills";
 import { calcMatch } from "@/lib/match";
+import { buildMatchReason } from "@/lib/match-reason";
 import { listCityFacetsAsync, searchJobs } from "@/lib/search-store";
 import { getProfileOrSeedAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
@@ -205,16 +205,13 @@ export default async function LowonganListPage({
               </p>
               <div className="grid gap-4">
                 {ranked.map(({ job, score, breakdown }) => {
-                  const top = breakdown.find((b) => b.state === "match");
-                  const reason = top
-                    ? `Cocok karena ${skillById[top.skillId]?.name ?? top.name}.`
-                    : "Beberapa skill belum cocok, lihat detail.";
+                  const reason = buildMatchReason(me, job, { score, breakdown });
                   return (
                     <JobCard
                       key={job.id}
                       job={job}
                       matchScore={score}
-                      topReason={reason}
+                      reason={reason}
                     />
                   );
                 })}

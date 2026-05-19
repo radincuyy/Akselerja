@@ -2,8 +2,8 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import ScoreDisplay from "@/components/ScoreDisplay";
 import JobCard from "@/components/JobCard";
-import { skillById } from "@/lib/skills";
 import { calcMatch } from "@/lib/match";
+import { buildMatchReason } from "@/lib/match-reason";
 import { searchJobs } from "@/lib/search-store";
 import { listAssessmentsAsync } from "@/lib/assessments-store";
 import { getProfileOrSeedAsync } from "@/lib/profile-store";
@@ -94,12 +94,14 @@ export default async function CandidateHome() {
         {canShowRecommendations ? (
           <div className="mt-6 grid gap-4">
             {top3.map(({ job, score, breakdown }) => {
-              const top = breakdown.find((b) => b.state === "match");
-              const reason = top
-                ? `Cocok karena ${skillById[top.skillId]?.name ?? top.name}.`
-                : "Lihat detail untuk rincian skor.";
+              const reason = buildMatchReason(profile, job, { score, breakdown });
               return (
-                <JobCard key={job.id} job={job} matchScore={score} topReason={reason} />
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  matchScore={score}
+                  reason={reason}
+                />
               );
             })}
           </div>

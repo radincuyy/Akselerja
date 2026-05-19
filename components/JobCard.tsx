@@ -6,7 +6,16 @@ import { formatIdr, scoreBandLabel } from "@/lib/format";
 type Props = {
   job: Job;
   matchScore: number;
+  /**
+   * Optional single-line legacy reason. Used by callers that haven't migrated
+   * to `reason` yet. Rendered as a muted footnote when no rich reason is set.
+   */
   topReason?: string;
+  /**
+   * Two-line, plain-language explanation. `positive` answers "kenapa cocok",
+   * `negative` answers "yang menahan". Either side may be empty.
+   */
+  reason?: { positive: string; negative: string };
   ctaPath?: string;
 };
 
@@ -32,7 +41,13 @@ function eduChipLabel(raw?: string): string | null {
   return EDUCATION_LABEL[raw] ?? null;
 }
 
-export default function JobCard({ job, matchScore, topReason, ctaPath }: Props) {
+export default function JobCard({
+  job,
+  matchScore,
+  topReason,
+  reason,
+  ctaPath,
+}: Props) {
   const href = ctaPath ?? `/app/lowongan/${job.id}`;
   const initials =
     (job.company || "?")
@@ -136,12 +151,51 @@ export default function JobCard({ job, matchScore, topReason, ctaPath }: Props) 
                   ? `${formatIdr(job.salaryMin)} – ${formatIdr(job.salaryMax)}/bulan`
                   : "Gaji tidak ditampilkan"}
               </span>
-              {topReason ? (
-                <span className="text-xs text-(--color-muted)">
-                  {topReason}
-                </span>
-              ) : null}
             </div>
+
+            {reason && (reason.positive || reason.negative) ? (
+              <div className="mt-3 space-y-1.5 border-t border-(--color-line) pt-3">
+                {reason.positive ? (
+                  <p className="flex items-start gap-2 text-xs leading-relaxed text-(--color-ink)">
+                    <span
+                      aria-hidden
+                      className="mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-(--color-tint) text-(--color-signal-green)"
+                    >
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                        <path
+                          d="M2 5l2 2 4-5"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <span>{reason.positive}</span>
+                  </p>
+                ) : null}
+                {reason.negative ? (
+                  <p className="flex items-start gap-2 text-xs leading-relaxed text-(--color-muted)">
+                    <span
+                      aria-hidden
+                      className="mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-(--color-tint) text-(--color-signal-clay)"
+                    >
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                        <path
+                          d="M2.5 5h5"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </span>
+                    <span>{reason.negative}</span>
+                  </p>
+                ) : null}
+              </div>
+            ) : topReason ? (
+              <p className="mt-3 text-xs text-(--color-muted)">{topReason}</p>
+            ) : null}
           </div>
         </div>
       </Link>
