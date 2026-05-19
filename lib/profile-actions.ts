@@ -89,6 +89,16 @@ export type ParsedCvPreview = {
   sizeBytes: number;
   blobName?: string;
   contentType: string;
+  personal: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+    github?: string;
+    portfolio?: string;
+    bio?: string;
+  };
   skills: { id: string; name: string }[];
   education: {
     institution: string;
@@ -180,6 +190,7 @@ export async function uploadCvForReview(
       sizeBytes: file.size,
       blobName,
       contentType,
+      personal: parsed.personal,
       skills: parsed.skills,
       education: parsed.education,
       experience: parsed.experience,
@@ -203,6 +214,7 @@ export type ConfirmCvInput = {
   sizeBytes: number;
   blobName?: string;
   contentType?: string;
+  extractedPersonal?: ParsedCvPreview["personal"];
   extractedSkills?: { id: string; name: string }[];
   extractedEducation?: ParsedCvPreview["education"];
   extractedExperience?: ParsedCvPreview["experience"];
@@ -214,78 +226,103 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
   if (!input.filename) return;
   const user = await requireUser();
 
-  await setCvAsync(
-    {
+  const skills = (input.extractedSkills ?? []).map((s) => ({
+    skillId: s.id,
+    name: s.name,
+  }));
+  const education = (input.extractedEducation ?? []).map((e) => ({
+    id: newEducationId(),
+    institution: e.institution,
+    degree: e.degree,
+    startMonth: e.startMonth ?? "",
+    endMonth: e.endMonth ?? "",
+    notes: e.notes,
+  }));
+  const experience = (input.extractedExperience ?? []).map((e) => ({
+    id: newExperienceId(),
+    position: e.position,
+    company: e.company,
+    startMonth: e.startMonth ?? "",
+    endMonth: e.endMonth ?? "",
+    duties: e.duties,
+  }));
+  const organizations = (input.extractedOrganizations ?? []).map((o) => ({
+    id: newOrganizationId(),
+    role: o.role,
+    organization: o.organization,
+    startMonth: o.startMonth ?? "",
+    endMonth: o.endMonth ?? "",
+    duties: o.duties,
+  }));
+  const projects = (input.extractedProjects ?? []).map((p) => ({
+    id: newProjectId(),
+    title: p.title,
+    context: p.context,
+    startMonth: p.startMonth ?? "",
+    endMonth: p.endMonth ?? "",
+    duties: p.duties,
+    link: p.link,
+  }));
+  const totalMonths = experience.reduce(
+    (acc, e) => acc + monthsBetween(e.startMonth, e.endMonth),
+    0,
+  );
+  const experienceYears = Math.max(0, Math.round(totalMonths / 12));
+
+  // Read current profile first to capture the old blob name before we
+  // overwrite the cv field, and to keep account-level fields (auth email)
+  // available for the hybrid email rule below.
+  const previousProfile = await getProfileOrSeedAsync(user.id).catch(
+    () => null,
+  );
+  const previousBlobName = previousProfile?.cv?.blobName;
+  const accountEmail = user.email ?? previousProfile?.email ?? "";
+
+  // Hybrid email rule: if the CV has an email, prefer it; otherwise fall
+  // back to the account email (login). The account email is never lost.
+  const personal = input.extractedPersonal ?? {};
+  const cvEmail = personal.email?.trim();
+  const resolvedEmail = cvEmail && cvEmail.length > 0 ? cvEmail : accountEmail;
+
+  // Replace semantics: a fresh CV is the new source of truth, so all
+  // CV-derived sections are overwritten as a unit. Personal fields use
+  // "fallback to existing if CV blank" so we don't wipe data the user typed
+  // manually with an empty CV value.
+  await patchProfileAsync(user.id, (base) => ({
+    ...base,
+    name: personal.name?.trim() || base.name,
+    email: resolvedEmail || base.email,
+    phone: personal.phone?.trim() || base.phone,
+    location: personal.location?.trim() || base.location,
+    linkedin: personal.linkedin?.trim() || base.linkedin,
+    github: personal.github?.trim() || base.github,
+    portfolio: personal.portfolio?.trim() || base.portfolio,
+    bio: personal.bio?.trim() || base.bio,
+    skills,
+    education,
+    experience,
+    organizations,
+    projects,
+    experienceYears,
+    cv: {
       filename: input.filename,
       sizeBytes: input.sizeBytes,
       uploadedAt: new Date().toISOString(),
       blobName: input.blobName,
       contentType: input.contentType,
     },
-    user.id,
-  );
-
-  if (input.extractedSkills && input.extractedSkills.length > 0) {
-    await mergeSkillsAsync(
-      input.extractedSkills.map((s) => ({
-        skillId: s.id,
-        name: s.name,
-      })),
-      user.id,
-    );
-  }
-
-  if (input.extractedEducation && input.extractedEducation.length > 0) {
-    const education: Education[] = input.extractedEducation.map((e) => ({
-      id: newEducationId(),
-      institution: e.institution,
-      degree: e.degree,
-      startMonth: e.startMonth ?? "",
-      endMonth: e.endMonth ?? "",
-      notes: e.notes,
-    }));
-    await setEducationListAsync(education, user.id);
-  }
-
-  if (input.extractedExperience && input.extractedExperience.length > 0) {
-    const experience: Experience[] = input.extractedExperience.map((e) => ({
-      id: newExperienceId(),
-      position: e.position,
-      company: e.company,
-      startMonth: e.startMonth ?? "",
-      endMonth: e.endMonth ?? "",
-      duties: e.duties,
-    }));
-    await setExperienceListAsync(experience, user.id);
-  }
+  }));
 
   if (
-    input.extractedOrganizations &&
-    input.extractedOrganizations.length > 0
+    previousBlobName &&
+    previousBlobName !== input.blobName &&
+    isBlobConfigured()
   ) {
-    const organizations: OrganizationExperience[] =
-      input.extractedOrganizations.map((o) => ({
-        id: newOrganizationId(),
-        role: o.role,
-        organization: o.organization,
-        startMonth: o.startMonth ?? "",
-        endMonth: o.endMonth ?? "",
-        duties: o.duties,
-      }));
-    await setOrganizationListAsync(organizations, user.id);
-  }
-
-  if (input.extractedProjects && input.extractedProjects.length > 0) {
-    const projects: ProjectExperience[] = input.extractedProjects.map((p) => ({
-      id: newProjectId(),
-      title: p.title,
-      context: p.context,
-      startMonth: p.startMonth ?? "",
-      endMonth: p.endMonth ?? "",
-      duties: p.duties,
-      link: p.link,
-    }));
-    await setProjectListAsync(projects, user.id);
+    try {
+      await deleteBlob(previousBlobName);
+    } catch (err) {
+      console.error("[cv] previous blob cleanup failed:", err);
+    }
   }
 
   revalidateProfileSurfaces();

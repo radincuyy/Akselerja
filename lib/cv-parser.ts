@@ -39,7 +39,19 @@ type ParsedProject = {
   link?: string;
 };
 
+type ParsedPersonal = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
+  bio?: string;
+};
+
 export type ParsedCv = {
+  personal: ParsedPersonal;
   skills: ParsedSkill[];
   education: ParsedEducation[];
   experience: ParsedExperience[];
@@ -126,9 +138,21 @@ const geminiEngine: CvParserEngine = async (input) => {
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `Kamu adalah parser CV untuk job board Indonesia. Tugas:
-ekstrak skill kandidat (hard + soft + tools), riwayat pendidikan, riwayat
-pengalaman kerja, riwayat pengalaman organisasi, dan proyek yang pernah
-dikerjakan.
+ekstrak data identitas kandidat, skill (hard + soft + tools), riwayat
+pendidikan, pengalaman kerja, pengalaman organisasi, dan proyek.
+
+Aturan data identitas (personal):
+- "name" = nama lengkap kandidat seperti tertulis di header CV.
+- "email" = alamat email pribadi yang tertulis di CV (kosongkan kalau
+  tidak ada).
+- "phone" = nomor telepon dalam format yang tertulis di CV.
+- "location" = nama kota tempat tinggal saja (mis. "Jakarta Selatan",
+  "Surabaya"). Jangan masukkan provinsi atau alamat lengkap.
+- "linkedin", "github", "portfolio" = URL lengkap kalau disebut di CV.
+- "bio" = ringkasan profil 1-2 kalimat (biasanya ada di section "About
+  Me", "Profile", atau "Summary"). Maksimal 280 karakter. Kalau CV tidak
+  punya summary, kosongkan.
+- Field yang tidak ada di CV → kosongkan (jangan menebak).
 
 Aturan skill:
 - Kembalikan nama skill apa adanya seperti yang tertulis di CV. Boleh Bahasa
@@ -181,6 +205,19 @@ Output JSON sesuai schema.`;
         responseSchema: {
           type: "object",
           properties: {
+            personal: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                email: { type: "string" },
+                phone: { type: "string" },
+                location: { type: "string" },
+                linkedin: { type: "string" },
+                github: { type: "string" },
+                portfolio: { type: "string" },
+                bio: { type: "string" },
+              },
+            },
             skills: {
               type: "array",
               items: { type: "string" },
@@ -350,7 +387,34 @@ Output JSON sesuai schema.`;
 
   const taxonomyHits = skills.filter((s) => skillById[s.id]).length;
 
+  const rawPersonal = ((parsed as { personal?: unknown }).personal ?? {}) as
+    | Record<string, unknown>
+    | undefined;
+  const personal: ParsedPersonal = {
+    name: rawPersonal?.name ? String(rawPersonal.name).trim() : undefined,
+    email: rawPersonal?.email
+      ? String(rawPersonal.email).trim().toLowerCase()
+      : undefined,
+    phone: rawPersonal?.phone ? String(rawPersonal.phone).trim() : undefined,
+    location: rawPersonal?.location
+      ? String(rawPersonal.location).trim()
+      : undefined,
+    linkedin: rawPersonal?.linkedin
+      ? String(rawPersonal.linkedin).trim()
+      : undefined,
+    github: rawPersonal?.github
+      ? String(rawPersonal.github).trim()
+      : undefined,
+    portfolio: rawPersonal?.portfolio
+      ? String(rawPersonal.portfolio).trim()
+      : undefined,
+    bio: rawPersonal?.bio
+      ? String(rawPersonal.bio).trim().slice(0, 280)
+      : undefined,
+  };
+
   return {
+    personal,
     skills,
     education,
     experience,

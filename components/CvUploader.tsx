@@ -96,16 +96,30 @@ export default function CvUploader({ currentCv }: Props) {
   function confirm() {
     if (state.kind !== "review") return;
     setState({ kind: "confirming" });
-    const { filename, sizeBytes, blobName, contentType, skills, education, experience } = state.preview;
+    const {
+      filename,
+      sizeBytes,
+      blobName,
+      contentType,
+      personal,
+      skills,
+      education,
+      experience,
+      organizations,
+      projects,
+    } = state.preview;
     startTransition(async () => {
       await confirmCvUpdate({
         filename,
         sizeBytes,
         blobName,
         contentType,
+        extractedPersonal: personal,
         extractedSkills: skills,
         extractedEducation: education,
         extractedExperience: experience,
+        extractedOrganizations: organizations,
+        extractedProjects: projects,
       });
     });
   }
