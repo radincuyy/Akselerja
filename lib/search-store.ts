@@ -87,10 +87,14 @@ function buildFilter(params: SearchJobsParams): string | undefined {
     clauses.push(`industry eq '${escapeOdataString(params.industry)}'`);
   }
   if (params.skillIds && params.skillIds.length > 0) {
-    const list = params.skillIds
-      .map((s) => `'${escapeOdataString(s)}'`)
-      .join(", ");
-    clauses.push(`skillIds/any(s: search.in(s, ${list}))`);
+    // Azure AI Search search.in expects a single delimited string + delimiter,
+    // NOT N positional args. Skill ids are slug-safe (no commas), so we can
+    // safely use comma as the delimiter. Passing N args triggered:
+    //   "No function signature for the function with name 'search.in' matches"
+    const escaped = params.skillIds
+      .map((s) => escapeOdataString(s))
+      .join(",");
+    clauses.push(`skillIds/any(s: search.in(s, '${escaped}', ','))`);
   }
   if (typeof params.salaryMinFloor === "number") {
     clauses.push(`salaryMax ge ${params.salaryMinFloor}`);
