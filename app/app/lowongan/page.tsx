@@ -238,7 +238,7 @@ export default async function LowonganListPage({
       </div>
 
       <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-[18rem_1fr] lg:gap-8 lg:items-start">
-        <div className="hidden lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-5rem)]">
+        <div className="hidden lg:sticky lg:top-16 lg:block">
           <JobFilterSheet
             cities={cityFacets}
             defaultCities={lokasiList}

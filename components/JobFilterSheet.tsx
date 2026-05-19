@@ -589,7 +589,7 @@ export default function JobFilterSheet({
 
       <aside
         aria-labelledby="filter-heading"
-        className="hidden w-72 shrink-0 flex-col rounded-lg border border-(--color-line) bg-(--color-paper) lg:flex lg:h-full"
+        className="hidden w-72 shrink-0 flex-col rounded-lg border border-(--color-line) bg-(--color-paper) lg:flex lg:max-h-full"
       >
         <header className="border-b border-(--color-line) px-5 py-4">
           <h2
