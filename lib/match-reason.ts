@@ -82,6 +82,7 @@ export function buildMatchReason(
   if (
     typeof job.minExperienceYears === "number" &&
     job.minExperienceYears > 0 &&
+    candidate.experienceYears > 0 &&
     candidate.experienceYears < job.minExperienceYears
   ) {
     negatives.push(

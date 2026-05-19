@@ -26,27 +26,39 @@ function effectiveWeight(req: SkillRequirement): number {
 
 export function calcMatch(candidate: Candidate, job: Job): MatchResult {
   const candidateSkillIds = new Set(candidate.skills.map((s) => s.skillId));
-  let totalWeight = 0;
-  let scoreSum = 0;
-  const breakdown: MatchBreakdownItem[] = [];
 
-  for (const req of job.requirements) {
+  const rawItems = job.requirements.map((req) => {
     const weight = effectiveWeight(req);
     const has = candidateSkillIds.has(req.skillId);
     const state: SkillState = has ? "match" : "missing";
-    const pct = has ? 1 : 0;
-    scoreSum += weight * pct * 100;
-    totalWeight += weight;
-    breakdown.push({
-      skillId: req.skillId,
-      name: req.name ?? skillById[req.skillId]?.name ?? req.skillId,
-      state,
-      contribution: Math.round(weight * pct * 100),
-      mustHave: req.mustHave,
-    });
-  }
+    const raw = weight * (has ? 1 : 0) * 100;
+    return { req, weight, state, raw };
+  });
 
-  const baseScore = Math.round(scoreSum / (totalWeight || 1));
+  const totalWeight = rawItems.reduce((sum, it) => sum + it.weight, 0);
+  const rawSum = rawItems.reduce((sum, it) => sum + it.raw, 0);
+  const baseScore = Math.round(rawSum / (totalWeight || 1));
+
+  const floors = rawItems.map((it) => Math.floor(it.raw));
+  const sumFloors = floors.reduce((a, b) => a + b, 0);
+  const bumpsNeeded = Math.max(0, baseScore - sumFloors);
+  const remainders = rawItems
+    .map((it, i) => ({ i, frac: it.raw - floors[i] }))
+    .sort((a, b) => b.frac - a.frac);
+  const bumpSet = new Set(
+    remainders.slice(0, bumpsNeeded).map((r) => r.i),
+  );
+  const contributions = floors.map((f, i) => f + (bumpSet.has(i) ? 1 : 0));
+
+  const breakdown: MatchBreakdownItem[] = rawItems.map((it, i) => ({
+    skillId: it.req.skillId,
+    name:
+      it.req.name ?? skillById[it.req.skillId]?.name ?? it.req.skillId,
+    state: it.state,
+    contribution: contributions[i],
+    mustHave: it.req.mustHave,
+  }));
+
   const adjustedScore = applyModifiers(baseScore, candidate);
 
   return {
@@ -59,12 +71,6 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
   };
 }
 
-function applyModifiers(score: number, candidate: Candidate): number {
-  let adjusted = score;
-
-  if (candidate.experienceYears >= 1) {
-    adjusted = Math.min(100, adjusted + 3);
-  }
-
-  return adjusted;
+function applyModifiers(score: number, _candidate: Candidate): number {
+  return score;
 }
