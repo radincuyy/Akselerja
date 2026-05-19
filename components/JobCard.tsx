@@ -1,20 +1,12 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { Job } from "@/lib/types";
 import { formatIdr, scoreBandLabel } from "@/lib/format";
+import CompanyLogo from "@/components/CompanyLogo";
 
 type Props = {
   job: Job;
   matchScore: number;
-  /**
-   * Optional single-line legacy reason. Used by callers that haven't migrated
-   * to `reason` yet. Rendered as a muted footnote when no rich reason is set.
-   */
   topReason?: string;
-  /**
-   * Two-line, plain-language explanation. `positive` answers "kenapa cocok",
-   * `negative` answers "yang menahan". Either side may be empty.
-   */
   reason?: { positive: string; negative: string };
   ctaPath?: string;
 };
@@ -49,13 +41,6 @@ export default function JobCard({
   ctaPath,
 }: Props) {
   const href = ctaPath ?? `/app/lowongan/${job.id}`;
-  const initials =
-    (job.company || "?")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("") || "?";
   const eduChip = eduChipLabel(job.minEducation);
   const skillNames = (job.requirements ?? [])
     .map((r) => r.name ?? r.skillId)
@@ -67,28 +52,7 @@ export default function JobCard({
     <article className="group rounded-lg border border-(--color-line) bg-(--color-paper) p-5 transition-colors hover:border-(--color-ink)/40 sm:p-6">
       <Link href={href} className="block">
         <div className="flex gap-4">
-          <div className="shrink-0">
-            {job.companyLogo ? (
-              <Image
-                src={job.companyLogo}
-                alt={job.company}
-                width={48}
-                height={48}
-                sizes="48px"
-                loading="lazy"
-                className="h-12 w-12 rounded-md object-contain ring-1 ring-(--color-line)"
-                unoptimized
-              />
-            ) : (
-              <div
-                aria-hidden
-                className="flex h-12 w-12 items-center justify-center rounded-md bg-(--color-tint) text-sm font-semibold text-(--color-teal-deep)"
-              >
-                {initials}
-              </div>
-            )}
-          </div>
-
+          <CompanyLogo src={job.companyLogo} alt={job.company} size="md" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">

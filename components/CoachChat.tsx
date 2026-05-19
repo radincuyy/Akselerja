@@ -35,12 +35,68 @@ const INITIAL_MESSAGE: Message = {
   text: "Halo. Saya pendamping karier kamu di Akselerja. Saya bisa bantu jelaskan skor kecocokan, urutin skill yang perlu kamu pelajari, atau bantu kamu pikir realistis soal target kerja. Mau mulai dari mana?",
 };
 
+const HISTORY_KEY = "akselerja:coach-history:v1";
+const HISTORY_TTL_MS = 24 * 60 * 60 * 1000;
+
+type StoredHistory = {
+  messages: Message[];
+  savedAt: number;
+};
+
+function loadHistory(): Message[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredHistory>;
+    if (
+      !parsed ||
+      typeof parsed.savedAt !== "number" ||
+      Date.now() - parsed.savedAt > HISTORY_TTL_MS ||
+      !Array.isArray(parsed.messages) ||
+      parsed.messages.length < 2
+    ) {
+      return null;
+    }
+    return parsed.messages as Message[];
+  } catch {
+    return null;
+  }
+}
+
+function saveHistory(messages: Message[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: StoredHistory = {
+      messages,
+      savedAt: Date.now(),
+    };
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(payload));
+  } catch {
+  }
+}
+
+function clearHistory() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(HISTORY_KEY);
+}
+
 export default function CoachChat() {
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const restored = loadHistory();
+    if (restored) setMessages(restored);
+  }, []);
+
+  useEffect(() => {
+    const hasUserTurn = messages.some((m) => m.role === "user");
+    if (hasUserTurn) saveHistory(messages);
+  }, [messages]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -69,18 +125,51 @@ export default function CoachChat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: payload }),
       });
-      const data = (await res.json()) as { reply?: string; error?: string };
-      if (!res.ok || !data.reply) {
-        setErrorMsg(data.error ?? "Coach belum bisa menjawab sekarang.");
+      if (!res.ok) {
+        try {
+          const data = (await res.json()) as { error?: string };
+          setErrorMsg(data.error ?? "Coach belum bisa menjawab sekarang.");
+        } catch {
+          setErrorMsg("Coach belum bisa menjawab sekarang.");
+        }
         setThinking(false);
         return;
       }
-      const reply: Message = {
-        id: `c-${Date.now()}`,
-        role: "coach",
-        text: data.reply,
-      };
-      setMessages((prev) => [...prev, reply]);
+      if (!res.body) {
+        setErrorMsg("Coach belum mengirim balasan.");
+        setThinking(false);
+        return;
+      }
+
+      const replyId = `c-${Date.now()}`;
+      setMessages((prev) => [
+        ...prev,
+        { id: replyId, role: "coach", text: "" },
+      ]);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffered = "";
+      let firstChunk = true;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          buffered += decoder.decode(value, { stream: true });
+          if (firstChunk) {
+            setThinking(false);
+            firstChunk = false;
+          }
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === replyId ? { ...m, text: buffered } : m,
+            ),
+          );
+        }
+      }
+      buffered += decoder.decode();
+      setMessages((prev) =>
+        prev.map((m) => (m.id === replyId ? { ...m, text: buffered } : m)),
+      );
     } catch (err) {
       console.error("[coach] fetch failed:", err);
       setErrorMsg("Tidak bisa menghubungi coach. Cek koneksi internetmu.");
@@ -165,10 +254,28 @@ export default function CoachChat() {
         </button>
       </form>
 
-      <p className="text-xs text-(--color-muted)">
-        Coach ini panduan, bukan pengganti keputusan kamu. Jawaban dibuat
-        berdasarkan profil dan lowongan paling cocok yang ada di akunmu.
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs text-(--color-muted)">
+          Coach ini panduan, bukan pengganti keputusan kamu. Jawaban dibuat
+          berdasarkan profil dan lowongan paling cocok yang ada di akunmu.
+        </p>
+        {messages.some((m) => m.role === "user") ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (thinking) return;
+              clearHistory();
+              setMessages([INITIAL_MESSAGE]);
+              setErrorMsg(null);
+              setInput("");
+            }}
+            disabled={thinking}
+            className="shrink-0 text-xs font-medium text-(--color-muted) underline-offset-4 hover:text-(--color-ink) hover:underline disabled:opacity-60"
+          >
+            Mulai chat baru
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

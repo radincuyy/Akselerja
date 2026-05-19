@@ -646,6 +646,7 @@ export type OnboardingInput = {
     sizeBytes: number;
     blobName?: string;
     contentType?: string;
+    personal: ParsedCvPreview["personal"];
     skills: { id: string; name: string }[];
     education: ParsedCvPreview["education"];
     experience: ParsedCvPreview["experience"];
@@ -656,12 +657,19 @@ export type OnboardingInput = {
 
 export async function completeOnboarding(input: OnboardingInput) {
   const user = await requireUser();
-  const name = user.name ?? "Pencari Kerja";
-  const email = user.email ?? "";
+  const accountName = user.name ?? "Pencari Kerja";
+  const accountEmail = user.email ?? "";
   const prefs = input.preferences;
   const primaryCity = prefs.preferredCities[0] ?? "";
 
   const cv = input.cv;
+  const cvPersonal = cv?.personal ?? {};
+  const cvEmail = cvPersonal.email?.trim();
+  const resolvedEmail =
+    cvEmail && cvEmail.length > 0 ? cvEmail : accountEmail;
+  const resolvedName = cvPersonal.name?.trim() || accountName;
+  const resolvedLocation = cvPersonal.location?.trim() || primaryCity;
+  const resolvedBio = cvPersonal.bio?.trim() ?? "";
   const education =
     cv?.education.map((e) => ({
       id: newEducationId(),
@@ -714,10 +722,14 @@ export async function completeOnboarding(input: OnboardingInput) {
     ...base,
     id: user.id,
     userId: user.id,
-    name,
-    email,
-    location: primaryCity,
-    bio: base.bio ?? "",
+    name: resolvedName,
+    email: resolvedEmail,
+    location: resolvedLocation,
+    bio: resolvedBio || base.bio || "",
+    phone: cvPersonal.phone?.trim() || base.phone,
+    linkedin: cvPersonal.linkedin?.trim() || base.linkedin,
+    github: cvPersonal.github?.trim() || base.github,
+    portfolio: cvPersonal.portfolio?.trim() || base.portfolio,
     experienceYears,
     expectedSalary: base.expectedSalary ?? 0,
     readinessScore: base.readinessScore ?? 0,

@@ -27,6 +27,39 @@ function buildProfileText(profile: Candidate): string {
     })
     .join("\n");
 
+  const organizations = (profile.organizations ?? [])
+    .map((o) => {
+      const range =
+        o.startMonth || o.endMonth
+          ? `${o.startMonth || "?"} - ${o.endMonth || "sekarang"}`
+          : "";
+      const duties = o.duties?.replace(/\s+/g, " ").trim();
+      return [
+        `${o.role} di ${o.organization}${range ? ` (${range})` : ""}`,
+        duties ? `Kontribusi: ${duties}` : "",
+      ]
+        .filter(Boolean)
+        .join(". ");
+    })
+    .join("\n");
+
+  const projects = (profile.projects ?? [])
+    .map((p) => {
+      const range =
+        p.startMonth || p.endMonth
+          ? `${p.startMonth || "?"} - ${p.endMonth || "sekarang"}`
+          : "";
+      const ctx = p.context?.trim();
+      const duties = p.duties?.replace(/\s+/g, " ").trim();
+      return [
+        `${p.title}${ctx ? ` (${ctx})` : ""}${range ? ` ${range}` : ""}`,
+        duties ? `Ringkasan: ${duties}` : "",
+      ]
+        .filter(Boolean)
+        .join(". ");
+    })
+    .join("\n");
+
   const education = (profile.education ?? [])
     .map((e) => {
       const range =
@@ -45,7 +78,9 @@ function buildProfileText(profile: Candidate): string {
     profile.bio?.trim() ? `Bio: ${profile.bio}` : "",
     totals,
     skills ? `Skills: ${skills}` : "",
-    experience ? `Pengalaman:\n${experience}` : "",
+    experience ? `Pengalaman kerja:\n${experience}` : "",
+    organizations ? `Pengalaman organisasi:\n${organizations}` : "",
+    projects ? `Proyek:\n${projects}` : "",
     education ? `Pendidikan:\n${education}` : "",
   ]
     .filter(Boolean)

@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import ApplyButton from "@/components/ApplyButton";
+import CompanyLogo from "@/components/CompanyLogo";
 import ScoreDisplay from "@/components/ScoreDisplay";
 import { skillById } from "@/lib/skills";
 import { calcMatch } from "@/lib/match";
@@ -141,14 +141,6 @@ export default async function LowonganDetailPage({
         ? `Kamu cukup cocok untuk posisi ini, tapi ada beberapa skill kunci yang belum kamu miliki. Lihat rencana belajar di bawah.`
         : `Posisi ini agak jauh dari profil kamu sekarang. Tetap bisa kamu kejar, tapi butuh waktu di skill prioritas dulu.`;
 
-  const initials =
-    (job.company || "?")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("") || "?";
-
   const typeLabel = TYPE_LABEL[job.type] ?? job.type;
   const workModeLabel = job.workMode ? WORKMODE_LABEL[job.workMode] ?? job.workMode : null;
   const educationLabel = eduLabel(job.minEducation);
@@ -175,27 +167,12 @@ export default async function LowonganDetailPage({
 
       <header className="mt-6 rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:gap-6">
-          <div className="shrink-0">
-            {job.companyLogo ? (
-              <Image
-                src={job.companyLogo}
-                alt={job.company}
-                width={64}
-                height={64}
-                sizes="(max-width: 640px) 56px, 64px"
-                priority
-                className="h-14 w-14 rounded-md object-contain ring-1 ring-(--color-line) sm:h-16 sm:w-16"
-                unoptimized
-              />
-            ) : (
-              <div
-                aria-hidden
-                className="flex h-14 w-14 items-center justify-center rounded-md bg-(--color-tint) text-base font-semibold text-(--color-teal-deep) sm:h-16 sm:w-16 sm:text-lg"
-              >
-                {initials}
-              </div>
-            )}
-          </div>
+          <CompanyLogo
+            src={job.companyLogo}
+            alt={job.company}
+            size="lg"
+            priority
+          />
 
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold tracking-tight text-(--color-ink) sm:text-[1.75rem] sm:leading-tight">
@@ -509,25 +486,11 @@ export default async function LowonganDetailPage({
               About the company
             </h2>
             <div className="mt-4 flex items-start gap-4">
-              {job.companyLogo ? (
-                <Image
-                  src={job.companyLogo}
-                  alt={job.company}
-                  width={48}
-                  height={48}
-                  sizes="48px"
-                  loading="lazy"
-                  className="h-12 w-12 rounded-md object-contain ring-1 ring-(--color-line)"
-                  unoptimized
-                />
-              ) : (
-                <div
-                  aria-hidden
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-(--color-tint) text-sm font-semibold text-(--color-teal-deep)"
-                >
-                  {initials}
-                </div>
-              )}
+              <CompanyLogo
+                src={job.companyLogo}
+                alt={job.company}
+                size="md"
+              />
               <div className="min-w-0">
                 <p className="inline-flex items-center gap-1.5 text-sm font-medium text-(--color-teal-deep)">
                   {job.companyVerified ? (

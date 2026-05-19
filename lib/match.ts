@@ -31,19 +31,22 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
     const weight = effectiveWeight(req);
     const has = candidateSkillIds.has(req.skillId);
     const state: SkillState = has ? "match" : "missing";
-    const raw = weight * (has ? 1 : 0) * 100;
-    return { req, weight, state, raw };
+    return { req, weight, state, has };
   });
 
   const totalWeight = rawItems.reduce((sum, it) => sum + it.weight, 0);
-  const rawSum = rawItems.reduce((sum, it) => sum + it.raw, 0);
-  const baseScore = Math.round(rawSum / (totalWeight || 1));
+  const rawContribs = rawItems.map((it) =>
+    it.has ? (it.weight / (totalWeight || 1)) * 100 : 0,
+  );
+  const baseScore = Math.round(
+    rawContribs.reduce((sum, v) => sum + v, 0),
+  );
 
-  const floors = rawItems.map((it) => Math.floor(it.raw));
+  const floors = rawContribs.map((v) => Math.floor(v));
   const sumFloors = floors.reduce((a, b) => a + b, 0);
   const bumpsNeeded = Math.max(0, baseScore - sumFloors);
-  const remainders = rawItems
-    .map((it, i) => ({ i, frac: it.raw - floors[i] }))
+  const remainders = rawContribs
+    .map((v, i) => ({ i, frac: v - floors[i] }))
     .sort((a, b) => b.frac - a.frac);
   const bumpSet = new Set(
     remainders.slice(0, bumpsNeeded).map((r) => r.i),

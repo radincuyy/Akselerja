@@ -68,6 +68,7 @@ export type SearchJobsResult = {
   jobs: Job[];
   relevance: Record<string, number>;
   fromSearch: boolean;
+  fromFallback?: boolean;
   totalCount?: number;
 };
 
@@ -281,7 +282,8 @@ export async function searchJobs(
     return { jobs: page, relevance, fromSearch: true, totalCount };
   } catch (err) {
     console.error("[search] AI Search query failed, falling back:", err);
-    return fallbackSearch(params);
+    const result = await fallbackSearch(params);
+    return { ...result, fromFallback: true };
   }
 }
 

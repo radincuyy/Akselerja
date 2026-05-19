@@ -198,6 +198,7 @@ export default function OnboardingFlow() {
           sizeBytes: result.sizeBytes,
           blobName: result.blobName,
           contentType: result.contentType,
+          personal: result.personal,
           skills: result.skills,
           education: result.education,
           experience: result.experience,

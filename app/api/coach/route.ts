@@ -268,7 +268,7 @@ export async function POST(req: Request) {
 
   try {
     const ai = getClient();
-    const response = await ai.models.generateContent({
+    const stream = await ai.models.generateContentStream({
       model: CHAT_MODEL,
       contents: [
         ...history,
@@ -288,14 +288,46 @@ export async function POST(req: Request) {
       },
     });
 
-    const text = response.text?.trim();
-    if (!text) {
-      return NextResponse.json(
-        { error: "Coach belum bisa menjawab sekarang. Coba ulangi sebentar." },
-        { status: 502 },
-      );
-    }
-    return NextResponse.json({ reply: text });
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        let any = false;
+        try {
+          for await (const chunk of stream) {
+            const text = chunk.text;
+            if (typeof text === "string" && text.length > 0) {
+              controller.enqueue(encoder.encode(text));
+              any = true;
+            }
+          }
+          if (!any) {
+            controller.enqueue(
+              encoder.encode(
+                "Coach belum bisa menjawab sekarang. Coba ulangi sebentar.",
+              ),
+            );
+          }
+        } catch (err) {
+          console.error("[coach] stream failed:", err);
+          controller.enqueue(
+            encoder.encode(
+              "\n\n[Koneksi coach terputus, coba kirim ulang pesanmu.]",
+            ),
+          );
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(body, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+        "X-Accel-Buffering": "no",
+      },
+    });
   } catch (err) {
     console.error("[coach] generation failed:", err);
     const message = err instanceof Error ? err.message : "Coach error.";

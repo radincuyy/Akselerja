@@ -39,9 +39,8 @@ function parseExperience(
 ): { experienceMin?: number; experienceMax?: number } {
   if (!v) return {};
   switch (v) {
-    case "0":
     case "fresh":
-      return { experienceMin: 0, experienceMax: 0 };
+      return { experienceMin: 0, experienceMax: 1 };
     case "0-1":
       return { experienceMin: 0, experienceMax: 1 };
     case "1-3":
@@ -118,7 +117,7 @@ export default async function LowonganListPage({
   const pageNum = Math.max(1, parseInt(page ?? "1", 10) || 1);
   const top = pageNum * PAGE_SIZE;
 
-  const [{ jobs, relevance, fromSearch, totalCount }, cityFacets] =
+  const [{ jobs, relevance, fromSearch, fromFallback, totalCount }, cityFacets] =
     await Promise.all([
       searchJobs({
         query: q,
@@ -192,6 +191,20 @@ export default async function LowonganListPage({
           </p>
         ) : null}
       </div>
+
+      {fromFallback ? (
+        <div
+          role="status"
+          className="mt-6 max-w-2xl rounded-lg border border-(--color-signal-amber)/40 bg-(--color-tint) p-4 text-sm text-(--color-ink)"
+        >
+          <p className="font-semibold">Pencarian sedang dalam mode dasar</p>
+          <p className="mt-1 text-(--color-muted)">
+            Mesin pencarian utama sedang tidak responsif, jadi urutan saat ini
+            tidak menggunakan ranking semantik. Refresh dalam beberapa saat
+            untuk mencoba lagi.
+          </p>
+        </div>
+      ) : null}
 
       {!hasSkills ? (
         <div className="mt-6 max-w-2xl rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
