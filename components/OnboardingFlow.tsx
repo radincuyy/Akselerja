@@ -155,6 +155,10 @@ export default function OnboardingFlow() {
       setError("Pilih minimal satu kota.");
       return;
     }
+    if (industries.length === 0) {
+      setError("Pilih minimal satu industri yang kamu minati.");
+      return;
+    }
     setError(null);
     setPreferences({
       preferredJobTypes: jobTypes,
@@ -377,7 +381,6 @@ export default function OnboardingFlow() {
 
               <MultiSelectInput
                 label="Industri yang diminati"
-                optional
                 placeholder="Ketik atau pilih industri"
                 options={INDUSTRY_OPTIONS}
                 values={industries}

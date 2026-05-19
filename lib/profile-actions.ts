@@ -443,6 +443,9 @@ export async function savePreferencesSection(
   if (!Array.isArray(draft.preferredCities) || draft.preferredCities.length === 0) {
     errors.preferredCities = "Pilih minimal satu kota.";
   }
+  if (!Array.isArray(draft.industries) || draft.industries.length === 0) {
+    errors.industries = "Pilih minimal satu industri yang diminati.";
+  }
   if (Object.keys(errors).length > 0) return failSection(errors);
 
   const user = await requireUser();

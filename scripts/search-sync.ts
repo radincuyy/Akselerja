@@ -34,6 +34,7 @@ type CosmosJob = {
   salaryMax: number;
   type: string;
   industry: string;
+  industryId?: string;
   description: string;
   requirements: { skillId: string; required: number; weight?: number }[];
   postedAt: string;
@@ -49,6 +50,7 @@ type IndexedJob = {
   company: string;
   description: string;
   industry: string;
+  industryId: string | null;
   location: string;
   city: string;
   skillIds: string[];
@@ -90,6 +92,7 @@ async function main() {
     company: j.company,
     description: j.description,
     industry: j.industry,
+    industryId: j.industryId ?? null,
     location: j.location,
     city: shortCity(j.location),
     skillIds: (j.requirements ?? []).map((r) => r.skillId),

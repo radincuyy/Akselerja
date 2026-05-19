@@ -36,6 +36,7 @@ export type Job = {
   bonusMax?: number;
   type: JobType;
   industry: string;
+  industryId?: string;
   workMode?: WorkMode;
   description: string;
   requirements: SkillRequirement[];

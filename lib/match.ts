@@ -16,9 +16,6 @@ export type MatchResult = {
   breakdown: MatchBreakdownItem[];
 };
 
-// Required skills carry full weight; nice-to-have skills carry less so missing
-// them is a smaller penalty. Tweak ratios here if the scoring distribution
-// looks too forgiving or too harsh.
 const WEIGHT_MUST_HAVE = 1.0;
 const WEIGHT_NICE_TO_HAVE = 0.4;
 
@@ -64,25 +61,25 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
 
 function applyModifiers(score: number, candidate: Candidate, job: Job): number {
   let adjusted = score;
-  if (candidate.experienceYears >= 1) adjusted = Math.min(100, adjusted + 3);
-  if (candidate.expectedSalary > 0 && candidate.expectedSalary > job.salaryMax) {
-    adjusted = Math.max(0, adjusted - 5);
+
+  if (candidate.experienceYears >= 1) {
+    adjusted = Math.min(100, adjusted + 3);
   }
 
   const wantedTypes = candidate.preferredJobTypes ?? [];
-  if (wantedTypes.length > 0 && !wantedTypes.includes(job.type)) {
-    adjusted = Math.max(0, adjusted - 12);
+  if (wantedTypes.length > 0 && wantedTypes.includes(job.type)) {
+    adjusted = Math.min(100, adjusted + 3);
   }
 
   const wantedModes = candidate.preferredWorkModes ?? [];
   const jobMode = job.workMode ?? "onsite";
   if (
     wantedModes.length > 0 &&
-    !wantedModes.includes("hybrid") &&
-    !wantedModes.includes(jobMode) &&
-    jobMode !== "hybrid"
+    (wantedModes.includes(jobMode) ||
+      wantedModes.includes("hybrid") ||
+      jobMode === "hybrid")
   ) {
-    adjusted = Math.max(0, adjusted - 8);
+    adjusted = Math.min(100, adjusted + 3);
   }
 
   const wantedCities = candidate.preferredCities ?? [];
@@ -91,15 +88,18 @@ function applyModifiers(score: number, candidate: Candidate, job: Job): number {
     const cityMatch = wantedCities.some(
       (c) => c.toLowerCase() === jobCity,
     );
-    if (!cityMatch) {
-      adjusted = Math.max(0, adjusted - 6);
+    if (cityMatch) {
+      adjusted = Math.min(100, adjusted + 3);
     }
   }
 
-  if (candidate.industries && candidate.industries.length > 0 && job.industry) {
-    const wants = candidate.industries.map((s) => s.toLowerCase());
-    if (wants.some((w) => job.industry.toLowerCase().includes(w))) {
-      adjusted = Math.min(100, adjusted + 4);
+  if (
+    candidate.industries &&
+    candidate.industries.length > 0 &&
+    job.industryId
+  ) {
+    if (candidate.industries.includes(job.industryId)) {
+      adjusted = Math.min(100, adjusted + 3);
     }
   }
 

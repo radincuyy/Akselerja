@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Job, JobType, SkillRequirement, WorkMode } from "../lib/types";
+import { deriveIndustryId } from "../lib/industry-mapping";
 
 const RAW_IN = resolve(process.cwd(), "data/glints-jobs.json");
 const OUT = resolve(process.cwd(), "data/akselerja-jobs.json");
@@ -393,6 +394,7 @@ function normalize(raw: RawJob): Job | null {
     bonusMax: bonus?.max,
     type: mapJobType(raw.employmentType),
     industry: deriveIndustry(raw),
+    industryId: deriveIndustryId(raw.industryBreadcrumb) ?? undefined,
     workMode: mapWorkMode(raw.workArrangement),
     description: combineDescription(raw),
     requirements: buildRequirements(raw.skills),

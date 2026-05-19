@@ -705,6 +705,10 @@ function PreferencesForm({
       setError("Pilih minimal satu kota.");
       return;
     }
+    if (data.industries.length === 0) {
+      setError("Pilih minimal satu industri yang diminati.");
+      return;
+    }
     start(async () => {
       const r = await onSubmit(data);
       if (!r.ok) setError(r.error);
@@ -834,7 +838,6 @@ function PreferencesForm({
 
       <MultiSelectInput
         label="Industri yang diminati"
-        optional
         values={data.industries}
         options={INDUSTRY_OPTIONS}
         onChange={(next) => setData({ ...data, industries: next })}

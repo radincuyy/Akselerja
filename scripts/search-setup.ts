@@ -69,6 +69,14 @@ async function main() {
         retrievable: true,
       },
       {
+        name: "industryId",
+        type: "Edm.String" as const,
+        searchable: false,
+        filterable: true,
+        facetable: true,
+        retrievable: true,
+      },
+      {
         name: "location",
         type: "Edm.String" as const,
         searchable: true,

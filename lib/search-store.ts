@@ -29,6 +29,7 @@ type IndexedJob = {
   company: string;
   description: string;
   industry: string;
+  industryId?: string | null;
   location: string;
   city: string;
   skillIds: string[];

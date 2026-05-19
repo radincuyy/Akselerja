@@ -109,14 +109,10 @@ export function buildMatchReason(
   if (
     candidate.industries &&
     candidate.industries.length > 0 &&
-    job.industry
+    job.industryId
   ) {
-    const ji = job.industry.toLowerCase();
-    const matchedIndustry = candidate.industries.find((c) =>
-      ji.includes(c.toLowerCase()),
-    );
-    if (matchedIndustry) {
-      positives.push(`industri ${matchedIndustry.toLowerCase()} sesuai minatmu`);
+    if (candidate.industries.includes(job.industryId)) {
+      positives.push(`industri ${job.industryId.toLowerCase()} sesuai minatmu`);
     }
   }
 
