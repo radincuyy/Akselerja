@@ -7,6 +7,7 @@ import ApplyButton from "@/components/ApplyButton";
 import ScoreDisplay from "@/components/ScoreDisplay";
 import { skillById } from "@/lib/skills";
 import { calcMatch } from "@/lib/match";
+import { buildMatchReason } from "@/lib/match-reason";
 import { formatIdr, formatRelativeId } from "@/lib/format";
 import { getJobByIdAsync } from "@/lib/jobs-store";
 import { getCoursesForSkillsAsync } from "@/lib/courses-store";
@@ -117,9 +118,21 @@ export default async function LowonganDetailPage({
   const { score, breakdown } = calcMatch(me, job);
   const matched = breakdown.filter((b) => b.state === "match");
   const missing = breakdown.filter((b) => b.state === "missing");
+  const matchReason = buildMatchReason(me, job, { score, breakdown });
 
   const gapSkillIds = missing.map((b) => b.skillId);
-  const learningPath = (await getCoursesForSkillsAsync(gapSkillIds)).slice(0, 4);
+  // Cap learning path to one course per gap skill so the four steps cover
+  // the four most actionable gaps instead of repeating courses for the same
+  // skill. We over-fetch then de-dupe by skillId to stay deterministic.
+  const candidateCourses = await getCoursesForSkillsAsync(gapSkillIds);
+  const seenSkill = new Set<string>();
+  const learningPath: typeof candidateCourses = [];
+  for (const c of candidateCourses) {
+    if (seenSkill.has(c.skillId)) continue;
+    seenSkill.add(c.skillId);
+    learningPath.push(c);
+    if (learningPath.length >= 4) break;
+  }
 
   const explanation =
     score >= 75
@@ -299,6 +312,48 @@ export default async function LowonganDetailPage({
               size="lg"
             />
 
+            {matchReason.positive || matchReason.negative ? (
+              <div className="mt-6 space-y-2 rounded-md border border-(--color-line) bg-(--color-tint) p-4">
+                {matchReason.positive ? (
+                  <p className="flex items-start gap-2 text-sm leading-relaxed text-(--color-ink)">
+                    <span
+                      aria-hidden
+                      className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-(--color-paper) text-(--color-signal-green)"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path
+                          d="M2 5l2 2 4-5"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <span>{matchReason.positive}</span>
+                  </p>
+                ) : null}
+                {matchReason.negative ? (
+                  <p className="flex items-start gap-2 text-sm leading-relaxed text-(--color-muted)">
+                    <span
+                      aria-hidden
+                      className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-(--color-paper) text-(--color-signal-clay)"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path
+                          d="M2.5 5h5"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </span>
+                    <span>{matchReason.negative}</span>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="mt-7 space-y-3">
               <h2
                 id="match-heading"
@@ -358,28 +413,35 @@ export default async function LowonganDetailPage({
               </p>
             ) : (
               <ol className="mt-6 space-y-3">
-                {learningPath.map((c, i) => (
-                  <li
-                    key={c.id}
-                    className="flex gap-4 rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
-                  >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-(--color-tint) text-sm font-semibold text-(--color-teal)">
-                      {i + 1}
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-base font-semibold text-(--color-ink)">
-                        {c.title}
-                      </p>
-                      <p className="mt-1 text-sm text-(--color-muted)">
-                        {c.provider} · {c.durationHours} jam ·{" "}
-                        {c.free ? "Gratis" : formatIdr(c.priceIdr ?? 0)}
-                      </p>
-                      <p className="mt-3 text-sm leading-relaxed text-(--color-ink)">
-                        {c.description}
-                      </p>
-                    </div>
-                  </li>
-                ))}
+                {learningPath.map((c, i) => {
+                  const targetSkill =
+                    skillById[c.skillId]?.name ?? c.skillId;
+                  return (
+                    <li
+                      key={c.id}
+                      className="flex gap-4 rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-(--color-tint) text-sm font-semibold text-(--color-teal)">
+                        {i + 1}
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium uppercase tracking-wider text-(--color-teal-deep)">
+                          Tutup gap {targetSkill}
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-(--color-ink)">
+                          {c.title}
+                        </p>
+                        <p className="mt-1 text-sm text-(--color-muted)">
+                          {c.provider} · {c.durationHours} jam ·{" "}
+                          {c.free ? "Gratis" : formatIdr(c.priceIdr ?? 0)}
+                        </p>
+                        <p className="mt-3 text-sm leading-relaxed text-(--color-ink)">
+                          {c.description}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </section>
@@ -407,19 +469,8 @@ export default async function LowonganDetailPage({
               <ul className="mt-4 flex flex-wrap gap-2">
                 {job.requirements.map((r) => (
                   <li key={r.skillId}>
-                    <span
-                      className={
-                        r.mustHave
-                          ? "inline-flex items-center gap-1.5 rounded-full border border-(--color-line) bg-(--color-paper) px-3 py-1 text-sm text-(--color-ink)"
-                          : "inline-flex items-center rounded-full border border-(--color-line) bg-(--color-paper) px-3 py-1 text-sm text-(--color-muted)"
-                      }
-                    >
+                    <span className="inline-flex items-center rounded-full border border-(--color-line) bg-(--color-paper) px-3 py-1 text-sm text-(--color-ink)">
                       {r.name ?? skillById[r.skillId]?.name ?? r.skillId}
-                      {r.mustHave ? (
-                        <span className="rounded-full bg-(--color-tint) px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-(--color-teal-deep)">
-                          Wajib
-                        </span>
-                      ) : null}
                     </span>
                   </li>
                 ))}
