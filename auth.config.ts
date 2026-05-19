@@ -1,12 +1,13 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import type { DefaultSession } from "next-auth";
+import { revalidateTag } from "next/cache";
+import { migrateProfileIdAsync, profileCacheTag } from "./lib/profile-store";
 
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role?: "candidate" | "company";
     } & DefaultSession["user"];
   }
 }
@@ -25,25 +26,40 @@ export const authConfig = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        const explicitRole = (user as { role?: "candidate" | "company" }).role;
-        if (explicitRole === "candidate" || explicitRole === "company") {
-          token.role = explicitRole;
-        } else if (user.email?.endsWith("@akselerja.demo")) {
-          token.role = user.id === "me" ? "candidate" : "company";
-        } else {
-          token.role = "candidate";
+    async signIn({ user, account }) {
+      if (
+        account?.provider !== "credentials" &&
+        account?.providerAccountId &&
+        typeof user.email === "string"
+      ) {
+        try {
+          const migrated = await migrateProfileIdAsync(
+            account.providerAccountId,
+            user.email,
+          );
+          if (migrated) {
+            revalidateTag(profileCacheTag(account.providerAccountId));
+          }
+        } catch (err) {
+          console.error("[auth] profile migration failed", err);
         }
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
+      if (user) {
+        const stableId =
+          account?.provider !== "credentials" && account?.providerAccountId
+            ? account.providerAccountId
+            : user.id ||
+              (typeof user.email === "string" ? user.email.toLowerCase() : "");
+        token.id = stableId;
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = (token.id as string) ?? token.sub ?? "";
-        session.user.role =
-          (token.role as "candidate" | "company") ?? "candidate";
       }
       return session;
     },

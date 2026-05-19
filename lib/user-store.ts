@@ -2,15 +2,12 @@ import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
 
-export type UserRole = "candidate" | "company";
-
 type UserRecord = {
   id: string;
   email: string;
   userId: string;
   name: string;
   passwordHash: string;
-  role: UserRole;
   createdAt: string;
 };
 
@@ -23,12 +20,11 @@ function normalizeEmail(email: string): string {
 export type CreateUserInput = {
   name: string;
   email: string;
-  password: string; 
-  role: UserRole;
+  password: string;
 };
 
 export type CreateUserResult =
-  | { ok: true; user: { id: string; name: string; email: string; role: UserRole } }
+  | { ok: true; user: { id: string; name: string; email: string } }
   | { ok: false; reason: "email-taken" | "cosmos-not-configured" | "cosmos-error"; message?: string };
 
 export async function createUserWithPassword(
@@ -62,7 +58,6 @@ export async function createUserWithPassword(
     userId,
     name: input.name.trim(),
     passwordHash,
-    role: input.role,
     createdAt: new Date().toISOString(),
   };
   try {
@@ -88,7 +83,6 @@ export async function createUserWithPassword(
       id: record.userId,
       name: record.name,
       email: record.email,
-      role: record.role,
     },
   };
 }
@@ -97,7 +91,6 @@ type VerifiedUser = {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
 };
 
 export type VerifyResult =
@@ -134,7 +127,6 @@ export async function verifyUserCredentials(
         id: resource.userId,
         name: resource.name,
         email: resource.email,
-        role: resource.role ?? "candidate",
       },
     };
   } catch (err: unknown) {
@@ -165,7 +157,7 @@ export async function deleteUserById(userId: string): Promise<void> {
     })
     .fetchAll();
   const record = resources[0];
-  if (!record) return; 
+  if (!record) return;
   try {
     await container.item(record.id, record.id).delete();
   } catch (err: unknown) {

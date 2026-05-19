@@ -1,6 +1,6 @@
 "use server";
 
-import { createUserWithPassword, type UserRole } from "./user-store";
+import { createUserWithPassword } from "./user-store";
 
 export type SignupResult =
   | { ok: true; email: string }
@@ -8,11 +8,10 @@ export type SignupResult =
 
 const DEMO_DOMAIN = "@akselerja.demo";
 
-async function signupCommon(input: {
+export async function signupWithEmailPassword(input: {
   name: string;
   email: string;
   password: string;
-  role: UserRole;
 }): Promise<SignupResult> {
   const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
@@ -32,12 +31,7 @@ async function signupCommon(input: {
     return { ok: false, error: "Password minimal 8 karakter." };
   }
 
-  const result = await createUserWithPassword({
-    name,
-    email,
-    password,
-    role: input.role,
-  });
+  const result = await createUserWithPassword({ name, email, password });
   if (!result.ok) {
     if (result.reason === "email-taken") {
       return {
@@ -59,12 +53,4 @@ async function signupCommon(input: {
   }
 
   return { ok: true, email: result.user.email };
-}
-
-export async function signupWithEmailPassword(input: {
-  name: string;
-  email: string;
-  password: string;
-}): Promise<SignupResult> {
-  return signupCommon({ ...input, role: "candidate" });
 }
