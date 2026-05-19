@@ -74,11 +74,6 @@ export const BREADCRUMB_TO_INDUSTRY_ID: Record<string, string> = {
   "Travel Services": "Hotel & Pariwisata",
 };
 
-/**
- * Convert a Glints breadcrumb into the Indonesian industry id used by the
- * matching engine. Returns null when there is no mapping (the job stays
- * "uncategorized" and won't contribute an industry bonus).
- */
 export function breadcrumbToIndustryId(
   breadcrumb: string | undefined,
 ): string | null {
