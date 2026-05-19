@@ -10,12 +10,16 @@ import {
   mergeSkillsAsync,
   newEducationId,
   newExperienceId,
+  newOrganizationId,
+  newProjectId,
   patchProfileAsync,
   profileCacheTag,
   setContactAsync,
   setCvAsync,
   setEducationListAsync,
   setExperienceListAsync,
+  setOrganizationListAsync,
+  setProjectListAsync,
   setSkillsAsync,
   updateProfileBasicAsync,
 } from "./profile-store";
@@ -35,6 +39,8 @@ import type {
   Education,
   Experience,
   JobType,
+  OrganizationExperience,
+  ProjectExperience,
   WorkMode,
 } from "./types";
 
@@ -97,6 +103,21 @@ export type ParsedCvPreview = {
     startMonth?: string;
     endMonth?: string;
     duties?: string;
+  }[];
+  organizations: {
+    role: string;
+    organization: string;
+    startMonth?: string;
+    endMonth?: string;
+    duties?: string;
+  }[];
+  projects: {
+    title: string;
+    context?: string;
+    startMonth?: string;
+    endMonth?: string;
+    duties?: string;
+    link?: string;
   }[];
   notes: string[];
 };
@@ -162,6 +183,8 @@ export async function uploadCvForReview(
       skills: parsed.skills,
       education: parsed.education,
       experience: parsed.experience,
+      organizations: parsed.organizations,
+      projects: parsed.projects,
       notes: parsed.notes,
     };
   } catch (err) {
@@ -183,6 +206,8 @@ export type ConfirmCvInput = {
   extractedSkills?: { id: string; name: string }[];
   extractedEducation?: ParsedCvPreview["education"];
   extractedExperience?: ParsedCvPreview["experience"];
+  extractedOrganizations?: ParsedCvPreview["organizations"];
+  extractedProjects?: ParsedCvPreview["projects"];
 };
 
 export async function confirmCvUpdate(input: ConfirmCvInput) {
@@ -232,6 +257,35 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
       duties: e.duties,
     }));
     await setExperienceListAsync(experience, user.id);
+  }
+
+  if (
+    input.extractedOrganizations &&
+    input.extractedOrganizations.length > 0
+  ) {
+    const organizations: OrganizationExperience[] =
+      input.extractedOrganizations.map((o) => ({
+        id: newOrganizationId(),
+        role: o.role,
+        organization: o.organization,
+        startMonth: o.startMonth ?? "",
+        endMonth: o.endMonth ?? "",
+        duties: o.duties,
+      }));
+    await setOrganizationListAsync(organizations, user.id);
+  }
+
+  if (input.extractedProjects && input.extractedProjects.length > 0) {
+    const projects: ProjectExperience[] = input.extractedProjects.map((p) => ({
+      id: newProjectId(),
+      title: p.title,
+      context: p.context,
+      startMonth: p.startMonth ?? "",
+      endMonth: p.endMonth ?? "",
+      duties: p.duties,
+      link: p.link,
+    }));
+    await setProjectListAsync(projects, user.id);
   }
 
   revalidateProfileSurfaces();
@@ -403,6 +457,81 @@ export async function saveExperienceSection(
   return { ok: true };
 }
 
+export type OrganizationDraft = {
+  id?: string;
+  role: string;
+  organization: string;
+  startMonth?: string;
+  endMonth?: string;
+  duties?: string;
+};
+
+export async function saveOrganizationSection(
+  drafts: OrganizationDraft[],
+): Promise<SectionResult> {
+  const errors: Record<string, string> = {};
+  const cleaned: OrganizationExperience[] = [];
+  for (let i = 0; i < drafts.length; i++) {
+    const d = drafts[i];
+    const role = d.role?.trim() ?? "";
+    const organization = d.organization?.trim() ?? "";
+    if (!role && !organization) continue;
+    if (!role || !organization) {
+      errors[`org-${i}`] = "Posisi dan organisasi wajib diisi.";
+      continue;
+    }
+    cleaned.push({
+      id: d.id || newOrganizationId(),
+      role,
+      organization,
+      startMonth: d.startMonth || "",
+      endMonth: d.endMonth || "",
+      duties: d.duties?.trim() || undefined,
+    });
+  }
+  if (Object.keys(errors).length > 0) return failSection(errors);
+  const user = await requireUser();
+  await setOrganizationListAsync(cleaned, user.id);
+  revalidateProfileSurfaces();
+  return { ok: true };
+}
+
+export type ProjectDraft = {
+  id?: string;
+  title: string;
+  context?: string;
+  startMonth?: string;
+  endMonth?: string;
+  duties?: string;
+  link?: string;
+};
+
+export async function saveProjectSection(
+  drafts: ProjectDraft[],
+): Promise<SectionResult> {
+  const errors: Record<string, string> = {};
+  const cleaned: ProjectExperience[] = [];
+  for (let i = 0; i < drafts.length; i++) {
+    const d = drafts[i];
+    const title = d.title?.trim() ?? "";
+    if (!title) continue;
+    cleaned.push({
+      id: d.id || newProjectId(),
+      title,
+      context: d.context?.trim() || undefined,
+      startMonth: d.startMonth || "",
+      endMonth: d.endMonth || "",
+      duties: d.duties?.trim() || undefined,
+      link: d.link?.trim() || undefined,
+    });
+  }
+  if (Object.keys(errors).length > 0) return failSection(errors);
+  const user = await requireUser();
+  await setProjectListAsync(cleaned, user.id);
+  revalidateProfileSurfaces();
+  return { ok: true };
+}
+
 export type SkillDraft = {
   id: string;
   name?: string;
@@ -483,6 +612,8 @@ export type OnboardingInput = {
     skills: { id: string; name: string }[];
     education: ParsedCvPreview["education"];
     experience: ParsedCvPreview["experience"];
+    organizations: ParsedCvPreview["organizations"];
+    projects: ParsedCvPreview["projects"];
   };
 };
 
@@ -511,6 +642,25 @@ export async function completeOnboarding(input: OnboardingInput) {
       startMonth: e.startMonth ?? "",
       endMonth: e.endMonth ?? "",
       duties: e.duties,
+    })) ?? [];
+  const organizations =
+    cv?.organizations.map((o) => ({
+      id: newOrganizationId(),
+      role: o.role,
+      organization: o.organization,
+      startMonth: o.startMonth ?? "",
+      endMonth: o.endMonth ?? "",
+      duties: o.duties,
+    })) ?? [];
+  const projects =
+    cv?.projects.map((p) => ({
+      id: newProjectId(),
+      title: p.title,
+      context: p.context,
+      startMonth: p.startMonth ?? "",
+      endMonth: p.endMonth ?? "",
+      duties: p.duties,
+      link: p.link,
     })) ?? [];
   const totalMonths = experience.reduce(
     (acc, e) => acc + monthsBetween(e.startMonth, e.endMonth),
@@ -541,6 +691,9 @@ export async function completeOnboarding(input: OnboardingInput) {
     skills: skills.length > 0 ? skills : base.skills ?? [],
     education: education.length > 0 ? education : base.education,
     experience: experience.length > 0 ? experience : base.experience,
+    organizations:
+      organizations.length > 0 ? organizations : base.organizations,
+    projects: projects.length > 0 ? projects : base.projects,
     cv: cv
       ? {
           filename: cv.filename,

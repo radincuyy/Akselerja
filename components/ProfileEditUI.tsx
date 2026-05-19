@@ -7,13 +7,17 @@ import { formatPeriod } from "@/lib/profile-store";
 import {
   saveEducationSection,
   saveExperienceSection,
+  saveOrganizationSection,
   savePersonalSection,
   savePreferencesSection,
+  saveProjectSection,
   saveSkillsSection,
   type EducationDraft,
   type ExperienceDraft,
+  type OrganizationDraft,
   type PersonalInput,
   type PreferencesDraft,
+  type ProjectDraft,
   type SkillDraft,
 } from "@/lib/profile-actions";
 import type { Candidate, JobType, WorkMode } from "@/lib/types";
@@ -29,6 +33,8 @@ type SectionKey =
   | "preferensi"
   | "pendidikan"
   | "pengalaman"
+  | "organisasi"
+  | "proyek"
   | "skills";
 
 const TABS: { id: SectionKey | "cv"; label: string }[] = [
@@ -36,6 +42,8 @@ const TABS: { id: SectionKey | "cv"; label: string }[] = [
   { id: "preferensi", label: "Preferensi" },
   { id: "pendidikan", label: "Pendidikan" },
   { id: "pengalaman", label: "Pengalaman Kerja" },
+  { id: "organisasi", label: "Organisasi" },
+  { id: "proyek", label: "Proyek" },
   { id: "skills", label: "Skills" },
   { id: "cv", label: "CV" },
 ];
@@ -222,6 +230,124 @@ export default function ProfileEditUI({ me }: { me: Candidate }) {
         )}
       </Section>
 
+      <Section
+        id="organisasi"
+        title="Pengalaman Organisasi"
+        onEdit={() => openDrawer("organisasi")}
+      >
+        {(me.organizations ?? []).length === 0 ? (
+          <Empty
+            text="Belum ada pengalaman organisasi. Tambahkan kepengurusan, kepanitiaan, atau kegiatan kerelawanan."
+            ctaText="Tambah pengalaman organisasi"
+            onClick={() => openDrawer("organisasi")}
+          />
+        ) : (
+          <Timeline>
+            {(me.organizations ?? []).map((o) => {
+              const bullets = (o.duties ?? "")
+                .split(/\r?\n|•/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+              return (
+                <TimelineItem
+                  key={o.id}
+                  period={formatPeriod(o.startMonth, o.endMonth)}
+                >
+                  <p className="text-base font-semibold text-(--color-ink)">
+                    {o.role}
+                  </p>
+                  <p className="mt-0.5 text-sm text-(--color-muted)">
+                    {o.organization}
+                  </p>
+                  {bullets.length > 1 ? (
+                    <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-(--color-ink)">
+                      {bullets.map((b, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span
+                            aria-hidden
+                            className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-(--color-muted)"
+                          />
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : bullets.length === 1 ? (
+                    <p className="mt-2 text-sm leading-relaxed text-(--color-ink)">
+                      {bullets[0]}
+                    </p>
+                  ) : null}
+                </TimelineItem>
+              );
+            })}
+          </Timeline>
+        )}
+      </Section>
+
+      <Section
+        id="proyek"
+        title="Pengalaman Proyek"
+        onEdit={() => openDrawer("proyek")}
+      >
+        {(me.projects ?? []).length === 0 ? (
+          <Empty
+            text="Belum ada proyek. Tambahkan tugas akhir, hackathon, atau proyek pribadi yang relevan."
+            ctaText="Tambah proyek"
+            onClick={() => openDrawer("proyek")}
+          />
+        ) : (
+          <Timeline>
+            {(me.projects ?? []).map((p) => {
+              const bullets = (p.duties ?? "")
+                .split(/\r?\n|•/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+              return (
+                <TimelineItem
+                  key={p.id}
+                  period={formatPeriod(p.startMonth, p.endMonth)}
+                >
+                  <p className="text-base font-semibold text-(--color-ink)">
+                    {p.title}
+                  </p>
+                  {p.context ? (
+                    <p className="mt-0.5 text-sm text-(--color-muted)">
+                      {p.context}
+                    </p>
+                  ) : null}
+                  {bullets.length > 1 ? (
+                    <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-(--color-ink)">
+                      {bullets.map((b, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span
+                            aria-hidden
+                            className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-(--color-muted)"
+                          />
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : bullets.length === 1 ? (
+                    <p className="mt-2 text-sm leading-relaxed text-(--color-ink)">
+                      {bullets[0]}
+                    </p>
+                  ) : null}
+                  {p.link ? (
+                    <a
+                      href={p.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-block text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
+                    >
+                      Lihat proyek →
+                    </a>
+                  ) : null}
+                </TimelineItem>
+              );
+            })}
+          </Timeline>
+        )}
+      </Section>
+
       <Section id="skills" title="Skills" onEdit={() => openDrawer("skills")}>
         {me.skills.length === 0 ? (
           <Empty
@@ -305,6 +431,10 @@ function drawerTitle(s: SectionKey): string {
       return "Pendidikan";
     case "pengalaman":
       return "Pengalaman Kerja";
+    case "organisasi":
+      return "Pengalaman Organisasi";
+    case "proyek":
+      return "Pengalaman Proyek";
     case "skills":
       return "Skills";
   }
@@ -364,6 +494,32 @@ function DrawerBody({
         initial={toExperienceInitial(me)}
         onSubmit={async (list) => {
           const r = await saveExperienceSection(list);
+          if (r.ok) onSaved();
+          return r;
+        }}
+        submitLabel="Update"
+      />
+    );
+  }
+  if (section === "organisasi") {
+    return (
+      <OrganizationForm
+        initial={toOrganizationInitial(me)}
+        onSubmit={async (list) => {
+          const r = await saveOrganizationSection(list);
+          if (r.ok) onSaved();
+          return r;
+        }}
+        submitLabel="Update"
+      />
+    );
+  }
+  if (section === "proyek") {
+    return (
+      <ProjectForm
+        initial={toProjectInitial(me)}
+        onSubmit={async (list) => {
+          const r = await saveProjectSection(list);
           if (r.ok) onSaved();
           return r;
         }}
@@ -582,6 +738,29 @@ function toExperienceInitial(me: Candidate): ExperienceDraft[] {
     startMonth: x.startMonth,
     endMonth: x.endMonth,
     duties: x.duties,
+  }));
+}
+
+function toOrganizationInitial(me: Candidate): OrganizationDraft[] {
+  return (me.organizations ?? []).map((x) => ({
+    id: x.id,
+    role: x.role,
+    organization: x.organization,
+    startMonth: x.startMonth,
+    endMonth: x.endMonth,
+    duties: x.duties,
+  }));
+}
+
+function toProjectInitial(me: Candidate): ProjectDraft[] {
+  return (me.projects ?? []).map((x) => ({
+    id: x.id,
+    title: x.title,
+    context: x.context,
+    startMonth: x.startMonth,
+    endMonth: x.endMonth,
+    duties: x.duties,
+    link: x.link,
   }));
 }
 
@@ -1215,6 +1394,271 @@ function ExperienceForm({
   );
 }
 
+function OrganizationForm({
+  initial,
+  onSubmit,
+  submitLabel,
+  secondary,
+}: {
+  initial: OrganizationDraft[];
+  onSubmit: (
+    list: OrganizationDraft[],
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  submitLabel: string;
+  secondary?: { label: string; onClick: () => void };
+}) {
+  const [list, setList] = useState<OrganizationDraft[]>(
+    initial.length > 0 ? initial : [emptyOrg()],
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  function update(i: number, patch: Partial<OrganizationDraft>) {
+    setList((prev) =>
+      prev.map((x, idx) => (idx === i ? { ...x, ...patch } : x)),
+    );
+  }
+  function remove(i: number) {
+    setList((prev) => prev.filter((_, idx) => idx !== i));
+  }
+  function add() {
+    setList((prev) => [...prev, emptyOrg()]);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    start(async () => {
+      const r = await onSubmit(list);
+      if (!r.ok) setError(r.error);
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {list.map((x, i) => (
+        <div
+          key={i}
+          className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-(--color-ink)">
+              Organisasi {i + 1}
+            </h3>
+            {list.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                aria-label="Hapus organisasi"
+                className="rounded-md p-1 text-(--color-muted) hover:bg-(--color-tint) hover:text-(--color-signal-clay)"
+              >
+                <TrashIcon />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Field label="Posisi" required colSpan="full">
+              <input
+                value={x.role}
+                onChange={(ev) => update(i, { role: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder="Ketua, Bendahara, Anggota Divisi Acara"
+                required
+              />
+            </Field>
+            <Field label="Organisasi" required colSpan="full">
+              <input
+                value={x.organization}
+                onChange={(ev) => update(i, { organization: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder="HMTI, BEM Fakultas, Karang Taruna"
+                required
+              />
+            </Field>
+            <Field label="Mulai (YYYY-MM)">
+              <input
+                value={x.startMonth ?? ""}
+                onChange={(ev) => update(i, { startMonth: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder="2024-09"
+              />
+            </Field>
+            <Field label="Selesai (YYYY-MM)">
+              <input
+                value={x.endMonth ?? ""}
+                onChange={(ev) => update(i, { endMonth: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder="kosong = sekarang"
+              />
+            </Field>
+            <Field label="Kontribusi (satu poin per baris)" colSpan="full">
+              <textarea
+                rows={4}
+                value={x.duties ?? ""}
+                onChange={(ev) => update(i, { duties: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder={"Memimpin tim 8 orang\nMengelola anggaran tahunan"}
+              />
+            </Field>
+          </div>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={add}
+        className="inline-flex items-center gap-2 rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)"
+      >
+        + Tambah organisasi
+      </button>
+
+      <FormFooter
+        error={error}
+        pending={pending}
+        submitLabel={submitLabel}
+        secondary={secondary}
+      />
+    </form>
+  );
+}
+
+function ProjectForm({
+  initial,
+  onSubmit,
+  submitLabel,
+  secondary,
+}: {
+  initial: ProjectDraft[];
+  onSubmit: (
+    list: ProjectDraft[],
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  submitLabel: string;
+  secondary?: { label: string; onClick: () => void };
+}) {
+  const [list, setList] = useState<ProjectDraft[]>(
+    initial.length > 0 ? initial : [emptyProj()],
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  function update(i: number, patch: Partial<ProjectDraft>) {
+    setList((prev) =>
+      prev.map((x, idx) => (idx === i ? { ...x, ...patch } : x)),
+    );
+  }
+  function remove(i: number) {
+    setList((prev) => prev.filter((_, idx) => idx !== i));
+  }
+  function add() {
+    setList((prev) => [...prev, emptyProj()]);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    start(async () => {
+      const r = await onSubmit(list);
+      if (!r.ok) setError(r.error);
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {list.map((x, i) => (
+        <div
+          key={i}
+          className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-(--color-ink)">
+              Proyek {i + 1}
+            </h3>
+            {list.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                aria-label="Hapus proyek"
+                className="rounded-md p-1 text-(--color-muted) hover:bg-(--color-tint) hover:text-(--color-signal-clay)"
+              >
+                <TrashIcon />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Field label="Nama proyek" required colSpan="full">
+              <input
+                value={x.title}
+                onChange={(ev) => update(i, { title: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder="Tugas akhir, hackathon, proyek freelance"
+                required
+              />
+            </Field>
+            <Field label="Konteks" colSpan="full">
+              <input
+                value={x.context ?? ""}
+                onChange={(ev) => update(i, { context: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder="Tugas akhir, Hackathon Kemenpora 2024, proyek pribadi"
+              />
+            </Field>
+            <Field label="Mulai (YYYY-MM)">
+              <input
+                value={x.startMonth ?? ""}
+                onChange={(ev) => update(i, { startMonth: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder="2024-09"
+              />
+            </Field>
+            <Field label="Selesai (YYYY-MM)">
+              <input
+                value={x.endMonth ?? ""}
+                onChange={(ev) => update(i, { endMonth: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder="kosong = sekarang"
+              />
+            </Field>
+            <Field label="Tautan" colSpan="full">
+              <input
+                value={x.link ?? ""}
+                onChange={(ev) => update(i, { link: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder="https://github.com/..."
+              />
+            </Field>
+            <Field label="Ringkasan (satu poin per baris)" colSpan="full">
+              <textarea
+                rows={4}
+                value={x.duties ?? ""}
+                onChange={(ev) => update(i, { duties: ev.target.value })}
+                className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
+                placeholder={"Membangun web crawler skala 10K halaman/menit\nMenulis dokumentasi API"}
+              />
+            </Field>
+          </div>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={add}
+        className="inline-flex items-center gap-2 rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)"
+      >
+        + Tambah proyek
+      </button>
+
+      <FormFooter
+        error={error}
+        pending={pending}
+        submitLabel={submitLabel}
+        secondary={secondary}
+      />
+    </form>
+  );
+}
+
 function SkillsForm({
   initial,
   onSubmit,
@@ -1398,6 +1842,14 @@ function emptyEdu(): EducationDraft {
 }
 function emptyExp(): ExperienceDraft {
   return { position: "", company: "", startMonth: "", endMonth: "" };
+}
+
+function emptyOrg(): OrganizationDraft {
+  return { role: "", organization: "", startMonth: "", endMonth: "" };
+}
+
+function emptyProj(): ProjectDraft {
+  return { title: "", context: "", startMonth: "", endMonth: "" };
 }
 
 function Drawer({

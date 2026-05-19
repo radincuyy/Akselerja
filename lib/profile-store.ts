@@ -3,6 +3,8 @@ import type {
   CvFile,
   Education,
   Experience,
+  OrganizationExperience,
+  ProjectExperience,
 } from "./types";
 import { unstable_cache } from "next/cache";
 import { CONTAINERS, getContainer } from "./db";
@@ -169,6 +171,46 @@ export async function setExperienceListAsync(
   const next: CandidateRecord = { ...existing, experience: list };
   await container.items.upsert(next);
   return stripCosmos(next);
+}
+
+export async function setOrganizationListAsync(
+  list: OrganizationExperience[],
+  userId = ME_ID,
+): Promise<Candidate> {
+  const container = getContainer(CONTAINERS.candidates);
+  const existing = await readRecord(userId);
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
+  }
+  const next: CandidateRecord = { ...existing, organizations: list };
+  await container.items.upsert(next);
+  return stripCosmos(next);
+}
+
+export async function setProjectListAsync(
+  list: ProjectExperience[],
+  userId = ME_ID,
+): Promise<Candidate> {
+  const container = getContainer(CONTAINERS.candidates);
+  const existing = await readRecord(userId);
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
+  }
+  const next: CandidateRecord = { ...existing, projects: list };
+  await container.items.upsert(next);
+  return stripCosmos(next);
+}
+
+export function newOrganizationId() {
+  return uid("og");
+}
+
+export function newProjectId() {
+  return uid("pj");
 }
 
 export async function setCvAsync(cv: CvFile, userId = ME_ID): Promise<Candidate> {

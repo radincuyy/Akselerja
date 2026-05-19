@@ -110,6 +110,25 @@ export type Experience = {
   duties?: string;
 };
 
+export type OrganizationExperience = {
+  id: string;
+  role: string;
+  organization: string;
+  startMonth: string;
+  endMonth: string;
+  duties?: string;
+};
+
+export type ProjectExperience = {
+  id: string;
+  title: string;
+  context?: string;
+  startMonth: string;
+  endMonth: string;
+  duties?: string;
+  link?: string;
+};
+
 export type CvFile = {
   filename: string;
   uploadedAt: string;
@@ -139,6 +158,8 @@ export type Candidate = {
   industries?: string[];
   education?: Education[];
   experience?: Experience[];
+  organizations?: OrganizationExperience[];
+  projects?: ProjectExperience[];
   cv?: CvFile;
   profileSummary?: string;
   profileVector?: number[];

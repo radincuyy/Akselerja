@@ -22,10 +22,29 @@ type ParsedExperience = {
   duties?: string;
 };
 
+type ParsedOrganization = {
+  role: string;
+  organization: string;
+  startMonth?: string;
+  endMonth?: string;
+  duties?: string;
+};
+
+type ParsedProject = {
+  title: string;
+  context?: string;
+  startMonth?: string;
+  endMonth?: string;
+  duties?: string;
+  link?: string;
+};
+
 export type ParsedCv = {
   skills: ParsedSkill[];
   education: ParsedEducation[];
   experience: ParsedExperience[];
+  organizations: ParsedOrganization[];
+  projects: ParsedProject[];
   notes: string[];
 };
 
@@ -107,8 +126,9 @@ const geminiEngine: CvParserEngine = async (input) => {
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `Kamu adalah parser CV untuk job board Indonesia. Tugas:
-ekstrak skill kandidat (hard + soft + tools), riwayat pendidikan, dan
-riwayat pengalaman kerja dari isi CV.
+ekstrak skill kandidat (hard + soft + tools), riwayat pendidikan, riwayat
+pengalaman kerja, riwayat pengalaman organisasi, dan proyek yang pernah
+dikerjakan.
 
 Aturan skill:
 - Kembalikan nama skill apa adanya seperti yang tertulis di CV. Boleh Bahasa
@@ -117,15 +137,28 @@ Aturan skill:
 - Maksimal 15 skill, prioritaskan yang paling jelas didukung isi CV.
 - Hanya skill yang benar-benar disebut atau jelas tersirat. Jangan menebak.
 
-Aturan pendidikan & pengalaman:
+Aturan pendidikan, pengalaman, organisasi, dan proyek:
 - startMonth dan endMonth pakai format "YYYY-MM" (mis. "2022-09"). Kalau
   hanya ada tahun tanpa bulan, pakai bulan 01 atau 12 sesuai konteks
   (start = bulan paling awal yang mungkin, end = bulan terakhir).
-- Kalau pekerjaan/pendidikan masih berjalan, kosongkan endMonth.
+- Kalau pekerjaan/pendidikan/organisasi/proyek masih berjalan, kosongkan
+  endMonth.
 - Untuk pendidikan, "degree" = jenjang + jurusan kalau ada (mis. "S1
   Teknik Informatika"). "institution" = nama sekolah/universitas.
-- Untuk pengalaman, "position" = jabatan, "company" = perusahaan, "duties"
-  = ringkasan tanggung jawab dalam 1-2 kalimat.
+- Untuk pengalaman kerja (experience), masukkan posisi yang dibayar:
+  pekerjaan tetap, kontrak, magang berbayar, freelance. "position" = jabatan,
+  "company" = perusahaan, "duties" = ringkasan tanggung jawab dalam 1-2
+  kalimat.
+- Untuk pengalaman organisasi (organizations), masukkan kepengurusan
+  organisasi mahasiswa, komunitas, BEM/HIMA, kepanitiaan, kegiatan
+  kerelawanan, atau ekstrakurikuler. JANGAN masukkan ke experience.
+  "role" = jabatan (mis. "Ketua", "Bendahara"), "organization" = nama
+  organisasi.
+- Untuk proyek (projects), masukkan proyek kuliah, proyek pribadi,
+  hackathon, kontribusi open source, atau karya yang berdiri sendiri.
+  JANGAN masukkan ke experience. "title" = judul proyek, "context" =
+  konteks singkat (mis. "Tugas akhir", "Hackathon Kemenpora 2024",
+  "Proyek pribadi"), "link" = URL kalau ada.
 - Tidak ada data → kembalikan array kosong. Jangan menebak.
 
 Output JSON sesuai schema.`;
@@ -178,6 +211,35 @@ Output JSON sesuai schema.`;
                   duties: { type: "string" },
                 },
                 required: ["position", "company"],
+              },
+            },
+            organizations: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  role: { type: "string" },
+                  organization: { type: "string" },
+                  startMonth: { type: "string" },
+                  endMonth: { type: "string" },
+                  duties: { type: "string" },
+                },
+                required: ["role", "organization"],
+              },
+            },
+            projects: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  context: { type: "string" },
+                  startMonth: { type: "string" },
+                  endMonth: { type: "string" },
+                  duties: { type: "string" },
+                  link: { type: "string" },
+                },
+                required: ["title"],
               },
             },
           },
@@ -255,12 +317,45 @@ Output JSON sesuai schema.`;
     }))
     .filter((e) => e.position && e.company);
 
+  const organizations: ParsedOrganization[] = (
+    (parsed as { organizations?: unknown[] }).organizations ?? []
+  )
+    .map((raw) => {
+      const o = raw as Record<string, unknown>;
+      return {
+        role: String(o.role ?? "").trim(),
+        organization: String(o.organization ?? "").trim(),
+        startMonth: o.startMonth ? String(o.startMonth).trim() : undefined,
+        endMonth: o.endMonth ? String(o.endMonth).trim() : undefined,
+        duties: o.duties ? String(o.duties).trim() : undefined,
+      };
+    })
+    .filter((o) => o.role && o.organization);
+
+  const projects: ParsedProject[] = (
+    (parsed as { projects?: unknown[] }).projects ?? []
+  )
+    .map((raw) => {
+      const p = raw as Record<string, unknown>;
+      return {
+        title: String(p.title ?? "").trim(),
+        context: p.context ? String(p.context).trim() : undefined,
+        startMonth: p.startMonth ? String(p.startMonth).trim() : undefined,
+        endMonth: p.endMonth ? String(p.endMonth).trim() : undefined,
+        duties: p.duties ? String(p.duties).trim() : undefined,
+        link: p.link ? String(p.link).trim() : undefined,
+      };
+    })
+    .filter((p) => p.title);
+
   const taxonomyHits = skills.filter((s) => skillById[s.id]).length;
 
   return {
     skills,
     education,
     experience,
+    organizations,
+    projects,
     notes: [
       skills.length > 0
         ? `Kami menemukan ${skills.length} skill dari CV-mu.`
@@ -268,7 +363,7 @@ Output JSON sesuai schema.`;
       taxonomyHits > 0
         ? `${taxonomyHits} di antaranya cocok dengan taksonomi lowongan kami; sisanya disimpan apa adanya.`
         : "Skill ini disimpan apa adanya. Kalau tidak cocok dengan taksonomi lowongan, match score-nya tidak terhitung.",
-      `Pendidikan terdeteksi: ${education.length}. Pengalaman kerja: ${experience.length}.`,
+      `Pendidikan terdeteksi: ${education.length}. Pengalaman kerja: ${experience.length}. Pengalaman organisasi: ${organizations.length}. Proyek: ${projects.length}.`,
     ],
   };
 };

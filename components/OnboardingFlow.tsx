@@ -201,6 +201,8 @@ export default function OnboardingFlow() {
           skills: result.skills,
           education: result.education,
           experience: result.experience,
+          organizations: result.organizations,
+          projects: result.projects,
         },
       });
       clearDraft();
