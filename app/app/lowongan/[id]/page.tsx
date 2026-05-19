@@ -235,7 +235,18 @@ export default async function LowonganDetailPage({
           <li className="flex items-start gap-2 text-(--color-muted)">
             <BuildingIcon />
             <span>
-              {job.industryBreadcrumb && job.industryBreadcrumb.length >= 2 ? (
+              {job.industryId ? (
+                job.industryBreadcrumb &&
+                job.industryBreadcrumb.length >= 2 ? (
+                  <>
+                    {job.industryId}
+                    <span className="mx-1.5" aria-hidden>›</span>
+                    {job.industryBreadcrumb[job.industryBreadcrumb.length - 1]}
+                  </>
+                ) : (
+                  job.industryId
+                )
+              ) : job.industryBreadcrumb && job.industryBreadcrumb.length >= 2 ? (
                 <>
                   {job.industryBreadcrumb[0]}
                   <span className="mx-1.5" aria-hidden>›</span>
@@ -487,7 +498,7 @@ export default async function LowonganDetailPage({
                   {job.company}
                 </p>
                 <p className="mt-1 text-sm text-(--color-muted)">
-                  {job.industryBreadcrumb?.[0] ?? job.industry}
+                  {job.industryId ?? job.industryBreadcrumb?.[0] ?? job.industry}
                   {companySizeLabel ? ` · ${companySizeLabel}` : ""}
                 </p>
                 <CompanyLinks job={job} />
