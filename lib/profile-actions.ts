@@ -423,6 +423,44 @@ export async function saveSkillsSection(
   return { ok: true };
 }
 
+export type PreferencesDraft = {
+  preferredJobTypes: JobType[];
+  preferredWorkModes: WorkMode[];
+  preferredCities: string[];
+  industries: string[];
+};
+
+export async function savePreferencesSection(
+  draft: PreferencesDraft,
+): Promise<SectionResult> {
+  const errors: Record<string, string> = {};
+  if (!Array.isArray(draft.preferredJobTypes) || draft.preferredJobTypes.length === 0) {
+    errors.preferredJobTypes = "Pilih minimal satu tipe pekerjaan.";
+  }
+  if (!Array.isArray(draft.preferredWorkModes) || draft.preferredWorkModes.length === 0) {
+    errors.preferredWorkModes = "Pilih minimal satu mode kerja.";
+  }
+  if (!Array.isArray(draft.preferredCities) || draft.preferredCities.length === 0) {
+    errors.preferredCities = "Pilih minimal satu kota.";
+  }
+  if (Object.keys(errors).length > 0) return failSection(errors);
+
+  const user = await requireUser();
+  const primaryCity = draft.preferredCities[0] ?? "";
+  await patchProfileAsync(user.id, (base) => ({
+    ...base,
+    preferredJobTypes: draft.preferredJobTypes,
+    preferredWorkModes: draft.preferredWorkModes,
+    preferredCities: draft.preferredCities,
+    industries: draft.industries,
+    // Keep top-level location synced with primary preferred city so other
+    // surfaces (location chip, AppShell sidebar) reflect the change too.
+    location: primaryCity || base.location,
+  }));
+  revalidateProfileSurfaces();
+  return { ok: true };
+}
+
 // ----- Onboarding -----
 
 export type OnboardingPreferencesInput = {

@@ -8,24 +8,54 @@ import {
   saveEducationSection,
   saveExperienceSection,
   savePersonalSection,
+  savePreferencesSection,
   saveSkillsSection,
   type EducationDraft,
   type ExperienceDraft,
   type PersonalInput,
+  type PreferencesDraft,
   type SkillDraft,
 } from "@/lib/profile-actions";
-import type { Candidate } from "@/lib/types";
+import type { Candidate, JobType, WorkMode } from "@/lib/types";
+import {
+  CITY_OPTIONS,
+  INDUSTRY_OPTIONS,
+} from "@/lib/preferences-options";
+import MultiSelectInput from "@/components/MultiSelectInput";
 import CvUploader from "@/components/CvUploader";
 
-type SectionKey = "personal" | "pendidikan" | "pengalaman" | "skills";
+type SectionKey =
+  | "personal"
+  | "preferensi"
+  | "pendidikan"
+  | "pengalaman"
+  | "skills";
 
 const TABS: { id: SectionKey | "cv"; label: string }[] = [
   { id: "personal", label: "Personal" },
+  { id: "preferensi", label: "Preferensi" },
   { id: "pendidikan", label: "Pendidikan" },
   { id: "pengalaman", label: "Pengalaman Kerja" },
   { id: "skills", label: "Skills" },
   { id: "cv", label: "CV" },
 ];
+
+const JOB_TYPE_OPTIONS: { value: JobType; label: string; hint: string }[] = [
+  { value: "Full-time", label: "Full-time", hint: "Kerja penuh waktu" },
+  { value: "Part-time", label: "Part-time", hint: "Paruh waktu" },
+  { value: "Kontrak", label: "Kontrak", hint: "Kontrak proyek atau periode" },
+  { value: "Magang", label: "Magang", hint: "Internship, fresh graduate friendly" },
+];
+
+const WORK_MODE_OPTIONS: { value: WorkMode; label: string; hint: string }[] = [
+  { value: "onsite", label: "Onsite", hint: "Datang ke kantor setiap hari kerja" },
+  { value: "hybrid", label: "Hybrid", hint: "Campuran kantor dan remote" },
+  { value: "remote", label: "Remote", hint: "Kerja dari mana saja" },
+];
+
+function toggleArray<T>(arr: T[], value: T): T[] {
+  return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
+}
 
 export default function ProfileEditUI({ me }: { me: Candidate }) {
   const router = useRouter();
@@ -93,6 +123,14 @@ export default function ProfileEditUI({ me }: { me: Candidate }) {
             {me.bio}
           </p>
         ) : null}
+      </Section>
+
+      <Section
+        id="preferensi"
+        title="Preferensi kerja"
+        onEdit={() => openDrawer("preferensi")}
+      >
+        <PreferencesDisplay me={me} onAdd={() => openDrawer("preferensi")} />
       </Section>
 
       <Section
@@ -261,6 +299,8 @@ function drawerTitle(s: SectionKey): string {
   switch (s) {
     case "personal":
       return "Personal";
+    case "preferensi":
+      return "Preferensi kerja";
     case "pendidikan":
       return "Pendidikan";
     case "pengalaman":
@@ -285,6 +325,19 @@ function DrawerBody({
         initial={toPersonalInitial(me)}
         onSubmit={async (input) => {
           const r = await savePersonalSection(input);
+          if (r.ok) onSaved();
+          return r;
+        }}
+        submitLabel="Update"
+      />
+    );
+  }
+  if (section === "preferensi") {
+    return (
+      <PreferencesForm
+        initial={toPreferencesInitial(me)}
+        onSubmit={async (draft) => {
+          const r = await savePreferencesSection(draft);
           if (r.ok) onSaved();
           return r;
         }}
@@ -346,6 +399,7 @@ function Wizard({
 }) {
   const steps: { id: SectionKey; label: string }[] = [
     { id: "personal", label: "Personal" },
+    { id: "preferensi", label: "Preferensi" },
     { id: "pendidikan", label: "Pendidikan" },
     { id: "pengalaman", label: "Pengalaman" },
     { id: "skills", label: "Skills" },
@@ -412,6 +466,23 @@ function Wizard({
             initial={toPersonalInitial(me)}
             onSubmit={async (input) => {
               const r = await savePersonalSection(input);
+              if (r.ok) {
+                onSaved();
+                next();
+              }
+              return r;
+            }}
+            submitLabel={
+              step === steps.length - 1 ? "Selesai" : "Simpan dan lanjut"
+            }
+            secondary={step > 0 ? { label: "Kembali", onClick: back } : undefined}
+          />
+        )}
+        {current.id === "preferensi" && (
+          <PreferencesForm
+            initial={toPreferencesInitial(me)}
+            onSubmit={async (draft) => {
+              const r = await savePreferencesSection(draft);
               if (r.ok) {
                 onSaved();
                 next();
@@ -519,6 +590,265 @@ function toSkillsInitial(me: Candidate): SkillDraft[] {
     id: s.skillId,
     name: s.name ?? skillById[s.skillId]?.name ?? s.skillId,
   }));
+}
+
+function toPreferencesInitial(me: Candidate): PreferencesDraft {
+  return {
+    preferredJobTypes: me.preferredJobTypes ?? [],
+    preferredWorkModes: me.preferredWorkModes ?? [],
+    preferredCities: me.preferredCities ?? [],
+    industries: me.industries ?? [],
+  };
+}
+
+function PreferencesDisplay({
+  me,
+  onAdd,
+}: {
+  me: Candidate;
+  onAdd: () => void;
+}) {
+  const types = me.preferredJobTypes ?? [];
+  const modes = me.preferredWorkModes ?? [];
+  const cities = me.preferredCities ?? [];
+  const industries = me.industries ?? [];
+  const isEmpty =
+    types.length === 0 &&
+    modes.length === 0 &&
+    cities.length === 0 &&
+    industries.length === 0;
+
+  if (isEmpty) {
+    return (
+      <Empty
+        text="Belum ada preferensi kerja. Atur preferensi supaya lowongan yang muncul lebih sesuai dengan keinginanmu."
+        ctaText="Atur preferensi"
+        onClick={onAdd}
+      />
+    );
+  }
+  return (
+    <dl className="mt-4 grid gap-5 sm:grid-cols-2">
+      <PreferenceItem label="Tipe pekerjaan" values={types} />
+      <PreferenceItem
+        label="Mode kerja"
+        values={modes.map((m) =>
+          m === "onsite" ? "Onsite" : m === "hybrid" ? "Hybrid" : "Remote",
+        )}
+      />
+      <PreferenceItem label="Kota" values={cities} />
+      <PreferenceItem label="Industri yang diminati" values={industries} />
+    </dl>
+  );
+}
+
+function PreferenceItem({
+  label,
+  values,
+}: {
+  label: string;
+  values: string[];
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wider text-(--color-muted)">
+        {label}
+      </dt>
+      <dd className="mt-2 flex flex-wrap gap-2">
+        {values.length === 0 ? (
+          <span className="text-sm text-(--color-muted)">Belum diatur.</span>
+        ) : (
+          values.map((v) => (
+            <span
+              key={v}
+              className="inline-flex items-center rounded-full border border-(--color-line) bg-(--color-paper) px-3 py-1 text-sm text-(--color-ink)"
+            >
+              {v}
+            </span>
+          ))
+        )}
+      </dd>
+    </div>
+  );
+}
+
+function PreferencesForm({
+  initial,
+  onSubmit,
+  submitLabel,
+  secondary,
+}: {
+  initial: PreferencesDraft;
+  onSubmit: (
+    input: PreferencesDraft,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  submitLabel: string;
+  secondary?: { label: string; onClick: () => void };
+}) {
+  const [data, setData] = useState<PreferencesDraft>(initial);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const ids = useFieldIds(["jobtype", "workmode"]);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (data.preferredJobTypes.length === 0) {
+      setError("Pilih minimal satu tipe pekerjaan.");
+      return;
+    }
+    if (data.preferredWorkModes.length === 0) {
+      setError("Pilih minimal satu mode kerja.");
+      return;
+    }
+    if (data.preferredCities.length === 0) {
+      setError("Pilih minimal satu kota.");
+      return;
+    }
+    start(async () => {
+      const r = await onSubmit(data);
+      if (!r.ok) setError(r.error);
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <fieldset>
+        <legend
+          id={ids.jobtype}
+          className="text-sm font-medium text-(--color-ink)"
+        >
+          Tipe pekerjaan
+        </legend>
+        <p className="mt-1 text-xs text-(--color-muted)">
+          Pilih satu atau lebih.
+        </p>
+        <div
+          role="group"
+          aria-labelledby={ids.jobtype}
+          className="mt-3 grid gap-2 sm:grid-cols-2"
+        >
+          {JOB_TYPE_OPTIONS.map((opt) => {
+            const checked = data.preferredJobTypes.includes(opt.value);
+            return (
+              <label
+                key={opt.value}
+                className={`flex cursor-pointer items-start gap-3 rounded-md border px-4 py-3 transition-colors ${
+                  checked
+                    ? "border-(--color-teal) bg-(--color-tint)"
+                    : "border-(--color-line) bg-(--color-paper) hover:border-(--color-muted)/50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-(--color-teal)"
+                  checked={checked}
+                  onChange={() =>
+                    setData({
+                      ...data,
+                      preferredJobTypes: toggleArray(
+                        data.preferredJobTypes,
+                        opt.value,
+                      ),
+                    })
+                  }
+                />
+                <span>
+                  <span className="block text-sm font-medium text-(--color-ink)">
+                    {opt.label}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-(--color-muted)">
+                    {opt.hint}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend
+          id={ids.workmode}
+          className="text-sm font-medium text-(--color-ink)"
+        >
+          Mode kerja
+        </legend>
+        <p className="mt-1 text-xs text-(--color-muted)">
+          Pilih satu atau lebih.
+        </p>
+        <div
+          role="group"
+          aria-labelledby={ids.workmode}
+          className="mt-3 grid gap-2 sm:grid-cols-3"
+        >
+          {WORK_MODE_OPTIONS.map((opt) => {
+            const checked = data.preferredWorkModes.includes(opt.value);
+            return (
+              <label
+                key={opt.value}
+                className={`flex cursor-pointer items-start gap-3 rounded-md border px-4 py-3 transition-colors ${
+                  checked
+                    ? "border-(--color-teal) bg-(--color-tint)"
+                    : "border-(--color-line) bg-(--color-paper) hover:border-(--color-muted)/50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-(--color-teal)"
+                  checked={checked}
+                  onChange={() =>
+                    setData({
+                      ...data,
+                      preferredWorkModes: toggleArray(
+                        data.preferredWorkModes,
+                        opt.value,
+                      ),
+                    })
+                  }
+                />
+                <span>
+                  <span className="block text-sm font-medium text-(--color-ink)">
+                    {opt.label}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-(--color-muted)">
+                    {opt.hint}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <MultiSelectInput
+        label="Kota"
+        values={data.preferredCities}
+        options={CITY_OPTIONS}
+        onChange={(next) =>
+          setData({ ...data, preferredCities: next })
+        }
+        placeholder="Tambah kota"
+        helperText="Kota pertama jadi lokasi utama profil kamu."
+      />
+
+      <MultiSelectInput
+        label="Industri yang diminati"
+        optional
+        values={data.industries}
+        options={INDUSTRY_OPTIONS}
+        onChange={(next) => setData({ ...data, industries: next })}
+        placeholder="Tambah industri"
+      />
+
+      <FormFooter
+        error={error}
+        pending={pending}
+        submitLabel={submitLabel}
+        secondary={secondary}
+      />
+    </form>
+  );
 }
 
 function PersonalForm({
