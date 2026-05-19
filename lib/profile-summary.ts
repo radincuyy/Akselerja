@@ -37,32 +37,13 @@ function buildProfileText(profile: Candidate): string {
     })
     .join("\n");
 
-  const prefs = [
-    profile.preferredJobTypes?.length
-      ? `Tipe kerja: ${profile.preferredJobTypes.join(", ")}`
-      : "",
-    profile.preferredWorkModes?.length
-      ? `Mode kerja: ${profile.preferredWorkModes.join(", ")}`
-      : "",
-    profile.preferredCities?.length
-      ? `Kota: ${profile.preferredCities.join(", ")}`
-      : "",
-    profile.industries?.length
-      ? `Industri yang diminati: ${profile.industries.join(", ")}`
-      : "",
-    profile.expectedSalary && profile.expectedSalary > 0
-      ? `Ekspektasi gaji: Rp ${profile.expectedSalary.toLocaleString("id-ID")}`
-      : "",
-    profile.experienceYears
-      ? `Total pengalaman: ${profile.experienceYears} tahun`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const totals = profile.experienceYears
+    ? `Total pengalaman: ${profile.experienceYears} tahun`
+    : "";
 
   return [
     profile.bio?.trim() ? `Bio: ${profile.bio}` : "",
-    prefs,
+    totals,
     skills ? `Skills: ${skills}` : "",
     experience ? `Pengalaman:\n${experience}` : "",
     education ? `Pendidikan:\n${education}` : "",

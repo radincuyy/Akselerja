@@ -33,6 +33,7 @@ type CosmosJob = {
   salaryMin: number;
   salaryMax: number;
   type: string;
+  workMode?: "onsite" | "hybrid" | "remote";
   industry: string;
   industryId?: string;
   description: string;
@@ -57,6 +58,7 @@ type IndexedJob = {
   salaryMin: number;
   salaryMax: number;
   type: string;
+  workMode: string | null;
   status: "open" | "closed";
   postedAt: string;
   companyId: string;
@@ -99,6 +101,7 @@ async function main() {
     salaryMin: j.salaryMin,
     salaryMax: j.salaryMax,
     type: j.type,
+    workMode: j.workMode ?? null,
     status: j.status ?? "open",
     postedAt: j.postedAt,
     companyId: j.companyId ?? slugifyCompany(j.company),

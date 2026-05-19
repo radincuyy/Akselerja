@@ -142,6 +142,13 @@ async function main() {
         retrievable: true,
       },
       {
+        name: "workMode",
+        type: "Edm.String" as const,
+        filterable: true,
+        facetable: true,
+        retrievable: true,
+      },
+      {
         name: "status",
         type: "Edm.String" as const,
         filterable: true,

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
 import JobCard from "@/components/JobCard";
@@ -13,14 +14,25 @@ import { requireUser } from "@/lib/session";
 type SearchParams = Promise<{
   lokasi?: string;
   tipe?: string;
+  industri?: string;
+  mode?: string;
   q?: string;
   pengalaman?: string;
   pendidikan?: string;
   gaji?: string;
   page?: string;
+  clear?: string;
 }>;
 
 const PAGE_SIZE = 20;
+
+function csvList(v: string | undefined): string[] {
+  if (!v) return [];
+  return v
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 function parseExperience(
   v: string | undefined,
@@ -72,21 +84,48 @@ export default async function LowonganListPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const { lokasi, tipe, q, pengalaman, pendidikan, gaji, page } = sp;
+  const { lokasi, tipe, industri, mode, q, pengalaman, pendidikan, gaji, page, clear } = sp;
   const user = await requireUser();
   const me = await getProfileOrSeedAsync(user.id);
+
+  const lokasiList = csvList(lokasi);
+  const tipeList = csvList(tipe);
+  const industriList = csvList(industri);
+  const modeList = csvList(mode);
+
+  const hasAnyParam = Boolean(
+    lokasi || tipe || industri || mode || pengalaman || pendidikan || gaji || q,
+  );
+  if (clear !== "1" && !hasAnyParam) {
+    const params = new URLSearchParams();
+    if (me.preferredCities && me.preferredCities.length > 0) {
+      params.set("lokasi", me.preferredCities.join(","));
+    }
+    if (me.preferredJobTypes && me.preferredJobTypes.length > 0) {
+      params.set("tipe", me.preferredJobTypes.join(","));
+    }
+    if (me.preferredWorkModes && me.preferredWorkModes.length > 0) {
+      params.set("mode", me.preferredWorkModes.join(","));
+    }
+    if (me.industries && me.industries.length > 0) {
+      params.set("industri", me.industries.join(","));
+    }
+    if ([...params.keys()].length > 0) {
+      redirect(`/app/lowongan?${params.toString()}`);
+    }
+  }
 
   const pageNum = Math.max(1, parseInt(page ?? "1", 10) || 1);
   const top = pageNum * PAGE_SIZE;
 
-  // City facets are scoped by the active type filter so the count next to a
-  // city reflects what the user will actually see if they pick it.
   const [{ jobs, relevance, fromSearch, totalCount }, cityFacets] =
     await Promise.all([
       searchJobs({
         query: q,
-        city: lokasi || undefined,
-        type: tipe || undefined,
+        cities: lokasiList.length > 0 ? lokasiList : undefined,
+        types: tipeList.length > 0 ? tipeList : undefined,
+        industryIds: industriList.length > 0 ? industriList : undefined,
+        workModes: modeList.length > 0 ? modeList : undefined,
         education: pendidikan || undefined,
         ...parseExperience(pengalaman),
         ...parseSalary(gaji),
@@ -95,7 +134,7 @@ export default async function LowonganListPage({
         skip: 0,
         profileVector: me.profileVector,
       }),
-      listCityFacetsAsync({ type: tipe || undefined }),
+      listCityFacetsAsync({ types: tipeList.length > 0 ? tipeList : undefined }),
     ]);
 
   const hasQuery = Boolean(q && q.trim());
@@ -111,7 +150,7 @@ export default async function LowonganListPage({
     .sort((a, b) => b.composite - a.composite);
 
   const hasFilter = Boolean(
-    lokasi || tipe || q || pengalaman || pendidikan || gaji,
+    lokasi || tipe || industri || mode || q || pengalaman || pendidikan || gaji,
   );
   const total = totalCount ?? ranked.length;
   const hasMore = ranked.length < total;
@@ -121,6 +160,8 @@ export default async function LowonganListPage({
     const params = new URLSearchParams();
     if (lokasi) params.set("lokasi", lokasi);
     if (tipe) params.set("tipe", tipe);
+    if (industri) params.set("industri", industri);
+    if (mode) params.set("mode", mode);
     if (q) params.set("q", q);
     if (pengalaman) params.set("pengalaman", pengalaman);
     if (pendidikan) params.set("pendidikan", pendidikan);
@@ -173,8 +214,10 @@ export default async function LowonganListPage({
       <div className="mt-6 lg:hidden">
         <JobFilterSheet
           cities={cityFacets}
-          defaultCity={lokasi ?? ""}
-          defaultType={tipe ?? ""}
+          defaultCities={lokasiList}
+          defaultTypes={tipeList}
+          defaultIndustries={industriList}
+          defaultModes={modeList}
           defaultExperience={pengalaman ?? ""}
           defaultEducation={pendidikan ?? ""}
           defaultSalary={gaji ?? ""}
@@ -185,8 +228,10 @@ export default async function LowonganListPage({
         <div className="hidden lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-5rem)]">
           <JobFilterSheet
             cities={cityFacets}
-            defaultCity={lokasi ?? ""}
-            defaultType={tipe ?? ""}
+            defaultCities={lokasiList}
+            defaultTypes={tipeList}
+            defaultIndustries={industriList}
+            defaultModes={modeList}
             defaultExperience={pengalaman ?? ""}
             defaultEducation={pendidikan ?? ""}
             defaultSalary={gaji ?? ""}
@@ -200,8 +245,8 @@ export default async function LowonganListPage({
             <>
               <p className="mb-4 text-sm text-(--color-muted)">
                 Menampilkan {ranked.length} dari {total} lowongan
-                {lokasi ? ` di ${lokasi}` : ""}
-                {tipe ? ` · ${tipe}` : ""}
+                {lokasiList.length > 0 ? ` di ${lokasiList.join(", ")}` : ""}
+                {tipeList.length > 0 ? ` · ${tipeList.join(", ")}` : ""}
               </p>
               <div className="grid gap-4">
                 {ranked.map(({ job, score, breakdown }) => {

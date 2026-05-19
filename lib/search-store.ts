@@ -36,6 +36,7 @@ type IndexedJob = {
   salaryMin: number;
   salaryMax: number;
   type: string;
+  workMode?: string | null;
   status: "open" | "closed";
   postedAt: string;
   companyId: string;
@@ -47,9 +48,10 @@ type IndexedJob = {
 
 export type SearchJobsParams = {
   query?: string;
-  city?: string;
-  type?: string;
-  industry?: string;
+  cities?: string[];
+  types?: string[];
+  industryIds?: string[];
+  workModes?: string[];
   skillIds?: string[];
   experienceMin?: number;
   experienceMax?: number;
@@ -78,20 +80,31 @@ function buildFilter(params: SearchJobsParams): string | undefined {
   if (!params.includeClosed) {
     clauses.push("status eq 'open'");
   }
-  if (params.city) {
-    clauses.push(`city eq '${escapeOdataString(params.city)}'`);
+  if (params.cities && params.cities.length > 0) {
+    const csv = params.cities
+      .map((s) => escapeOdataString(s))
+      .join(",");
+    clauses.push(`search.in(city, '${csv}', ',')`);
   }
-  if (params.type) {
-    clauses.push(`type eq '${escapeOdataString(params.type)}'`);
+  if (params.types && params.types.length > 0) {
+    const csv = params.types
+      .map((s) => escapeOdataString(s))
+      .join(",");
+    clauses.push(`search.in(type, '${csv}', ',')`);
   }
-  if (params.industry) {
-    clauses.push(`industry eq '${escapeOdataString(params.industry)}'`);
+  if (params.industryIds && params.industryIds.length > 0) {
+    const csv = params.industryIds
+      .map((s) => escapeOdataString(s))
+      .join(",");
+    clauses.push(`search.in(industryId, '${csv}', ',')`);
+  }
+  if (params.workModes && params.workModes.length > 0) {
+    const csv = params.workModes
+      .map((s) => escapeOdataString(s))
+      .join(",");
+    clauses.push(`search.in(workMode, '${csv}', ',')`);
   }
   if (params.skillIds && params.skillIds.length > 0) {
-    // Azure AI Search search.in expects a single delimited string + delimiter,
-    // NOT N positional args. Skill ids are slug-safe (no commas), so we can
-    // safely use comma as the delimiter. Passing N args triggered:
-    //   "No function signature for the function with name 'search.in' matches"
     const escaped = params.skillIds
       .map((s) => escapeOdataString(s))
       .join(",");
@@ -146,12 +159,23 @@ async function fallbackSearch(
 
 function applyJobFilter(j: Job, params: SearchJobsParams): boolean {
   if (!params.includeClosed && j.status === "closed") return false;
-  if (params.city) {
-    const city = j.location.split(",")[0].trim().toLowerCase();
-    if (city !== params.city.toLowerCase()) return false;
+  if (params.cities && params.cities.length > 0) {
+    const jobCity = j.location.split(",")[0].trim().toLowerCase();
+    const wanted = params.cities.map((c) => c.toLowerCase());
+    if (!wanted.includes(jobCity)) return false;
   }
-  if (params.type && j.type !== params.type) return false;
-  if (params.industry && j.industry !== params.industry) return false;
+  if (params.types && params.types.length > 0) {
+    if (!params.types.includes(j.type)) return false;
+  }
+  if (params.industryIds && params.industryIds.length > 0) {
+    if (!j.industryId || !params.industryIds.includes(j.industryId)) {
+      return false;
+    }
+  }
+  if (params.workModes && params.workModes.length > 0) {
+    const mode = j.workMode ?? "onsite";
+    if (!params.workModes.includes(mode)) return false;
+  }
   if (params.skillIds && params.skillIds.length > 0) {
     const have = new Set(j.requirements.map((r) => r.skillId));
     if (!params.skillIds.some((s) => have.has(s))) return false;
@@ -200,9 +224,10 @@ export async function searchJobs(
   // job was just removed from Cosmos).
   const fetchSize = Math.min(200, top + skip + 20);
   const filter = buildFilter({
-    city: params.city,
-    type: params.type,
-    industry: params.industry,
+    cities: params.cities,
+    types: params.types,
+    industryIds: params.industryIds,
+    workModes: params.workModes,
     skillIds: params.skillIds,
     salaryMinFloor: params.salaryMinFloor,
     salaryMaxCeiling: params.salaryMaxCeiling,
@@ -263,17 +288,19 @@ export async function searchJobs(
 export const JOB_FACETS_TAG = "job-facets";
 
 export async function listCityFacetsAsync(
-  filter: { type?: string } = {},
+  filter: { types?: string[] } = {},
 ): Promise<{ value: string; count: number }[]> {
-  const cacheKey = ["city-facets", filter.type ?? ""];
+  const typesKey = (filter.types ?? []).join(",");
+  const cacheKey = ["city-facets", typesKey];
   const fetcher = unstable_cache(
-    async (typeFilter: string): Promise<{ value: string; count: number }[]> => {
+    async (csvTypes: string): Promise<{ value: string; count: number }[]> => {
+      const types = csvTypes ? csvTypes.split(",").filter(Boolean) : [];
       if (!isSearchConfigured()) {
         const jobs = await listJobsAsync();
         const counts = new Map<string, number>();
         for (const j of jobs) {
           if (j.status === "closed") continue;
-          if (typeFilter && j.type !== typeFilter) continue;
+          if (types.length > 0 && !types.includes(j.type)) continue;
           const city = j.location.split(",")[0].trim();
           if (!city) continue;
           counts.set(city, (counts.get(city) ?? 0) + 1);
@@ -286,8 +313,9 @@ export async function listCityFacetsAsync(
       }
       const client = getClient();
       const filterClauses = ["status eq 'open'"];
-      if (typeFilter) {
-        filterClauses.push(`type eq '${escapeOdataString(typeFilter)}'`);
+      if (types.length > 0) {
+        const csv = types.map((t) => escapeOdataString(t)).join(",");
+        filterClauses.push(`search.in(type, '${csv}', ',')`);
       }
       const response = await client.search("*", {
         facets: ["city,count:200"],
@@ -311,5 +339,5 @@ export async function listCityFacetsAsync(
       revalidate: 3600,
     },
   );
-  return fetcher(filter.type ?? "");
+  return fetcher(typesKey);
 }

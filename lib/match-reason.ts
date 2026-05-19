@@ -2,35 +2,9 @@ import type { Candidate, Job } from "./types";
 import type { MatchResult } from "./match";
 
 export type MatchReason = {
-  /**
-   * One short sentence summarizing why this job is a strong fit. Empty when
-   * there are no positive signals (e.g. zero skill overlap and every
-   * preference mismatched).
-   */
   positive: string;
-  /**
-   * One short sentence on what's holding the score down. Empty when the
-   * profile satisfies every positive signal.
-   */
   negative: string;
 };
-
-const TYPE_LABEL_ID: Record<string, string> = {
-  "Full-time": "full-time",
-  "Part-time": "part-time",
-  Kontrak: "kontrak",
-  Magang: "magang",
-};
-
-const MODE_LABEL_ID: Record<string, string> = {
-  onsite: "onsite",
-  hybrid: "hybrid",
-  remote: "remote",
-};
-
-function shortCity(location: string): string {
-  return (location ?? "").split(",")[0].trim();
-}
 
 function uniq<T>(arr: T[]): T[] {
   return Array.from(new Set(arr));
@@ -43,11 +17,6 @@ function joinList(parts: string[], max = 2): string {
   return `${trimmed.slice(0, -1).join(", ")} dan ${trimmed[trimmed.length - 1]}`;
 }
 
-/**
- * Compose a two-line, plain-Indonesian explanation for a match score using
- * data we already have on hand: skill breakdown + candidate preferences. No
- * AI calls; safe to render hundreds of cards per page without latency.
- */
 export function buildMatchReason(
   candidate: Candidate,
   job: Job,
@@ -58,13 +27,10 @@ export function buildMatchReason(
   const mustHaveMissing = missing.filter((b) => b.mustHave);
   const totalSkills = match.breakdown.length;
 
-  // -------- Positive signals --------
   const positives: string[] = [];
 
   if (totalSkills > 0 && matched.length > 0) {
-    const sample = matched
-      .slice(0, 2)
-      .map((b) => b.name);
+    const sample = matched.slice(0, 2).map((b) => b.name);
     const ratio = `${matched.length} dari ${totalSkills} skill`;
     if (sample.length === 1) {
       positives.push(`${ratio} terpenuhi (${sample[0]})`);
@@ -73,50 +39,6 @@ export function buildMatchReason(
     }
   }
 
-  // Tipe pekerjaan match preferensi
-  if (
-    candidate.preferredJobTypes &&
-    candidate.preferredJobTypes.length > 0 &&
-    candidate.preferredJobTypes.includes(job.type)
-  ) {
-    positives.push(`tipe ${TYPE_LABEL_ID[job.type] ?? job.type} sesuai preferensi`);
-  }
-
-  // Mode kerja match
-  if (
-    candidate.preferredWorkModes &&
-    candidate.preferredWorkModes.length > 0 &&
-    job.workMode &&
-    candidate.preferredWorkModes.includes(job.workMode)
-  ) {
-    positives.push(`mode ${MODE_LABEL_ID[job.workMode] ?? job.workMode} sesuai preferensi`);
-  }
-
-  // Lokasi match
-  if (candidate.preferredCities && candidate.preferredCities.length > 0) {
-    const jobCity = shortCity(job.location);
-    if (
-      jobCity &&
-      candidate.preferredCities.some(
-        (c) => c.toLowerCase() === jobCity.toLowerCase(),
-      )
-    ) {
-      positives.push(`lokasi ${jobCity} sesuai preferensi`);
-    }
-  }
-
-  // Industri match
-  if (
-    candidate.industries &&
-    candidate.industries.length > 0 &&
-    job.industryId
-  ) {
-    if (candidate.industries.includes(job.industryId)) {
-      positives.push(`industri ${job.industryId.toLowerCase()} sesuai minatmu`);
-    }
-  }
-
-  // Pengalaman cocok dengan range lowongan
   if (
     typeof job.minExperienceYears === "number" &&
     candidate.experienceYears >= job.minExperienceYears &&
@@ -127,7 +49,6 @@ export function buildMatchReason(
     );
   }
 
-  // Salary di atas ekspektasi (positive signal: lowongan bayar lebih tinggi)
   if (
     candidate.expectedSalary > 0 &&
     job.salaryMin > 0 &&
@@ -136,7 +57,6 @@ export function buildMatchReason(
     positives.push("gaji di atas ekspektasimu");
   }
 
-  // -------- Negative signals --------
   const negatives: string[] = [];
 
   if (mustHaveMissing.length > 0) {
@@ -149,54 +69,16 @@ export function buildMatchReason(
       );
     }
   } else if (missing.length > 0 && matched.length > 0) {
-    // Hanya nice-to-have yang missing — tampilkan sekali kalau jumlahnya banyak
     if (missing.length >= 2) {
       const sample = missing.slice(0, 2).map((b) => b.name);
-      negatives.push(`${missing.length} skill pendukung belum ada (${joinList(sample)})`);
+      negatives.push(
+        `${missing.length} skill pendukung belum ada (${joinList(sample)})`,
+      );
     }
   } else if (matched.length === 0 && missing.length > 0) {
     negatives.push("belum ada skill profilmu yang cocok");
   }
 
-  // Tipe pekerjaan tidak match preferensi
-  if (
-    candidate.preferredJobTypes &&
-    candidate.preferredJobTypes.length > 0 &&
-    !candidate.preferredJobTypes.includes(job.type)
-  ) {
-    negatives.push(
-      `tipe ${TYPE_LABEL_ID[job.type] ?? job.type} di luar preferensimu`,
-    );
-  }
-
-  // Mode kerja tidak match (kecuali user OK hybrid)
-  if (
-    candidate.preferredWorkModes &&
-    candidate.preferredWorkModes.length > 0 &&
-    job.workMode &&
-    !candidate.preferredWorkModes.includes(job.workMode) &&
-    !candidate.preferredWorkModes.includes("hybrid") &&
-    job.workMode !== "hybrid"
-  ) {
-    negatives.push(
-      `mode ${MODE_LABEL_ID[job.workMode] ?? job.workMode} berbeda dari preferensimu`,
-    );
-  }
-
-  // Lokasi tidak match
-  if (candidate.preferredCities && candidate.preferredCities.length > 0) {
-    const jobCity = shortCity(job.location);
-    if (
-      jobCity &&
-      !candidate.preferredCities.some(
-        (c) => c.toLowerCase() === jobCity.toLowerCase(),
-      )
-    ) {
-      negatives.push(`lokasi ${jobCity} di luar kota yang kamu pilih`);
-    }
-  }
-
-  // Pengalaman kurang
   if (
     typeof job.minExperienceYears === "number" &&
     job.minExperienceYears > 0 &&
@@ -207,7 +89,6 @@ export function buildMatchReason(
     );
   }
 
-  // Salary di bawah ekspektasi
   if (
     candidate.expectedSalary > 0 &&
     job.salaryMax > 0 &&
@@ -225,7 +106,6 @@ export function buildMatchReason(
 function composeSentence(parts: string[], prefix: string): string {
   const items = uniq(parts).slice(0, 3);
   if (items.length === 0) return "";
-  // Kapital di huruf pertama setelah prefix.
   const joined = joinList(items, items.length);
   return `${prefix} ${joined}.`;
 }

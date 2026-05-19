@@ -47,7 +47,7 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
   }
 
   const baseScore = Math.round(scoreSum / (totalWeight || 1));
-  const adjustedScore = applyModifiers(baseScore, candidate, job);
+  const adjustedScore = applyModifiers(baseScore, candidate);
 
   return {
     score: adjustedScore,
@@ -59,48 +59,11 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
   };
 }
 
-function applyModifiers(score: number, candidate: Candidate, job: Job): number {
+function applyModifiers(score: number, candidate: Candidate): number {
   let adjusted = score;
 
   if (candidate.experienceYears >= 1) {
     adjusted = Math.min(100, adjusted + 3);
-  }
-
-  const wantedTypes = candidate.preferredJobTypes ?? [];
-  if (wantedTypes.length > 0 && wantedTypes.includes(job.type)) {
-    adjusted = Math.min(100, adjusted + 3);
-  }
-
-  const wantedModes = candidate.preferredWorkModes ?? [];
-  const jobMode = job.workMode ?? "onsite";
-  if (
-    wantedModes.length > 0 &&
-    (wantedModes.includes(jobMode) ||
-      wantedModes.includes("hybrid") ||
-      jobMode === "hybrid")
-  ) {
-    adjusted = Math.min(100, adjusted + 3);
-  }
-
-  const wantedCities = candidate.preferredCities ?? [];
-  if (wantedCities.length > 0 && job.location) {
-    const jobCity = job.location.split(",")[0].trim().toLowerCase();
-    const cityMatch = wantedCities.some(
-      (c) => c.toLowerCase() === jobCity,
-    );
-    if (cityMatch) {
-      adjusted = Math.min(100, adjusted + 3);
-    }
-  }
-
-  if (
-    candidate.industries &&
-    candidate.industries.length > 0 &&
-    job.industryId
-  ) {
-    if (candidate.industries.includes(job.industryId)) {
-      adjusted = Math.min(100, adjusted + 3);
-    }
   }
 
   return adjusted;

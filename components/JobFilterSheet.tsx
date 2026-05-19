@@ -8,13 +8,16 @@ import {
   useTransition,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { INDUSTRY_OPTIONS } from "@/lib/preferences-options";
 
 type CityFacet = { value: string; count: number };
 
 type Props = {
   cities: CityFacet[];
-  defaultCity: string;
-  defaultType: string;
+  defaultCities: string[];
+  defaultTypes: string[];
+  defaultIndustries: string[];
+  defaultModes: string[];
   defaultExperience: string;
   defaultEducation: string;
   defaultSalary: string;
@@ -27,12 +30,18 @@ const TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "Magang", label: "Magang" },
 ];
 
+const MODE_OPTIONS: { value: string; label: string }[] = [
+  { value: "onsite", label: "Onsite" },
+  { value: "hybrid", label: "Hybrid" },
+  { value: "remote", label: "Remote" },
+];
+
 const EXPERIENCE_OPTIONS: { value: string; label: string }[] = [
   { value: "fresh", label: "Fresh graduate" },
-  { value: "0-1", label: "0–1 tahun" },
-  { value: "1-3", label: "1–3 tahun" },
-  { value: "3-5", label: "3–5 tahun" },
-  { value: "5-10", label: "5–10 tahun" },
+  { value: "0-1", label: "0-1 tahun" },
+  { value: "1-3", label: "1-3 tahun" },
+  { value: "3-5", label: "3-5 tahun" },
+  { value: "5-10", label: "5-10 tahun" },
   { value: "10+", label: "Lebih dari 10 tahun" },
 ];
 
@@ -41,7 +50,7 @@ const EDUCATION_OPTIONS: { value: string; label: string }[] = [
   { value: "MASTER_DEGREE", label: "S2" },
   { value: "PROFESSIONAL_EDUCATION", label: "Pendidikan Profesi" },
   { value: "BACHELOR_DEGREE", label: "S1" },
-  { value: "DIPLOMA", label: "D1–D4" },
+  { value: "DIPLOMA", label: "D1-D4" },
   { value: "HIGH_SCHOOL", label: "SMA/SMK" },
   { value: "SECONDARY_SCHOOL", label: "SMP" },
   { value: "PRIMARY_SCHOOL", label: "SD" },
@@ -49,20 +58,41 @@ const EDUCATION_OPTIONS: { value: string; label: string }[] = [
 
 const SALARY_OPTIONS: { value: string; label: string }[] = [
   { value: "0-3", label: "Kurang dari Rp 3 juta" },
-  { value: "3-5", label: "Rp 3–5 juta" },
-  { value: "5-10", label: "Rp 5–10 juta" },
-  { value: "10-20", label: "Rp 10–20 juta" },
+  { value: "3-5", label: "Rp 3-5 juta" },
+  { value: "5-10", label: "Rp 5-10 juta" },
+  { value: "10-20", label: "Rp 10-20 juta" },
   { value: "20+", label: "Lebih dari Rp 20 juta" },
 ];
 
 const TOP_CITY_COUNT = 8;
 
-type SectionId = "tipe" | "lokasi" | "pengalaman" | "pendidikan" | "gaji";
+type SectionId =
+  | "tipe"
+  | "lokasi"
+  | "industri"
+  | "mode"
+  | "pengalaman"
+  | "pendidikan"
+  | "gaji";
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function toggleValue(arr: string[], value: string): string[] {
+  return arr.includes(value)
+    ? arr.filter((v) => v !== value)
+    : [...arr, value];
+}
 
 export default function JobFilterSheet({
   cities,
-  defaultCity,
-  defaultType,
+  defaultCities,
+  defaultTypes,
+  defaultIndustries,
+  defaultModes,
   defaultExperience,
   defaultEducation,
   defaultSalary,
@@ -72,32 +102,58 @@ export default function JobFilterSheet({
   const [isPending, startTransition] = useTransition();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [city, setCity] = useState(defaultCity);
-  const [type, setType] = useState(defaultType);
+  const [cityList, setCityList] = useState<string[]>(defaultCities);
+  const [typeList, setTypeList] = useState<string[]>(defaultTypes);
+  const [industryList, setIndustryList] = useState<string[]>(defaultIndustries);
+  const [modeList, setModeList] = useState<string[]>(defaultModes);
   const [experience, setExperience] = useState(defaultExperience);
   const [education, setEducation] = useState(defaultEducation);
   const [salary, setSalary] = useState(defaultSalary);
   const [showAllCities, setShowAllCities] = useState(false);
   const [citySearch, setCitySearch] = useState("");
+  const [industrySearch, setIndustrySearch] = useState("");
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
     tipe: true,
     pengalaman: true,
     pendidikan: true,
     gaji: true,
     lokasi: true,
+    industri: true,
+    mode: true,
   });
 
   const citySearchId = useId();
+  const industrySearchId = useId();
   const sectionIdPrefix = useId();
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
+  // Sync state when server-side defaults change (e.g. URL navigation, redirect
+  // pre-fill). Avoid re-set if shallow-equal to prevent input flicker.
   useEffect(() => {
-    setCity(defaultCity);
-    setType(defaultType);
+    setCityList((prev) =>
+      arraysEqual(prev, defaultCities) ? prev : defaultCities,
+    );
+    setTypeList((prev) =>
+      arraysEqual(prev, defaultTypes) ? prev : defaultTypes,
+    );
+    setIndustryList((prev) =>
+      arraysEqual(prev, defaultIndustries) ? prev : defaultIndustries,
+    );
+    setModeList((prev) =>
+      arraysEqual(prev, defaultModes) ? prev : defaultModes,
+    );
     setExperience(defaultExperience);
     setEducation(defaultEducation);
     setSalary(defaultSalary);
-  }, [defaultCity, defaultType, defaultExperience, defaultEducation, defaultSalary]);
+  }, [
+    defaultCities,
+    defaultTypes,
+    defaultIndustries,
+    defaultModes,
+    defaultExperience,
+    defaultEducation,
+    defaultSalary,
+  ]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -124,17 +180,33 @@ export default function JobFilterSheet({
     startTransition(() => {
       router.push(qs ? `/app/lowongan?${qs}` : "/app/lowongan");
     });
-    setIsOpen(false);
   }
 
-  function pickCity(v: string) {
-    setCity(v);
-    commit("lokasi", v);
+  function commitMulti(key: string, list: string[]) {
+    commit(key, list.join(","));
   }
-  function pickType(v: string) {
-    setType(v);
-    commit("tipe", v);
+
+  function toggleCity(value: string) {
+    const next = toggleValue(cityList, value);
+    setCityList(next);
+    commitMulti("lokasi", next);
   }
+  function toggleType(value: string) {
+    const next = toggleValue(typeList, value);
+    setTypeList(next);
+    commitMulti("tipe", next);
+  }
+  function toggleIndustry(value: string) {
+    const next = toggleValue(industryList, value);
+    setIndustryList(next);
+    commitMulti("industri", next);
+  }
+  function toggleMode(value: string) {
+    const next = toggleValue(modeList, value);
+    setModeList(next);
+    commitMulti("mode", next);
+  }
+
   function pickExperience(v: string) {
     setExperience(v);
     commit("pengalaman", v);
@@ -149,18 +221,23 @@ export default function JobFilterSheet({
   }
 
   function resetAll() {
-    setCity("");
-    setType("");
+    setCityList([]);
+    setTypeList([]);
+    setIndustryList([]);
+    setModeList([]);
     setExperience("");
     setEducation("");
     setSalary("");
     const params = new URLSearchParams(searchParams);
     params.delete("lokasi");
     params.delete("tipe");
+    params.delete("industri");
+    params.delete("mode");
     params.delete("pengalaman");
     params.delete("pendidikan");
     params.delete("gaji");
     params.delete("page");
+    params.set("clear", "1");
     const qs = params.toString();
     startTransition(() => {
       router.push(qs ? `/app/lowongan?${qs}` : "/app/lowongan");
@@ -173,8 +250,10 @@ export default function JobFilterSheet({
   }
 
   const activeCount =
-    (city ? 1 : 0) +
-    (type ? 1 : 0) +
+    cityList.length +
+    typeList.length +
+    industryList.length +
+    modeList.length +
     (experience ? 1 : 0) +
     (education ? 1 : 0) +
     (salary ? 1 : 0);
@@ -186,6 +265,12 @@ export default function JobFilterSheet({
       )
     : restCities;
   const visibleRest = showAllCities || citySearch ? filteredRest : [];
+
+  const filteredIndustries = industrySearch
+    ? INDUSTRY_OPTIONS.filter((i) =>
+        i.toLowerCase().includes(industrySearch.toLowerCase()),
+      )
+    : INDUSTRY_OPTIONS;
 
   const filterPanel = (
     <div
@@ -222,23 +307,36 @@ export default function JobFilterSheet({
           title="Tipe pekerjaan"
           isOpen={openSections.tipe}
           onToggle={toggleSection}
-          hasActive={Boolean(type)}
+          hasActive={typeList.length > 0}
           idPrefix={sectionIdPrefix}
         >
           <div className="space-y-1.5">
-            <RadioRow
-              name="job-type"
-              label="Semua tipe"
-              checked={!type}
-              onChange={() => pickType("")}
-            />
             {TYPE_OPTIONS.map((opt) => (
-              <RadioRow
+              <CheckboxRow
                 key={opt.value}
-                name="job-type"
                 label={opt.label}
-                checked={type === opt.value}
-                onChange={() => pickType(opt.value)}
+                checked={typeList.includes(opt.value)}
+                onChange={() => toggleType(opt.value)}
+              />
+            ))}
+          </div>
+        </FilterSection>
+
+        <FilterSection
+          id="mode"
+          title="Mode kerja"
+          isOpen={openSections.mode}
+          onToggle={toggleSection}
+          hasActive={modeList.length > 0}
+          idPrefix={sectionIdPrefix}
+        >
+          <div className="space-y-1.5">
+            {MODE_OPTIONS.map((opt) => (
+              <CheckboxRow
+                key={opt.value}
+                label={opt.label}
+                checked={modeList.includes(opt.value)}
+                onChange={() => toggleMode(opt.value)}
               />
             ))}
           </div>
@@ -329,28 +427,65 @@ export default function JobFilterSheet({
         </FilterSection>
 
         <FilterSection
+          id="industri"
+          title="Industri"
+          isOpen={openSections.industri}
+          onToggle={toggleSection}
+          hasActive={industryList.length > 0}
+          idPrefix={sectionIdPrefix}
+        >
+          <div className="space-y-2.5">
+            {INDUSTRY_OPTIONS.length > 8 ? (
+              <>
+                <label htmlFor={industrySearchId} className="sr-only">
+                  Cari industri
+                </label>
+                <input
+                  id={industrySearchId}
+                  type="search"
+                  value={industrySearch}
+                  onChange={(e) => setIndustrySearch(e.target.value)}
+                  placeholder="Cari industri"
+                  className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3 py-2 text-sm text-(--color-ink) placeholder:text-(--color-muted) focus:border-(--color-teal) focus:outline-none focus:ring-2 focus:ring-(--color-teal)/30"
+                />
+              </>
+            ) : null}
+            <div className="space-y-1">
+              {filteredIndustries.length === 0 ? (
+                <p className="px-2 py-1 text-xs text-(--color-muted)">
+                  Tidak ada industri yang cocok.
+                </p>
+              ) : (
+                filteredIndustries.map((value) => (
+                  <CheckboxRow
+                    key={value}
+                    label={value}
+                    checked={industryList.includes(value)}
+                    onChange={() => toggleIndustry(value)}
+                    dense
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </FilterSection>
+
+        <FilterSection
           id="lokasi"
           title="Lokasi"
           isOpen={openSections.lokasi}
           onToggle={toggleSection}
-          hasActive={Boolean(city)}
+          hasActive={cityList.length > 0}
           idPrefix={sectionIdPrefix}
         >
           <div className="space-y-1.5">
-            <RadioRow
-              name="job-city"
-              label="Semua lokasi"
-              checked={!city}
-              onChange={() => pickCity("")}
-            />
             {topCities.map((c) => (
-              <RadioRow
+              <CheckboxRow
                 key={c.value}
-                name="job-city"
                 label={c.value}
                 hint={`${c.count} lowongan`}
-                checked={city === c.value}
-                onChange={() => pickCity(c.value)}
+                checked={cityList.includes(c.value)}
+                onChange={() => toggleCity(c.value)}
               />
             ))}
           </div>
@@ -377,13 +512,12 @@ export default function JobFilterSheet({
                       </p>
                     ) : (
                       visibleRest.map((c) => (
-                        <RadioRow
+                        <CheckboxRow
                           key={c.value}
-                          name="job-city"
                           label={c.value}
                           hint={`${c.count}`}
-                          checked={city === c.value}
-                          onChange={() => pickCity(c.value)}
+                          checked={cityList.includes(c.value)}
+                          onChange={() => toggleCity(c.value)}
                           dense
                         />
                       ))
@@ -604,6 +738,72 @@ function RadioRow({
         >
           {checked ? (
             <span className="block h-1.5 w-1.5 rounded-full bg-(--color-teal)" />
+          ) : null}
+        </span>
+        <span className="text-sm">{label}</span>
+      </span>
+      {hint ? (
+        <span className="text-xs tabular-nums text-(--color-muted)">{hint}</span>
+      ) : null}
+    </label>
+  );
+}
+
+function CheckboxRow({
+  label,
+  hint,
+  checked,
+  onChange,
+  dense,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: () => void;
+  dense?: boolean;
+}) {
+  return (
+    <label
+      className={`group flex cursor-pointer items-center justify-between gap-3 rounded-md ${
+        dense ? "px-2 py-1.5" : "px-2 py-2"
+      } ${
+        checked
+          ? "bg-(--color-tint) text-(--color-ink)"
+          : "text-(--color-ink) hover:bg-(--color-tint)"
+      } focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--color-teal)`}
+    >
+      <span className="flex items-center gap-2.5">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onChange}
+          className="peer sr-only"
+        />
+        <span
+          aria-hidden
+          className={`relative flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border ${
+            checked
+              ? "border-(--color-teal) bg-(--color-teal)"
+              : "border-(--color-line) bg-(--color-paper) group-hover:border-(--color-muted)"
+          }`}
+        >
+          {checked ? (
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              fill="none"
+              className="text-(--color-paper-on-teal)"
+              aria-hidden
+            >
+              <path
+                d="M2 5l2 2 4-5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           ) : null}
         </span>
         <span className="text-sm">{label}</span>
