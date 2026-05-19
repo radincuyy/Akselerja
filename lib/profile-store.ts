@@ -266,6 +266,51 @@ export async function mergeSkillsAsync(
   return stripCosmos(next);
 }
 
+export async function findProfileByEmailAsync(
+  email: string,
+): Promise<CandidateRecord | null> {
+  const container = getContainer(CONTAINERS.candidates);
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return null;
+  const { resources } = await container.items
+    .query<CandidateRecord & { _ts?: number }>({
+      query: "SELECT * FROM c WHERE LOWER(c.email) = @email",
+      parameters: [{ name: "@email", value: normalized }],
+    })
+    .fetchAll();
+  if (resources.length === 0) return null;
+  return resources.sort((a, b) => (b._ts ?? 0) - (a._ts ?? 0))[0];
+}
+
+export async function migrateProfileIdAsync(
+  newId: string,
+  email: string,
+): Promise<Candidate | null> {
+  const existing = await findProfileByEmailAsync(email);
+  if (!existing) return null;
+  if (existing.id === newId) return stripCosmos(existing);
+  const container = getContainer(CONTAINERS.candidates);
+  const migrated: CandidateRecord = {
+    ...existing,
+    id: newId,
+    userId: newId,
+  };
+  await container.items.upsert(migrated);
+  try {
+    await container.item(existing.id, existing.userId ?? existing.id).delete();
+  } catch (err: unknown) {
+    if (
+      !err ||
+      typeof err !== "object" ||
+      !("code" in err) ||
+      (err as { code: number }).code !== 404
+    ) {
+      throw err;
+    }
+  }
+  return stripCosmos(migrated);
+}
+
 export async function deleteProfileAsync(userId: string): Promise<void> {
   const container = getContainer(CONTAINERS.candidates);
   try {
