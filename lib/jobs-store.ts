@@ -30,17 +30,6 @@ export async function listJobsAsync(): Promise<Job[]> {
   return resources.map(ensureCompanyId);
 }
 
-export async function listOpenJobsAsync(): Promise<Job[]> {
-  const container = getContainer(CONTAINERS.jobs);
-  const { resources } = await container.items
-    .query<Job>({
-      query:
-        "SELECT * FROM c WHERE c.status != 'closed' OR NOT IS_DEFINED(c.status) ORDER BY c.postedAt DESC",
-    })
-    .fetchAll();
-  return resources.map(ensureCompanyId);
-}
-
 export async function getJobByIdAsync(
   id: string,
   companyId?: string,

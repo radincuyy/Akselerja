@@ -28,8 +28,6 @@ function getCosmos(): { client: CosmosClient; database: Database } {
 }
 
 export const CONTAINERS = {
-  applications: "applications",
-  notes: "notes",
   jobs: "jobs",
   candidates: "candidates",
   practiceAttempts: "practiceAttempts",

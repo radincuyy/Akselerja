@@ -15,7 +15,6 @@ import {
   patchProfileAsync,
   profileCacheTag,
   setContactAsync,
-  setCvAsync,
   setEducationListAsync,
   setExperienceListAsync,
   setOrganizationListAsync,

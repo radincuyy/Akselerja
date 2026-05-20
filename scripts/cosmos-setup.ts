@@ -16,8 +16,6 @@ if (!ENDPOINT || !KEY) {
 const client = new CosmosClient({ endpoint: ENDPOINT, key: KEY });
 
 const containers = [
-  { id: "applications", partitionKey: "/candidateId" },
-  { id: "notes", partitionKey: "/applicationId" },
   { id: "jobs", partitionKey: "/companyId" },
   { id: "candidates", partitionKey: "/userId" },
   { id: "practiceAttempts", partitionKey: "/userId" },

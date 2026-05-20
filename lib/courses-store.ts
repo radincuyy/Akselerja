@@ -7,16 +7,6 @@ type CourseRecord = Course & {
   courseVector?: number[];
 };
 
-export async function listCoursesAsync(): Promise<Course[]> {
-  const container = getContainer(CONTAINERS.courses);
-  const { resources } = await container.items
-    .query<CourseRecord>({
-      query: "SELECT c.id, c.title, c.provider, c.durationHours, c.free, c.priceIdr, c.skillId, c.description FROM c",
-    })
-    .fetchAll();
-  return resources;
-}
-
 async function listCourseRecordsAsync(): Promise<CourseRecord[]> {
   const container = getContainer(CONTAINERS.courses);
   const { resources } = await container.items

@@ -1,7 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Job, JobType, SkillRequirement, WorkMode } from "../lib/types";
-import { deriveIndustryId } from "../lib/industry-mapping";
+
+function deriveIndustryId(breadcrumb: string[] | undefined): string | null {
+  if (!Array.isArray(breadcrumb) || breadcrumb.length === 0) return null;
+  const top = breadcrumb[0];
+  return typeof top === "string" && top.length > 0 ? top : null;
+}
 
 const RAW_IN = resolve(process.cwd(), "data/glints-jobs.json");
 const OUT = resolve(process.cwd(), "data/akselerja-jobs.json");
