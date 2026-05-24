@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
 import JobCard from "@/components/JobCard";
 import JobSearchInput from "@/components/JobSearchInput";
@@ -87,32 +85,34 @@ export default async function LowonganListPage({
   const user = await requireUser();
   const me = await getProfileOrSeedAsync(user.id);
 
-  const lokasiList = csvList(lokasi);
-  const tipeList = csvList(tipe);
-  const industriList = csvList(industri);
-  const modeList = csvList(mode);
-
   const hasAnyParam = Boolean(
     lokasi || tipe || industri || mode || pengalaman || pendidikan || gaji || q,
   );
-  if (clear !== "1" && !hasAnyParam) {
-    const params = new URLSearchParams();
-    if (me.preferredCities && me.preferredCities.length > 0) {
-      params.set("lokasi", me.preferredCities.join(","));
-    }
-    if (me.preferredJobTypes && me.preferredJobTypes.length > 0) {
-      params.set("tipe", me.preferredJobTypes.join(","));
-    }
-    if (me.preferredWorkModes && me.preferredWorkModes.length > 0) {
-      params.set("mode", me.preferredWorkModes.join(","));
-    }
-    if (me.industries && me.industries.length > 0) {
-      params.set("industri", me.industries.join(","));
-    }
-    if ([...params.keys()].length > 0) {
-      redirect(`/app/lowongan?${params.toString()}`);
-    }
-  }
+  const useProfileDefaults = clear !== "1" && !hasAnyParam;
+  const lokasiList = useProfileDefaults
+    ? me.preferredCities ?? []
+    : csvList(lokasi);
+  const tipeList = useProfileDefaults
+    ? me.preferredJobTypes ?? []
+    : csvList(tipe);
+  const industriList = useProfileDefaults
+    ? me.industries ?? []
+    : csvList(industri);
+  const modeList = useProfileDefaults
+    ? me.preferredWorkModes ?? []
+    : csvList(mode);
+
+  const fallbackSearchParams: Record<string, string> | undefined =
+    useProfileDefaults
+      ? Object.fromEntries(
+          [
+            ["lokasi", lokasiList.join(",")],
+            ["tipe", tipeList.join(",")],
+            ["industri", industriList.join(",")],
+            ["mode", modeList.join(",")],
+          ].filter(([, value]) => value),
+        )
+      : undefined;
 
   const pageNum = Math.max(1, parseInt(page ?? "1", 10) || 1);
   const top = pageNum * PAGE_SIZE;
@@ -149,7 +149,14 @@ export default async function LowonganListPage({
     .sort((a, b) => b.composite - a.composite);
 
   const hasFilter = Boolean(
-    lokasi || tipe || industri || mode || q || pengalaman || pendidikan || gaji,
+    lokasiList.length ||
+      tipeList.length ||
+      industriList.length ||
+      modeList.length ||
+      q ||
+      pengalaman ||
+      pendidikan ||
+      gaji,
   );
   const total = totalCount ?? ranked.length;
   const hasMore = ranked.length < total;
@@ -157,10 +164,10 @@ export default async function LowonganListPage({
 
   function buildPageHref(nextPage: number): string {
     const params = new URLSearchParams();
-    if (lokasi) params.set("lokasi", lokasi);
-    if (tipe) params.set("tipe", tipe);
-    if (industri) params.set("industri", industri);
-    if (mode) params.set("mode", mode);
+    if (lokasiList.length > 0) params.set("lokasi", lokasiList.join(","));
+    if (tipeList.length > 0) params.set("tipe", tipeList.join(","));
+    if (industriList.length > 0) params.set("industri", industriList.join(","));
+    if (modeList.length > 0) params.set("mode", modeList.join(","));
     if (q) params.set("q", q);
     if (pengalaman) params.set("pengalaman", pengalaman);
     if (pendidikan) params.set("pendidikan", pendidikan);
@@ -171,7 +178,7 @@ export default async function LowonganListPage({
   }
 
   return (
-    <AppShell active="/app/lowongan">
+    <>
       <PageHeader
         eyebrow="Lowongan"
         title="Lowongan yang cocok denganmu"
@@ -183,7 +190,10 @@ export default async function LowonganListPage({
       />
 
       <div className="mt-8 max-w-2xl">
-        <JobSearchInput defaultValue={q ?? ""} />
+        <JobSearchInput
+          defaultValue={q ?? ""}
+          fallbackSearchParams={fallbackSearchParams}
+        />
         {fromSearch && hasSkills ? (
           <p className="mt-2 text-xs text-(--color-muted)">
             Pencarian semantik berdasarkan profilmu, jadi urutan menyesuaikan
@@ -234,6 +244,7 @@ export default async function LowonganListPage({
           defaultExperience={pengalaman ?? ""}
           defaultEducation={pendidikan ?? ""}
           defaultSalary={gaji ?? ""}
+          fallbackSearchParams={fallbackSearchParams}
         />
       </div>
 
@@ -248,6 +259,7 @@ export default async function LowonganListPage({
             defaultExperience={pengalaman ?? ""}
             defaultEducation={pendidikan ?? ""}
             defaultSalary={gaji ?? ""}
+            fallbackSearchParams={fallbackSearchParams}
           />
         </div>
 
@@ -289,7 +301,7 @@ export default async function LowonganListPage({
           )}
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }
 

@@ -21,10 +21,7 @@ import {
   type SkillDraft,
 } from "@/lib/profile-actions";
 import type { Candidate, JobType, WorkMode } from "@/lib/types";
-import {
-  CITY_OPTIONS,
-  INDUSTRY_OPTIONS,
-} from "@/lib/preferences-options";
+import { CITY_OPTIONS, INDUSTRY_OPTIONS } from "@/lib/preferences-options";
 import MultiSelectInput from "@/components/MultiSelectInput";
 import CvUploader from "@/components/CvUploader";
 
@@ -52,11 +49,19 @@ const JOB_TYPE_OPTIONS: { value: JobType; label: string; hint: string }[] = [
   { value: "Full-time", label: "Full-time", hint: "Kerja penuh waktu" },
   { value: "Part-time", label: "Part-time", hint: "Paruh waktu" },
   { value: "Kontrak", label: "Kontrak", hint: "Kontrak proyek atau periode" },
-  { value: "Magang", label: "Magang", hint: "Internship, fresh graduate friendly" },
+  {
+    value: "Magang",
+    label: "Magang",
+    hint: "Internship, fresh graduate friendly",
+  },
 ];
 
 const WORK_MODE_OPTIONS: { value: WorkMode; label: string; hint: string }[] = [
-  { value: "onsite", label: "Onsite", hint: "Datang ke kantor setiap hari kerja" },
+  {
+    value: "onsite",
+    label: "Onsite",
+    hint: "Datang ke kantor setiap hari kerja",
+  },
   { value: "hybrid", label: "Hybrid", hint: "Campuran kantor dan remote" },
   { value: "remote", label: "Remote", hint: "Kerja dari mana saja" },
 ];
@@ -377,7 +382,7 @@ export default function ProfileEditUI({ me }: { me: Candidate }) {
         aria-labelledby="cv-heading"
         className="mt-8 border-t border-(--color-line) pt-8"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2
             id="cv-heading"
             className="text-base font-semibold tracking-tight text-(--color-ink)"
@@ -385,9 +390,10 @@ export default function ProfileEditUI({ me }: { me: Candidate }) {
             CV
           </h2>
           {me.cv ? (
-            <span className="text-xs text-(--color-muted)">
-              Upload CV baru akan menimpa skill, pendidikan, dan pengalaman dari hasil parse.
-            </span>
+            <p className="text-xs text-(--color-muted) sm:text-right sm:max-w-xs">
+              Upload CV baru akan menimpa skill, pendidikan, dan pengalaman dari
+              hasil parse.
+            </p>
           ) : null}
         </div>
         <div className="mt-4">
@@ -631,7 +637,9 @@ function Wizard({
             submitLabel={
               step === steps.length - 1 ? "Selesai" : "Simpan dan lanjut"
             }
-            secondary={step > 0 ? { label: "Kembali", onClick: back } : undefined}
+            secondary={
+              step > 0 ? { label: "Kembali", onClick: back } : undefined
+            }
           />
         )}
         {current.id === "preferensi" && (
@@ -648,7 +656,9 @@ function Wizard({
             submitLabel={
               step === steps.length - 1 ? "Selesai" : "Simpan dan lanjut"
             }
-            secondary={step > 0 ? { label: "Kembali", onClick: back } : undefined}
+            secondary={
+              step > 0 ? { label: "Kembali", onClick: back } : undefined
+            }
           />
         )}
         {current.id === "pendidikan" && (
@@ -1008,9 +1018,7 @@ function PreferencesForm({
         label="Kota"
         values={data.preferredCities}
         options={CITY_OPTIONS}
-        onChange={(next) =>
-          setData({ ...data, preferredCities: next })
-        }
+        onChange={(next) => setData({ ...data, preferredCities: next })}
         placeholder="Tambah kota"
         helperText="Kota pertama jadi lokasi utama profil kamu."
       />
@@ -1040,14 +1048,25 @@ function PersonalForm({
   secondary,
 }: {
   initial: PersonalInput;
-  onSubmit: (input: PersonalInput) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onSubmit: (
+    input: PersonalInput,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   submitLabel: string;
   secondary?: { label: string; onClick: () => void };
 }) {
   const [data, setData] = useState<PersonalInput>(initial);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const ids = useFieldIds(["name", "email", "phone", "location", "bio", "linkedin", "github", "portfolio"]);
+  const ids = useFieldIds([
+    "name",
+    "email",
+    "phone",
+    "location",
+    "bio",
+    "linkedin",
+    "github",
+    "portfolio",
+  ]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1162,7 +1181,9 @@ function EducationForm({
   secondary,
 }: {
   initial: EducationDraft[];
-  onSubmit: (list: EducationDraft[]) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onSubmit: (
+    list: EducationDraft[],
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   submitLabel: string;
   secondary?: { label: string; onClick: () => void };
 }) {
@@ -1173,7 +1194,9 @@ function EducationForm({
   const [pending, start] = useTransition();
 
   function update(i: number, patch: Partial<EducationDraft>) {
-    setList((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
+    setList((prev) =>
+      prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)),
+    );
   }
   function remove(i: number) {
     setList((prev) => prev.filter((_, idx) => idx !== i));
@@ -1194,7 +1217,10 @@ function EducationForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {list.map((e, i) => (
-        <div key={i} className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5">
+        <div
+          key={i}
+          className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
+        >
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold text-(--color-ink)">
               Pendidikan {i + 1}
@@ -1281,7 +1307,9 @@ function ExperienceForm({
   secondary,
 }: {
   initial: ExperienceDraft[];
-  onSubmit: (list: ExperienceDraft[]) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onSubmit: (
+    list: ExperienceDraft[],
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   submitLabel: string;
   secondary?: { label: string; onClick: () => void };
 }) {
@@ -1292,7 +1320,9 @@ function ExperienceForm({
   const [pending, start] = useTransition();
 
   function update(i: number, patch: Partial<ExperienceDraft>) {
-    setList((prev) => prev.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+    setList((prev) =>
+      prev.map((x, idx) => (idx === i ? { ...x, ...patch } : x)),
+    );
   }
   function remove(i: number) {
     setList((prev) => prev.filter((_, idx) => idx !== i));
@@ -1313,7 +1343,10 @@ function ExperienceForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {list.map((x, i) => (
-        <div key={i} className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5">
+        <div
+          key={i}
+          className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
+        >
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold text-(--color-ink)">
               Pengalaman Kerja {i + 1}
@@ -1369,7 +1402,9 @@ function ExperienceForm({
                 value={x.duties ?? ""}
                 onChange={(ev) => update(i, { duties: ev.target.value })}
                 className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
-                placeholder={"Mengelola server berbasis Linux\nMembangun komunitas pemain"}
+                placeholder={
+                  "Mengelola server berbasis Linux\nMembangun komunitas pemain"
+                }
               />
             </Field>
           </div>
@@ -1634,7 +1669,9 @@ function ProjectForm({
                 value={x.duties ?? ""}
                 onChange={(ev) => update(i, { duties: ev.target.value })}
                 className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
-                placeholder={"Membangun web crawler skala 10K halaman/menit\nMenulis dokumentasi API"}
+                placeholder={
+                  "Membangun web crawler skala 10K halaman/menit\nMenulis dokumentasi API"
+                }
               />
             </Field>
           </div>
@@ -1666,7 +1703,9 @@ function SkillsForm({
   secondary,
 }: {
   initial: SkillDraft[];
-  onSubmit: (list: SkillDraft[]) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onSubmit: (
+    list: SkillDraft[],
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   submitLabel: string;
   secondary?: { label: string; onClick: () => void };
 }) {
@@ -1744,7 +1783,8 @@ function SkillsForm({
         />
       </div>
       <p className="text-xs text-(--color-muted)">
-        Tekan Enter untuk menambah skill. Skill yang sudah ada di profilmu tetap tersimpan.
+        Tekan Enter untuk menambah skill. Skill yang sudah ada di profilmu tetap
+        tersimpan.
       </p>
 
       <FormFooter
@@ -1822,7 +1862,9 @@ function Field({
       }
     >
       <label htmlFor={id} className="text-xs font-medium text-(--color-muted)">
-        {required ? <span className="text-(--color-signal-clay)">* </span> : null}
+        {required ? (
+          <span className="text-(--color-signal-clay)">* </span>
+        ) : null}
         {label}
       </label>
       {children}
@@ -1865,7 +1907,11 @@ function Drawer({
   useBodyScrollLock();
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
+      <div
+        className="absolute inset-0 bg-black/30"
+        onClick={onClose}
+        aria-hidden
+      />
       <div className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col bg-(--color-paper) shadow-xl">
         <header className="flex items-center justify-between border-b border-(--color-line) px-6 py-4">
           <h2 className="text-lg font-semibold text-(--color-ink)">{title}</h2>
@@ -1897,7 +1943,11 @@ function Modal({
   useBodyScrollLock();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden
+      />
       <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-(--color-paper) shadow-2xl">
         <button
           type="button"
@@ -1909,7 +1959,9 @@ function Modal({
         </button>
         {title ? (
           <header className="border-b border-(--color-line) px-6 py-4">
-            <h2 className="text-lg font-semibold text-(--color-ink)">{title}</h2>
+            <h2 className="text-lg font-semibold text-(--color-ink)">
+              {title}
+            </h2>
           </header>
         ) : null}
         {children}

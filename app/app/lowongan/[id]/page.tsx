@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
 import ApplyButton from "@/components/ApplyButton";
 import CompanyLogo from "@/components/CompanyLogo";
 import ScoreDisplay from "@/components/ScoreDisplay";
@@ -148,7 +147,7 @@ export default async function LowonganDetailPage({
   const companySizeLabel = job.companySize ? COMPANY_SIZE_LABEL[job.companySize] ?? null : null;
 
   return (
-    <AppShell active="/app/lowongan">
+    <>
       <Link
         href="/app/lowongan"
         className="inline-flex items-center gap-1.5 text-sm text-(--color-muted) hover:text-(--color-ink)"
@@ -579,7 +578,7 @@ export default async function LowonganDetailPage({
           </div>
         </aside>
       </div>
-    </AppShell>
+    </>
   );
 }
 

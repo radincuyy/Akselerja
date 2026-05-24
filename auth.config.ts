@@ -1,8 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import type { DefaultSession } from "next-auth";
-import { revalidateTag } from "next/cache";
-import { migrateProfileIdAsync, profileCacheTag } from "./lib/profile-store";
 
 declare module "next-auth" {
   interface Session {
@@ -33,6 +31,11 @@ export const authConfig = {
         typeof user.email === "string"
       ) {
         try {
+          const [{ revalidateTag }, { migrateProfileIdAsync, profileCacheTag }] =
+            await Promise.all([
+              import("next/cache"),
+              import("./lib/profile-store"),
+            ]);
           const migrated = await migrateProfileIdAsync(
             account.providerAccountId,
             user.email,

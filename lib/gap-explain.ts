@@ -166,3 +166,22 @@ export async function explainGaps(input: {
   );
   return new Map(results);
 }
+
+export async function readCachedGapExplanations(input: {
+  job: Job;
+  gaps: { skillId: string; name: string }[];
+  candidateSkillIds: string[];
+  limit?: number;
+}): Promise<Map<string, string>> {
+  const limit = input.limit ?? 4;
+  const slice = input.gaps.slice(0, limit);
+  const results = await Promise.all(
+    slice.map(async (g) => {
+      const cached = await readCache(
+        cacheKey(input.job.id, g.skillId, input.candidateSkillIds),
+      );
+      return cached ? ([g.skillId, cached] as const) : null;
+    }),
+  );
+  return new Map(results.filter((r): r is [string, string] => Boolean(r)));
+}

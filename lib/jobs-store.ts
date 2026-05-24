@@ -4,6 +4,74 @@ import { CONTAINERS, getContainer } from "./db";
 
 export const JOB_CACHE_TAG = "jobs";
 
+const listJobsCached = unstable_cache(
+  async (): Promise<Job[]> => {
+    const container = getContainer(CONTAINERS.jobs);
+    const { resources } = await container.items
+      .query<Job>({
+        query: "SELECT * FROM c ORDER BY c.postedAt DESC",
+      })
+      .fetchAll();
+    return resources.map(ensureCompanyId);
+  },
+  ["jobs-list"],
+  {
+    tags: [JOB_CACHE_TAG],
+    revalidate: 3600,
+  },
+);
+
+const listOpenJobsCached = unstable_cache(
+  async (): Promise<Job[]> => {
+    const container = getContainer(CONTAINERS.jobs);
+    const { resources } = await container.items
+      .query<Job>({
+        query:
+          "SELECT * FROM c WHERE c.status != 'closed' OR NOT IS_DEFINED(c.status) ORDER BY c.postedAt DESC",
+      })
+      .fetchAll();
+    return resources.map(ensureCompanyId);
+  },
+  ["open-jobs-list"],
+  {
+    tags: [JOB_CACHE_TAG],
+    revalidate: 3600,
+  },
+);
+
+const getJobsByIdsCached = unstable_cache(
+  async (idsKey: string): Promise<Job[]> => {
+    const ids = idsKey.split("\n").filter(Boolean);
+    if (ids.length === 0) return [];
+    const container = getContainer(CONTAINERS.jobs);
+    const CHUNK = 50;
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      chunks.push(ids.slice(i, i + CHUNK));
+    }
+    const results = await Promise.all(
+      chunks.map((chunk) => {
+        const placeholders = chunk.map((_, idx) => `@id${idx}`).join(", ");
+        return container.items
+          .query<Job>({
+            query: `SELECT * FROM c WHERE c.id IN (${placeholders})`,
+            parameters: chunk.map((id, idx) => ({
+              name: `@id${idx}`,
+              value: id,
+            })),
+          })
+          .fetchAll();
+      }),
+    );
+    return results.flatMap((r) => r.resources.map(ensureCompanyId));
+  },
+  ["jobs-by-ids"],
+  {
+    tags: [JOB_CACHE_TAG],
+    revalidate: 3600,
+  },
+);
+
 export function slugifyCompany(name: string): string {
   return (
     name
@@ -21,24 +89,11 @@ function ensureCompanyId(job: Job): Job {
 }
 
 export async function listJobsAsync(): Promise<Job[]> {
-  const container = getContainer(CONTAINERS.jobs);
-  const { resources } = await container.items
-    .query<Job>({
-      query: "SELECT * FROM c ORDER BY c.postedAt DESC",
-    })
-    .fetchAll();
-  return resources.map(ensureCompanyId);
+  return listJobsCached();
 }
 
 export async function listOpenJobsAsync(): Promise<Job[]> {
-  const container = getContainer(CONTAINERS.jobs);
-  const { resources } = await container.items
-    .query<Job>({
-      query:
-        "SELECT * FROM c WHERE c.status != 'closed' OR NOT IS_DEFINED(c.status) ORDER BY c.postedAt DESC",
-    })
-    .fetchAll();
-  return resources.map(ensureCompanyId);
+  return listOpenJobsCached();
 }
 
 export async function getJobByIdAsync(
@@ -84,22 +139,5 @@ export async function getJobByIdAsync(
 
 export async function getJobsByIdsAsync(ids: readonly string[]): Promise<Job[]> {
   if (ids.length === 0) return [];
-  const container = getContainer(CONTAINERS.jobs);
-  const CHUNK = 50;
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    chunks.push(ids.slice(i, i + CHUNK));
-  }
-  const results = await Promise.all(
-    chunks.map((chunk) => {
-      const placeholders = chunk.map((_, idx) => `@id${idx}`).join(", ");
-      return container.items
-        .query<Job>({
-          query: `SELECT * FROM c WHERE c.id IN (${placeholders})`,
-          parameters: chunk.map((id, idx) => ({ name: `@id${idx}`, value: id })),
-        })
-        .fetchAll();
-    }),
-  );
-  return results.flatMap((r) => r.resources.map(ensureCompanyId));
+  return getJobsByIdsCached(ids.join("\n"));
 }

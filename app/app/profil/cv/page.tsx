@@ -1,5 +1,4 @@
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
 import CvUploader from "@/components/CvUploader";
 import { getProfileOrSeedAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
@@ -9,7 +8,7 @@ export default async function UpdateCvPage() {
   const profile = await getProfileOrSeedAsync(user.id);
 
   return (
-    <AppShell active="/app/profil">
+    <>
       <Link
         href="/app/profil"
         className="inline-flex items-center gap-1.5 text-sm text-(--color-muted) hover:text-(--color-ink)"
@@ -42,6 +41,6 @@ export default async function UpdateCvPage() {
       <div className="mt-10 max-w-2xl">
         <CvUploader currentCv={profile.cv} />
       </div>
-    </AppShell>
+    </>
   );
 }

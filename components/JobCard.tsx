@@ -49,23 +49,34 @@ export default function JobCard({
   const moreSkills = skillNames.length - visibleSkills.length;
 
   return (
-    <article className="group rounded-lg border border-(--color-line) bg-(--color-paper) p-5 transition-colors hover:border-(--color-ink)/40 sm:p-6">
-      <Link href={href} className="block">
-        <div className="flex gap-4">
-          <CompanyLogo src={job.companyLogo} alt={job.company} size="md" />
+    <article className="group rounded-lg border border-(--color-line) bg-(--color-paper) p-4 transition-colors hover:border-(--color-ink)/40 sm:p-6">
+      <Link href={href} className="block min-w-0">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+          <CompanyLogo
+            src={job.companyLogo}
+            alt={job.company}
+            size="md"
+            className="h-11 w-11 sm:h-12 sm:w-12"
+          />
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="min-w-0">
-                <h3 className="truncate text-lg font-semibold tracking-tight text-(--color-ink) group-hover:text-(--color-teal)">
+                <h3 className="break-words text-base font-semibold leading-snug tracking-tight text-(--color-ink) group-hover:text-(--color-teal) sm:text-lg">
                   {job.title}
                 </h3>
-                <p className="mt-0.5 inline-flex items-center gap-1.5 text-sm text-(--color-muted)">
+                <p className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs leading-snug text-(--color-muted) sm:text-sm">
                   {job.companyVerified ? (
                     <span
                       aria-label="Perusahaan terverifikasi"
                       className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-(--color-signal-green) text-(--color-paper)"
                     >
-                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden>
+                      <svg
+                        width="9"
+                        height="9"
+                        viewBox="0 0 10 10"
+                        fill="none"
+                        aria-hidden
+                      >
                         <path
                           d="M2 5l2 2 4-5"
                           stroke="currentColor"
@@ -76,21 +87,21 @@ export default function JobCard({
                       </svg>
                     </span>
                   ) : null}
-                  <span className="truncate">{job.company}</span>
+                  <span className="min-w-0 break-words">{job.company}</span>
                   <span aria-hidden>·</span>
-                  <span className="truncate">{job.location}</span>
+                  <span className="min-w-0 break-words">{job.location}</span>
                 </p>
               </div>
-              <div className="text-right">
-                <div className="flex items-baseline justify-end gap-1">
+              <div className="flex shrink-0 items-center gap-1.5 self-start rounded-md bg-(--color-tint) px-2.5 py-1 sm:block sm:bg-transparent sm:px-0 sm:py-0 sm:text-right">
+                <div className="flex items-baseline gap-0.5 sm:justify-end">
                   <span
-                    className={`text-2xl font-semibold leading-none tabular-nums ${matchTone(matchScore)}`}
+                    className={`text-xl font-semibold leading-none tabular-nums sm:text-2xl ${matchTone(matchScore)}`}
                   >
                     {matchScore}
                   </span>
                   <span className="text-sm text-(--color-muted)">%</span>
                 </div>
-                <p className="text-xs font-medium text-(--color-muted)">
+                <p className="text-xs font-medium leading-none text-(--color-muted) sm:mt-1">
                   {scoreBandLabel(matchScore, "candidate")}
                 </p>
               </div>
@@ -109,8 +120,8 @@ export default function JobCard({
               </ul>
             ) : null}
 
-            <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1.5">
-              <span className="text-sm font-medium text-(--color-ink)">
+            <div className="mt-3 min-w-0">
+              <span className="block break-words text-sm font-medium leading-snug text-(--color-ink)">
                 {job.salaryMax > 0
                   ? `${formatIdr(job.salaryMin)} – ${formatIdr(job.salaryMax)}/bulan`
                   : "Gaji tidak ditampilkan"}
@@ -120,7 +131,7 @@ export default function JobCard({
             {reason && (reason.positive || reason.negative) ? (
               <div className="mt-3 space-y-1.5 border-t border-(--color-line) pt-3">
                 {reason.positive ? (
-                  <p className="flex items-start gap-2 text-xs leading-relaxed text-(--color-ink)">
+                  <p className="flex min-w-0 items-start gap-2 text-xs leading-relaxed text-(--color-ink)">
                     <span
                       aria-hidden
                       className="mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-(--color-tint) text-(--color-signal-green)"
@@ -135,11 +146,11 @@ export default function JobCard({
                         />
                       </svg>
                     </span>
-                    <span>{reason.positive}</span>
+                    <span className="min-w-0 break-words">{reason.positive}</span>
                   </p>
                 ) : null}
                 {reason.negative ? (
-                  <p className="flex items-start gap-2 text-xs leading-relaxed text-(--color-muted)">
+                  <p className="flex min-w-0 items-start gap-2 text-xs leading-relaxed text-(--color-muted)">
                     <span
                       aria-hidden
                       className="mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-(--color-tint) text-(--color-signal-clay)"
@@ -153,12 +164,14 @@ export default function JobCard({
                         />
                       </svg>
                     </span>
-                    <span>{reason.negative}</span>
+                    <span className="min-w-0 break-words">{reason.negative}</span>
                   </p>
                 ) : null}
               </div>
             ) : topReason ? (
-              <p className="mt-3 text-xs text-(--color-muted)">{topReason}</p>
+              <p className="mt-3 break-words text-xs text-(--color-muted)">
+                {topReason}
+              </p>
             ) : null}
           </div>
         </div>
@@ -176,15 +189,15 @@ function Chip({
 }) {
   if (!children) return null;
   return (
-    <li>
+    <li className="max-w-full">
       <span
-        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs ${
+        className={`inline-flex max-w-full items-center rounded-full px-2.5 py-0.5 text-xs leading-relaxed ${
           muted
             ? "bg-(--color-tint) text-(--color-muted)"
             : "bg-(--color-tint) text-(--color-teal-deep)"
         }`}
       >
-        {children}
+        <span className="truncate">{children}</span>
       </span>
     </li>
   );

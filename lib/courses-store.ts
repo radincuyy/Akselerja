@@ -2,27 +2,71 @@ import type { Course } from "./types";
 import { CONTAINERS, getContainer } from "./db";
 import { embedText } from "./gemini-embed";
 import { skillById } from "./skills";
+import { unstable_cache } from "next/cache";
 
 type CourseRecord = Course & {
   courseVector?: number[];
 };
 
+export const COURSE_CACHE_TAG = "courses";
+
+const listCoursesCached = unstable_cache(
+  async (): Promise<Course[]> => {
+    const container = getContainer(CONTAINERS.courses);
+    const { resources } = await container.items
+      .query<CourseRecord>({
+        query: "SELECT c.id, c.title, c.provider, c.durationHours, c.free, c.priceIdr, c.skillId, c.description FROM c",
+      })
+      .fetchAll();
+    return resources;
+  },
+  ["courses"],
+  {
+    tags: [COURSE_CACHE_TAG],
+    revalidate: 3600,
+  },
+);
+
+const listCourseRecordsCached = unstable_cache(
+  async (): Promise<CourseRecord[]> => {
+    const container = getContainer(CONTAINERS.courses);
+    const { resources } = await container.items
+      .query<CourseRecord>({ query: "SELECT * FROM c" })
+      .fetchAll();
+    return resources;
+  },
+  ["course-records"],
+  {
+    tags: [COURSE_CACHE_TAG],
+    revalidate: 3600,
+  },
+);
+
+const findCoursesForGapsCached = unstable_cache(
+  async (idsCsv: string, limit: number): Promise<Course[]> => {
+    const ids = idsCsv.split(",").filter(Boolean);
+    return findCoursesForGapsUncached(ids, limit);
+  },
+  ["courses-for-gaps"],
+  {
+    tags: [COURSE_CACHE_TAG],
+    revalidate: 86400,
+  },
+);
+
 export async function listCoursesAsync(): Promise<Course[]> {
-  const container = getContainer(CONTAINERS.courses);
-  const { resources } = await container.items
-    .query<CourseRecord>({
-      query: "SELECT c.id, c.title, c.provider, c.durationHours, c.free, c.priceIdr, c.skillId, c.description FROM c",
-    })
-    .fetchAll();
-  return resources;
+  return listCoursesCached();
+}
+
+export async function getCourseByIdAsync(
+  id: string,
+): Promise<Course | undefined> {
+  const courses = await listCoursesAsync();
+  return courses.find((course) => course.id === id);
 }
 
 async function listCourseRecordsAsync(): Promise<CourseRecord[]> {
-  const container = getContainer(CONTAINERS.courses);
-  const { resources } = await container.items
-    .query<CourseRecord>({ query: "SELECT * FROM c" })
-    .fetchAll();
-  return resources;
+  return listCourseRecordsCached();
 }
 
 function cosineSim(a: number[], b: number[]): number {
@@ -41,13 +85,28 @@ function buildGapQueryText(skillIds: string[]): string {
 }
 
 
-export async function findCoursesForGapsAsync(
+async function findCoursesForGapsUncached(
   gapSkillIds: string[],
   limit = 4,
 ): Promise<Course[]> {
   if (gapSkillIds.length === 0) return [];
   const records = await listCourseRecordsAsync();
   if (records.length === 0) return [];
+
+  const exactMatches: CourseRecord[] = [];
+  const seenCourseIds = new Set<string>();
+  for (const skillId of gapSkillIds) {
+    const course = records.find((c) => c.skillId === skillId);
+    if (!course || seenCourseIds.has(course.id)) continue;
+    seenCourseIds.add(course.id);
+    exactMatches.push(course);
+    if (exactMatches.length >= limit) {
+      return exactMatches.map(stripVector);
+    }
+  }
+  if (exactMatches.length > 0) {
+    return exactMatches.map(stripVector);
+  }
 
   try {
     const queryText = buildGapQueryText(gapSkillIds);
@@ -79,6 +138,14 @@ export async function findCoursesForGapsAsync(
     .filter((c): c is CourseRecord => Boolean(c))
     .slice(0, limit)
     .map(stripVector);
+}
+
+export async function findCoursesForGapsAsync(
+  gapSkillIds: string[],
+  limit = 4,
+): Promise<Course[]> {
+  if (gapSkillIds.length === 0) return [];
+  return findCoursesForGapsCached(gapSkillIds.join(","), limit);
 }
 
 function stripVector(record: CourseRecord): Course {

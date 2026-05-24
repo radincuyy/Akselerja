@@ -127,6 +127,18 @@ export default function AssessmentRunner({
         passed: res.passed,
         feedback: res.feedback,
       });
+      if (res.readinessScoreIncrease > 0) {
+        window.dispatchEvent(
+          new CustomEvent("akselerja:readiness-score-increased", {
+            detail: {
+              previousScore: res.previousReadinessScore,
+              newScore: res.readinessScore,
+              increasedBy: res.readinessScoreIncrease,
+            },
+          }),
+        );
+      }
+      window.dispatchEvent(new Event("akselerja:notifications-refresh"));
     });
   }
 

@@ -128,21 +128,35 @@ export default function CvUploader({ currentCv }: Props) {
     <div className="space-y-6">
       {currentCv ? (
         <div className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-(--color-muted)">
-            CV saat ini
-          </p>
-          <p className="mt-2 text-base font-medium text-(--color-ink)">
-            {currentCv.filename}
-          </p>
-          <p className="mt-0.5 text-sm text-(--color-muted)">
-            Diupload {formatDateId(currentCv.uploadedAt)}
-            {currentCv.sizeBytes ? (
-              <>
-                {" "}
-                <span aria-hidden>·</span> {formatBytes(currentCv.sizeBytes)}
-              </>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wider text-(--color-muted)">
+                CV saat ini
+              </p>
+              <p className="mt-2 break-words text-base font-medium text-(--color-ink)">
+                {currentCv.filename}
+              </p>
+              <p className="mt-0.5 text-sm text-(--color-muted)">
+                Diupload {formatDateId(currentCv.uploadedAt)}
+                {currentCv.sizeBytes ? (
+                  <>
+                    {" "}
+                    <span aria-hidden>·</span> {formatBytes(currentCv.sizeBytes)}
+                  </>
+                ) : null}
+              </p>
+            </div>
+            {currentCv.blobName ? (
+              <a
+                href="/api/cv/current"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-10 w-full shrink-0 items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal) sm:w-auto"
+              >
+                Lihat CV
+              </a>
             ) : null}
-          </p>
+          </div>
           <p className="mt-3 text-xs leading-relaxed text-(--color-muted)">
             Upload CV baru di bawah akan menggantikan yang ini setelah kamu
             konfirmasi.

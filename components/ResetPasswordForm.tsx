@@ -3,6 +3,8 @@
 import { useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import PasswordField from "@/components/PasswordField";
+import { isPasswordValid, PASSWORD_RULE_ERROR } from "@/lib/password-rules";
 
 export default function ResetPasswordForm() {
   const router = useRouter();
@@ -12,15 +14,19 @@ export default function ResetPasswordForm() {
   const pw2Id = useId();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setSubmitted(true);
     setError(null);
-    const data = new FormData(e.currentTarget);
-    const pw = String(data.get("password") ?? "");
-    const pw2 = String(data.get("confirm") ?? "");
-    if (pw.length < 8) {
-      setError("Password minimal 8 karakter.");
+    const pw = password;
+    const pw2 = confirmPassword;
+    if (!isPasswordValid(pw)) {
+      setError(PASSWORD_RULE_ERROR);
       return;
     }
     if (pw !== pw2) {
@@ -57,40 +63,27 @@ export default function ResetPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-8 flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={pwId}
-          className="text-xs font-medium tracking-wide text-(--color-muted)"
-        >
-          Password baru
-        </label>
-        <input
-          id={pwId}
-          name="password"
-          type="password"
-          required
-          autoComplete="new-password"
-          minLength={8}
-          className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) focus:border-(--color-teal)"
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={pw2Id}
-          className="text-xs font-medium tracking-wide text-(--color-muted)"
-        >
-          Ulangi password baru
-        </label>
-        <input
-          id={pw2Id}
-          name="confirm"
-          type="password"
-          required
-          autoComplete="new-password"
-          minLength={8}
-          className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) focus:border-(--color-teal)"
-        />
-      </div>
+      <PasswordField
+        id={pwId}
+        name="password"
+        label="Password baru"
+        value={password}
+        onChange={setPassword}
+        onBlur={() => setPasswordTouched(true)}
+        autoComplete="new-password"
+        required
+        showInvalid={submitted || passwordTouched}
+        showRequirements
+      />
+      <PasswordField
+        id={pw2Id}
+        name="confirm"
+        label="Ulangi password baru"
+        value={confirmPassword}
+        onChange={setConfirmPassword}
+        autoComplete="new-password"
+        required
+      />
       {error ? (
         <p role="alert" className="text-sm text-(--color-signal-clay)">
           {error}

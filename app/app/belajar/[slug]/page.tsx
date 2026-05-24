@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
 import SkillPracticeRunner from "@/components/SkillPracticeRunner";
+import { getLatestPracticeAttemptForUser } from "@/lib/attempts-store";
 import { skillById } from "@/lib/skills";
 import {
   getPracticeTaskBySlugAsync,
   listPracticeTasksAsync,
 } from "@/lib/practice-store";
+import { requireUser } from "@/lib/session";
 
 type Params = Promise<{ slug: string }>;
 
@@ -34,10 +35,12 @@ export default async function SkillPracticePage({
   const task = await getPracticeTaskBySlugAsync(slug);
   if (!task) notFound();
 
+  const user = await requireUser();
+  const latestAttempt = await getLatestPracticeAttemptForUser(user.id, task.id);
   const skillName = skillById[task.skillId]?.name ?? "Skill";
 
   return (
-    <AppShell active="/app/belajar">
+    <>
       <Link
         href="/app/belajar"
         className="inline-flex items-center gap-1.5 text-sm text-(--color-muted) hover:text-(--color-ink)"
@@ -63,8 +66,12 @@ export default async function SkillPracticePage({
       </div>
 
       <div className="mt-10">
-        <SkillPracticeRunner task={task} skillName={skillName} />
+        <SkillPracticeRunner
+          task={task}
+          skillName={skillName}
+          initialAttempt={latestAttempt}
+        />
       </div>
-    </AppShell>
+    </>
   );
 }

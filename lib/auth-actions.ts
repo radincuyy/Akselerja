@@ -1,6 +1,7 @@
 "use server";
 
 import { createUserWithPassword } from "./user-store";
+import { isPasswordValid, PASSWORD_RULE_ERROR } from "./password-rules";
 
 export type SignupResult =
   | { ok: true; email: string }
@@ -27,8 +28,8 @@ export async function signupWithEmailPassword(input: {
       error: "Domain ini dipakai untuk akun demo. Gunakan email lain.",
     };
   }
-  if (password.length < 8) {
-    return { ok: false, error: "Password minimal 8 karakter." };
+  if (!isPasswordValid(password)) {
+    return { ok: false, error: PASSWORD_RULE_ERROR };
   }
 
   const result = await createUserWithPassword({ name, email, password });

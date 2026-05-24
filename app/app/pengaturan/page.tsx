@@ -1,4 +1,3 @@
-import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
 import DangerConfirmForm from "@/components/DangerConfirmForm";
 import { getProfileOrSeedAsync } from "@/lib/profile-store";
@@ -10,7 +9,7 @@ export default async function PengaturanPage() {
   const profile = await getProfileOrSeedAsync(user.id);
 
   return (
-    <AppShell active="/app/profil">
+    <>
       <PageHeader
         eyebrow="Pengaturan"
         title="Pengaturan akun"
@@ -83,6 +82,6 @@ export default async function PengaturanPage() {
           </section>
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }

@@ -1,8 +1,11 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import OnboardingFlow from "@/components/OnboardingFlow";
+import { requireUser } from "@/lib/session";
 
-export default function OnboardingPage() {
+export default async function OnboardingPage() {
+  await requireUser();
+
   return (
     <main id="main" className="min-h-svh bg-(--color-paper)">
       <header className="border-b border-(--color-line)">

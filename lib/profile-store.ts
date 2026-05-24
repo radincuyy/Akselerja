@@ -266,6 +266,65 @@ export async function mergeSkillsAsync(
   return stripCosmos(next);
 }
 
+export function calculateReadinessScore(profile: Candidate): number {
+  const hasText = (value?: string) => Boolean(value?.trim());
+  const skillCount = profile.skills?.length ?? 0;
+  const hasEducation = (profile.education?.length ?? 0) > 0;
+  const hasExperience =
+    profile.experienceYears > 0 ||
+    (profile.experience?.length ?? 0) > 0 ||
+    (profile.organizations?.length ?? 0) > 0 ||
+    (profile.projects?.length ?? 0) > 0;
+  const hasContact = Boolean(
+    profile.phone || profile.linkedin || profile.github || profile.portfolio,
+  );
+  const hasPreferences = Boolean(
+    profile.preferredJobTypes?.length &&
+      profile.preferredWorkModes?.length &&
+      profile.preferredCities?.length &&
+      profile.industries?.length,
+  );
+
+  let score = 0;
+  if (hasText(profile.name) && hasText(profile.email) && hasText(profile.location)) {
+    score += 10;
+  }
+  if (hasText(profile.bio)) {
+    score += profile.bio.trim().length >= 40 ? 10 : 5;
+  }
+  if (profile.cv) score += 10;
+  score += Math.min(30, skillCount * 5);
+  if (hasEducation) score += 10;
+  if (hasExperience) score += 15;
+  if (hasContact) score += 5;
+  if (hasPreferences) score += 10;
+
+  return Math.max(0, Math.min(100, score));
+}
+
+export async function recomputeReadinessScoreAsync(
+  userId = ME_ID,
+): Promise<{ previousScore: number; newScore: number; increasedBy: number }> {
+  const existing = await readRecord(userId);
+  if (!existing) {
+    return { previousScore: 0, newScore: 0, increasedBy: 0 };
+  }
+
+  const previousScore = existing.readinessScore ?? 0;
+  const newScore = calculateReadinessScore(stripCosmos(existing));
+  const increasedBy = Math.max(0, newScore - previousScore);
+
+  if (newScore !== previousScore) {
+    const container = getContainer(CONTAINERS.candidates);
+    await container.items.upsert({
+      ...existing,
+      readinessScore: newScore,
+    });
+  }
+
+  return { previousScore, newScore, increasedBy };
+}
+
 export async function findProfileByEmailAsync(
   email: string,
 ): Promise<CandidateRecord | null> {

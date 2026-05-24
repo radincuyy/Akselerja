@@ -1,20 +1,16 @@
-import { redirect } from "next/navigation";
-import { getProfileAsync } from "@/lib/profile-store";
-import { requireUser } from "@/lib/session";
-
-const DEMO_USER_IDS = new Set(["me"]);
+import AppShell from "@/components/AppShell";
+import { getCurrentCandidate } from "@/lib/current-candidate";
 
 export default async function CandidateAppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireUser();
+  const { user, profile } = await getCurrentCandidate();
 
-  if (!DEMO_USER_IDS.has(user.id)) {
-    const profile = await getProfileAsync(user.id);
-    if (!profile) redirect("/onboarding");
-  }
-
-  return children;
+  return (
+    <AppShell currentUser={user} profile={profile}>
+      {children}
+    </AppShell>
+  );
 }

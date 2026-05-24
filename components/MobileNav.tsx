@@ -2,15 +2,21 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 type Item = { href: string; label: string };
 
 type Props = {
   items: Item[];
-  active?: string;
 };
 
-export default function MobileNav({ items, active }: Props) {
+function isActivePath(pathname: string, href: string): boolean {
+  if (href === "/app") return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export default function MobileNav({ items }: Props) {
+  const pathname = usePathname();
   const activeRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
@@ -19,7 +25,7 @@ export default function MobileNav({ items, active }: Props) {
       inline: "center",
       behavior: "instant",
     });
-  }, [active]);
+  }, [pathname]);
 
   return (
     <nav
@@ -34,7 +40,7 @@ export default function MobileNav({ items, active }: Props) {
         }}
       >
         {items.map((item) => {
-          const isActive = active === item.href;
+          const isActive = isActivePath(pathname, item.href);
           return (
             <li
               key={item.href}

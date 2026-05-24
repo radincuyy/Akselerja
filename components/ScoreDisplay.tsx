@@ -10,6 +10,7 @@ type Props = {
   size?: "sm" | "md" | "lg";
   tone?: Tone;
   audience?: ScoreAudience;
+  showBand?: boolean;
 };
 
 function toneClasses(score: number, tone?: Tone) {
@@ -28,6 +29,7 @@ export default function ScoreDisplay({
   size = "md",
   tone,
   audience = "candidate",
+  showBand: shouldShowBand,
 }: Props) {
   const numberClass =
     size === "lg"
@@ -38,7 +40,8 @@ export default function ScoreDisplay({
   const tones = toneClasses(score, tone);
   // Only show band label when tone is auto (score-driven), not for explicit
   // warning/low tones used for non-match meanings.
-  const showBand = tone === undefined || tone === "default";
+  const showBand =
+    shouldShowBand ?? (tone === undefined || tone === "default");
 
   return (
     <div className="flex flex-col gap-2">

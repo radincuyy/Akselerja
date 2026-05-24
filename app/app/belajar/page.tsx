@@ -1,18 +1,49 @@
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
+import CalendarNotificationLink from "@/components/CalendarNotificationLink";
 import PageHeader from "@/components/PageHeader";
+import Pagination from "@/components/Pagination";
+import {
+  listPracticeAttemptsForUser,
+  type PracticeAttempt,
+} from "@/lib/attempts-store";
 import { calcMatch } from "@/lib/match";
 import { searchJobs } from "@/lib/search-store";
 import { findCoursesForGapsAsync } from "@/lib/courses-store";
-import { explainGaps } from "@/lib/gap-explain";
+import { readCachedGapExplanations } from "@/lib/gap-explain";
 import { getProfileOrSeedAsync } from "@/lib/profile-store";
+import { listPracticeTasksAsync } from "@/lib/practice-store";
 import { requireUser } from "@/lib/session";
 import { skillById } from "@/lib/skills";
-import type { Course, Job } from "@/lib/types";
+import type { Course, Job, PracticeTask } from "@/lib/types";
 
-type SearchParams = Promise<{ target?: string }>;
+type SearchParams = Promise<{
+  target?: string;
+  roadmapPage?: string;
+}>;
 
 const MAX_GAP_STEPS = 4;
+const ROADMAP_PAGE_SIZE = 6;
+
+function parsePage(value: string | undefined): number {
+  const parsed = Number.parseInt(value ?? "1", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function belajarHref({
+  target,
+  roadmapPage,
+}: {
+  target?: string;
+  roadmapPage?: number;
+}) {
+  const params = new URLSearchParams();
+  if (target) params.set("target", target);
+  if (roadmapPage && roadmapPage > 1) {
+    params.set("roadmapPage", String(roadmapPage));
+  }
+  const qs = params.toString();
+  return qs ? `/app/belajar?${qs}` : "/app/belajar";
+}
 
 function formatGoogleDate(date: Date): string {
   const year = date.getFullYear();
@@ -52,6 +83,9 @@ type RoadmapStep = {
   evidence: string;
   href?: string;
   action: string;
+  completed?: boolean;
+  score?: number;
+  disabledReason?: string;
   calendarHref: string;
 };
 
@@ -64,8 +98,29 @@ function buildRoadmap(
   courses: Course[],
   targetJob: Job,
   explanations: Map<string, string>,
+  practiceTasks: PracticeTask[],
+  practiceAttempts: PracticeAttempt[],
 ): RoadmapStep[] {
-  if (gaps.length === 0) {
+  const latestAttemptByTaskId = new Map<string, PracticeAttempt>();
+  for (const attempt of practiceAttempts) {
+    if (!latestAttemptByTaskId.has(attempt.taskId)) {
+      latestAttemptByTaskId.set(attempt.taskId, attempt);
+    }
+  }
+
+  const targetSkillIds = new Set(
+    targetJob.requirements.map((requirement) => requirement.skillId),
+  );
+  const completedTasks = practiceTasks.filter(
+    (task) =>
+      targetSkillIds.has(task.skillId) && latestAttemptByTaskId.has(task.id),
+  );
+  const completedSkillIds = new Set(
+    completedTasks.map((task) => task.skillId),
+  );
+  const openGaps = gaps.filter((gap) => !completedSkillIds.has(gap.skillId));
+
+  if (gaps.length === 0 && completedTasks.length === 0) {
     return [
       {
         label: "Hari 1",
@@ -84,34 +139,75 @@ function buildRoadmap(
     ];
   }
 
-  const slots = gaps.slice(0, MAX_GAP_STEPS);
   const dayOffsets = [0, 2, 5, 9];
   const daySpans = [1, 2, 3, 3];
   const labels = ["Hari 1", "Hari 3-4", "Minggu 1", "Minggu 2"];
 
-  const steps: RoadmapStep[] = slots.map((gap, idx) => {
-    const course = courses.find((c) => c.skillId === gap.skillId) ?? courses[idx];
-    const name = skillName(gap.skillId, gap.name);
-    const ragBody = explanations.get(gap.skillId);
-    const fallbackBody = course
-      ? `${course.provider} sediakan ${course.title} dengan durasi ${course.durationHours} jam. Skill ini muncul sebagai syarat di lowongan target kamu.`
-      : `Latih ${name} via materi terbuka. Skill ini muncul sebagai syarat di lowongan target kamu, jadi menutupnya menaikkan match score.`;
+  const completedSteps: RoadmapStep[] = completedTasks.map((task, idx) => {
+    const attempt = latestAttemptByTaskId.get(task.id);
+    const name = skillName(task.skillId);
     return {
       label: labels[idx] ?? `Tahap ${idx + 1}`,
       title: `Tutup gap ${name}`,
-      body: ragBody ?? fallbackBody,
-      evidence: course
-        ? `${course.title} (${course.provider}, ${course.durationHours} jam${course.free ? ", gratis" : ""}).`
-        : `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
-      action: course ? "Mulai kursus" : "Cari materi",
+      body: attempt?.passed
+        ? `Latihan ${task.title} sudah selesai dan skill ini sudah menjadi bukti di profilmu.`
+        : `Jawaban terakhir untuk ${task.title} sudah tersimpan. Buka lagi untuk melihat feedback dan memperbaiki jawaban.`,
+      evidence: attempt
+        ? `${task.title} · skor ${attempt.score}/100.`
+        : task.title,
+      action: "Selesai",
+      href: `/app/belajar/${task.slug}`,
+      completed: true,
+      score: attempt?.score,
       calendarHref: googleCalendarHref({
-        title: `Belajar ${name}`,
-        details: `Roadmap Akselerja: tutup gap ${name} untuk ${targetJob.title} di ${targetJob.company}.`,
+        title: `Review latihan ${name}`,
+        details: `Roadmap Akselerja: review jawaban dan feedback untuk ${task.title}.`,
         dayOffset: dayOffsets[idx] ?? idx * 3,
-        daySpan: daySpans[idx] ?? 2,
+        daySpan: 1,
       }),
     };
   });
+
+  const gapSteps: RoadmapStep[] = openGaps
+    .slice(0, Math.max(0, MAX_GAP_STEPS - completedSteps.length))
+    .map((gap, offset) => {
+      const idx = completedSteps.length + offset;
+      const course = courses.find((c) => c.skillId === gap.skillId);
+      const practice = practiceTasks.find(
+        (task) => task.skillId === gap.skillId,
+      );
+      const name = skillName(gap.skillId, gap.name);
+      const ragBody = explanations.get(gap.skillId);
+      const fallbackBody = course
+        ? `${course.provider} sediakan ${course.title} dengan durasi ${course.durationHours} jam. Skill ini muncul sebagai syarat di lowongan target kamu.`
+        : `Latihan mandiri disiapkan untuk ${name}. Jawabanmu akan menjadi bukti awal bahwa skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
+      return {
+        label: labels[idx] ?? `Tahap ${idx + 1}`,
+        title: `Tutup gap ${name}`,
+        body: ragBody ?? fallbackBody,
+        evidence: course
+          ? `${course.title} (${course.provider}, ${course.durationHours} jam${course.free ? ", gratis" : ""}).`
+          : `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
+        action: practice
+          ? "Mulai Kursus"
+          : course
+            ? "Buka materi"
+            : "Mulai Latihan",
+        href: practice
+          ? `/app/belajar/${practice.slug}`
+          : course
+            ? `/app/belajar/kursus/${course.id}`
+            : `/app/belajar/skill-drill-${gap.skillId}`,
+        calendarHref: googleCalendarHref({
+          title: `Belajar ${name}`,
+          details: `Roadmap Akselerja: tutup gap ${name} untuk ${targetJob.title} di ${targetJob.company}.`,
+          dayOffset: dayOffsets[idx] ?? idx * 3,
+          daySpan: daySpans[idx] ?? 2,
+        }),
+      };
+    });
+
+  const steps: RoadmapStep[] = [...completedSteps, ...gapSteps];
 
   steps.push({
     label: "Minggu 2",
@@ -149,7 +245,7 @@ export default async function BelajarPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { target } = await searchParams;
+  const { target, roadmapPage } = await searchParams;
   const user = await requireUser();
   const me = await getProfileOrSeedAsync(user.id);
 
@@ -157,7 +253,7 @@ export default async function BelajarPage({
   // Same as dashboard: filter to jobs that share at least one skill with the
   // user so the "target job" the roadmap is built for is actually relevant.
   const search = await searchJobs({
-    top: 20,
+    top: 50,
     profileVector: me.profileVector,
     skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
     includeClosed: false,
@@ -178,17 +274,40 @@ export default async function BelajarPage({
   const gaps = breakdown.filter((b) => b.state !== "match");
   const matched = breakdown.filter((b) => b.state === "match");
 
-  const courses = await findCoursesForGapsAsync(
-    gaps.map((g) => g.skillId),
-    4,
+  const gapSkillIds = gaps.map((g) => g.skillId);
+  const [courses, explanations, practiceTasks, practiceAttempts] =
+    await Promise.all([
+      findCoursesForGapsAsync(gapSkillIds, 4),
+      readCachedGapExplanations({
+        job: targetJob,
+        gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
+        candidateSkillIds: me.skills.map((s) => s.skillId),
+        limit: 4,
+      }),
+      listPracticeTasksAsync(),
+      listPracticeAttemptsForUser(user.id),
+    ]);
+  const roadmap = buildRoadmap(
+    gaps,
+    courses,
+    targetJob,
+    explanations,
+    practiceTasks,
+    practiceAttempts,
   );
-  const explanations = await explainGaps({
-    job: targetJob,
-    gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
-    candidateSkillIds: me.skills.map((s) => s.skillId),
-    limit: 4,
-  });
-  const roadmap = buildRoadmap(gaps, courses, targetJob, explanations);
+  const roadmapTotalPages = Math.max(
+    1,
+    Math.ceil(roadmap.length / ROADMAP_PAGE_SIZE),
+  );
+  const currentRoadmapPage = Math.min(
+    parsePage(roadmapPage),
+    roadmapTotalPages,
+  );
+  const roadmapStart = (currentRoadmapPage - 1) * ROADMAP_PAGE_SIZE;
+  const pagedRoadmap = roadmap.slice(
+    roadmapStart,
+    roadmapStart + ROADMAP_PAGE_SIZE,
+  );
 
   const nearbyMatches = ranked
     .filter((r) => r.job.id !== targetJob.id)
@@ -206,7 +325,7 @@ export default async function BelajarPage({
     : "Roadmap ini berbasis lowongan paling cocok denganmu sekarang. Kalau kamu update profil atau pilih target lain, roadmap-nya ikut berubah.";
 
   return (
-    <AppShell active="/app/belajar">
+    <>
       <PageHeader
         eyebrow="Belajar"
         title={
@@ -249,7 +368,7 @@ export default async function BelajarPage({
                 {targetJob.company} · {targetJob.location}
               </p>
             </div>
-            <div className="rounded-lg bg-(--color-tint) px-4 py-3 text-right">
+            <div className="w-fit max-w-full self-start rounded-lg bg-(--color-tint) px-4 py-3 text-left sm:self-auto sm:text-right">
               <p className="text-xs text-(--color-muted)">Match score</p>
               <p className="text-3xl font-semibold tabular-nums text-(--color-teal)">
                 {score}%
@@ -351,13 +470,14 @@ export default async function BelajarPage({
               Roadmap belajar 2 minggu
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-(--color-muted)">
-              Setiap langkah punya bukti yang bisa kamu pakai untuk update profil
-              dan menjelaskan kesiapan ke HR.
+              Setiap langkah punya bukti yang bisa kamu pakai untuk update
+              profil dan menjelaskan kesiapan ke HR.
             </p>
           </div>
           {hasGaps ? (
             <span className="text-sm text-(--color-muted)">
-              Fokus: {gaps
+              Fokus:{" "}
+              {gaps
                 .slice(0, 2)
                 .map((g) => skillName(g.skillId, g.name))
                 .join(" + ")}
@@ -366,7 +486,7 @@ export default async function BelajarPage({
         </div>
 
         <ol className="mt-6 grid gap-4 lg:grid-cols-4">
-          {roadmap.map((step, i) => (
+          {pagedRoadmap.map((step, i) => (
             <li
               key={`${step.label}-${i}`}
               className="flex flex-col rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
@@ -376,9 +496,16 @@ export default async function BelajarPage({
                   {step.label}
                 </span>
                 <span className="text-xs text-(--color-muted)">
-                  Langkah {i + 1}
+                  Langkah {roadmapStart + i + 1}
                 </span>
               </div>
+              {step.completed ? (
+                <span className="mt-3 w-fit rounded-full bg-(--color-tint) px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-(--color-signal-green)">
+                  {typeof step.score === "number"
+                    ? `Selesai · ${step.score}/100`
+                    : "Selesai"}
+                </span>
+              ) : null}
               <h3 className="mt-4 text-base font-semibold text-(--color-ink)">
                 {step.title}
               </h3>
@@ -392,8 +519,29 @@ export default async function BelajarPage({
                 {step.href ? (
                   <Link
                     href={step.href}
-                    className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+                    className={
+                      step.completed
+                        ? "inline-flex items-center justify-center gap-2 rounded-md border border-(--color-signal-green) bg-(--color-tint) px-4 py-2 text-sm font-semibold text-(--color-signal-green) hover:border-(--color-teal) hover:text-(--color-teal)"
+                        : "inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+                    }
                   >
+                    {step.completed ? (
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                        aria-hidden
+                      >
+                        <path
+                          d="M3 7.3 5.8 10 11 4"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : null}
                     {step.action}
                   </Link>
                 ) : (
@@ -401,26 +549,46 @@ export default async function BelajarPage({
                     {step.action}
                   </span>
                 )}
-                <a
+                {step.disabledReason ? (
+                  <p className="text-xs leading-relaxed text-(--color-muted)">
+                    {step.disabledReason}
+                  </p>
+                ) : null}
+                <CalendarNotificationLink
                   href={step.calendarHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+                  notificationKey={`${targetJob.id}-${roadmapStart + i + 1}`}
+                  notificationTitle="Jadwal belajar disiapkan"
+                  notificationBody={`Reminder untuk ${step.title} sudah dibuka di Google Calendar.`}
                 >
                   Tambah ke Google Calendar
-                </a>
+                </CalendarNotificationLink>
               </div>
             </li>
           ))}
         </ol>
+        {roadmapTotalPages > 1 ? (
+          <Pagination
+            className="mt-8"
+            currentPage={currentRoadmapPage}
+            totalPages={roadmapTotalPages}
+            hrefForPage={(page) =>
+              belajarHref({
+                target: targetJob.id,
+                roadmapPage: page,
+              })
+            }
+            label="roadmap belajar"
+          />
+        ) : null}
       </section>
-    </AppShell>
+    </>
   );
 }
 
 function NoJobsState() {
   return (
-    <AppShell active="/app/belajar">
+    <>
       <PageHeader
         eyebrow="Belajar"
         title="Belum ada target kerja"
@@ -441,7 +609,7 @@ function NoJobsState() {
           Lengkapi profil →
         </Link>
       </div>
-    </AppShell>
+    </>
   );
 }
 
@@ -452,9 +620,17 @@ function NearbyJobsCard({
 }) {
   return (
     <section className="mt-4 rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
-      <h2 className="text-sm font-medium text-(--color-muted)">
-        Lowongan terdekat
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-medium text-(--color-muted)">
+          Lowongan terdekat
+        </h2>
+        <Link
+          href="/app/lowongan"
+          className="shrink-0 text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
+        >
+          Lihat Semua →
+        </Link>
+      </div>
       <div className="mt-4 space-y-3">
         {matches.map(({ job, score }) => (
           <Link

@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import AppShell from "@/components/AppShell";
 import ProfileEditMount from "@/components/ProfileEditMount";
 import { getProfileAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
@@ -17,13 +16,13 @@ export default async function ProfilPage({
   const { saved, cv: cvFlag } = await searchParams;
 
   return (
-    <AppShell active="/app/profil">
+    <>
       {saved === "1" ? <SuccessBanner text="Profilmu sudah disimpan." /> : null}
       {cvFlag === "1" ? (
         <SuccessBanner text="Profilmu terupdate dari CV terbaru." />
       ) : null}
       <ProfileEditMount me={me} />
-    </AppShell>
+    </>
   );
 }
 

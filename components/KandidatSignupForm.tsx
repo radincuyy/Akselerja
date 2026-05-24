@@ -1,39 +1,54 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { signIn } from "next-auth/react";
+import PasswordField from "@/components/PasswordField";
 import { signupWithEmailPassword } from "@/lib/auth-actions";
+import { isPasswordValid, PASSWORD_RULE_ERROR } from "@/lib/password-rules";
+import { loginWithEmailPassword } from "@/lib/signin-actions";
 
 export default function KandidatSignupForm() {
   const emailId = useId();
   const pwId = useId();
   const nameId = useId();
+  const nameErrorId = `${nameId}-error`;
+  const emailErrorId = `${emailId}-error`;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [prefilledEmail, setPrefilledEmail] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const e = params.get("email");
-    if (e) setPrefilledEmail(e);
+    if (e) setEmail(e);
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setSubmitted(true);
     setError(null);
-    setSubmitting(true);
-    const data = new FormData(e.currentTarget);
-    const email = String(data.get("email") ?? "").trim();
-    const pw = String(data.get("password") ?? "");
-    const name = String(data.get("name") ?? "").trim();
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim();
+    const pw = password;
 
-    if (!name || !email || pw.length < 8) {
-      setError("Isi nama lengkap, email, dan password minimal 8 karakter.");
-      setSubmitting(false);
+    if (!normalizedName || !normalizedEmail || !pw) {
+      setError("Lengkapi semua field yang wajib diisi.");
+      return;
+    }
+    if (!isPasswordValid(pw)) {
+      setError(PASSWORD_RULE_ERROR);
       return;
     }
 
-    const result = await signupWithEmailPassword({ name, email, password: pw });
+    setSubmitting(true);
+    const result = await signupWithEmailPassword({
+      name: normalizedName,
+      email: normalizedEmail,
+      password: pw,
+    });
     if (!result.ok) {
       setError(result.error);
       setSubmitting(false);
@@ -41,19 +56,31 @@ export default function KandidatSignupForm() {
     }
 
     // Auto-login dengan credentials yang baru saja dibuat, lalu redirect ke onboarding.
-    const signInRes = await signIn("credentials", {
-      email,
+    const signInRes = await loginWithEmailPassword({
+      email: normalizedEmail,
       password: pw,
-      redirect: false,
       callbackUrl: "/onboarding",
     });
-    if (!signInRes || signInRes.error) {
+    if (!signInRes.ok) {
       // Akun sudah dibuat tapi auto-login gagal — arahkan ke /masuk.
-      window.location.assign("/masuk?email=" + encodeURIComponent(email));
+      window.location.assign(
+        "/masuk?email=" + encodeURIComponent(normalizedEmail),
+      );
       return;
     }
-    window.location.assign(signInRes.url ?? "/onboarding");
+    window.location.assign(signInRes.url);
   }
+
+  const nameError = submitted && name.trim().length === 0;
+  const emailError = submitted && email.trim().length === 0;
+  const inputClass =
+    "w-full rounded-md border bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) placeholder:text-(--color-muted) transition-colors";
+  const fieldClass = (hasError: boolean) =>
+    `${inputClass} ${
+      hasError
+        ? "border-(--color-signal-clay) focus:border-(--color-signal-clay)"
+        : "border-(--color-line) focus:border-(--color-teal)"
+    }`;
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
@@ -66,10 +93,19 @@ export default function KandidatSignupForm() {
           name="name"
           type="text"
           required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           autoComplete="name"
           placeholder="Nama lengkap kamu"
-          className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) placeholder:text-(--color-muted) focus:border-(--color-teal)"
+          aria-invalid={nameError ? true : undefined}
+          aria-describedby={nameError ? nameErrorId : undefined}
+          className={fieldClass(nameError)}
         />
+        {nameError ? (
+          <p id={nameErrorId} role="alert" className="text-sm text-(--color-signal-clay)">
+            Nama lengkap wajib diisi.
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor={emailId} className="text-xs font-medium tracking-wide text-(--color-muted)">
@@ -80,31 +116,33 @@ export default function KandidatSignupForm() {
           name="email"
           type="email"
           required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
           placeholder="kamu@email.com"
-          defaultValue={prefilledEmail}
-          key={prefilledEmail}
-          className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) placeholder:text-(--color-muted) focus:border-(--color-teal)"
+          aria-invalid={emailError ? true : undefined}
+          aria-describedby={emailError ? emailErrorId : undefined}
+          className={fieldClass(emailError)}
         />
+        {emailError ? (
+          <p id={emailErrorId} role="alert" className="text-sm text-(--color-signal-clay)">
+            Email wajib diisi.
+          </p>
+        ) : null}
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={pwId} className="text-xs font-medium tracking-wide text-(--color-muted)">
-          Password
-        </label>
-        <input
-          id={pwId}
-          name="password"
-          type="password"
-          required
-          autoComplete="new-password"
-          minLength={8}
-          placeholder="Minimal 8 karakter"
-          className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) placeholder:text-(--color-muted) focus:border-(--color-teal)"
-        />
-        <p className="text-xs text-(--color-muted)">
-          Pakai kombinasi huruf dan angka. Hindari nama atau tanggal lahir.
-        </p>
-      </div>
+      <PasswordField
+        id={pwId}
+        name="password"
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        onBlur={() => setPasswordTouched(true)}
+        autoComplete="new-password"
+        placeholder="Minimal 8 karakter"
+        required
+        showInvalid={submitted || passwordTouched}
+        showRequirements
+      />
 
       {error && (
         <p role="alert" className="text-sm text-(--color-signal-clay)">

@@ -1,7 +1,8 @@
 "use client";
 
-import { signIn } from "next-auth/react";
 import { useId, useState } from "react";
+import PasswordField from "@/components/PasswordField";
+import { loginWithEmailPassword } from "@/lib/signin-actions";
 
 type Props = {
   callbackUrl?: string;
@@ -19,18 +20,17 @@ export default function CredentialsLoginForm({ callbackUrl = "/app" }: Props) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await signIn("credentials", {
+    const res = await loginWithEmailPassword({
       email,
       password,
-      redirect: false,
       callbackUrl,
     });
-    if (!res || res.error) {
+    if (!res.ok) {
       setLoading(false);
-      setError("Email atau password salah. Coba lagi.");
+      setError(res.error);
       return;
     }
-    window.location.assign(res.url ?? callbackUrl);
+    window.location.assign(res.url);
   }
 
   return (
@@ -53,24 +53,16 @@ export default function CredentialsLoginForm({ callbackUrl = "/app" }: Props) {
           className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) focus:border-(--color-teal)"
         />
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={pwId}
-          className="text-xs font-medium tracking-wide text-(--color-muted)"
-        >
-          Password
-        </label>
-        <input
-          id={pwId}
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          minLength={8}
-          className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) focus:border-(--color-teal)"
-        />
-      </div>
+      <PasswordField
+        id={pwId}
+        name="password"
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="current-password"
+        placeholder="Masukkan password"
+        required
+      />
       {error ? (
         <p role="alert" className="text-sm text-(--color-signal-clay)">
           {error}

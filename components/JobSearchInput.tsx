@@ -5,9 +5,13 @@ import { useId, useState } from "react";
 
 type Props = {
   defaultValue?: string;
+  fallbackSearchParams?: Record<string, string>;
 };
 
-export default function JobSearchInput({ defaultValue = "" }: Props) {
+export default function JobSearchInput({
+  defaultValue = "",
+  fallbackSearchParams,
+}: Props) {
   const router = useRouter();
   const search = useSearchParams();
   const [value, setValue] = useState(defaultValue);
@@ -16,6 +20,11 @@ export default function JobSearchInput({ defaultValue = "" }: Props) {
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const params = new URLSearchParams(search.toString());
+    if (fallbackSearchParams && params.size === 0) {
+      for (const [key, paramValue] of Object.entries(fallbackSearchParams)) {
+        if (paramValue) params.set(key, paramValue);
+      }
+    }
     const trimmed = value.trim();
     if (trimmed) params.set("q", trimmed);
     else params.delete("q");

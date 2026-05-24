@@ -1,5 +1,7 @@
 import {
+  BlobSASPermissions,
   BlobServiceClient,
+  generateBlobSASQueryParameters,
   StorageSharedKeyCredential,
   type ContainerClient,
 } from "@azure/storage-blob";
@@ -51,6 +53,24 @@ function getService(): BlobServiceClient {
     );
   }
   return _service;
+}
+
+function getSharedKeyCredential(): {
+  account: string;
+  credential: StorageSharedKeyCredential;
+} {
+  const parsed = parseAccountFromConnectionString();
+  const account = parsed?.account ?? ACCOUNT_NAME;
+  const key = parsed?.key ?? ACCOUNT_KEY;
+  if (!account || !key) {
+    throw new Error(
+      "Azure Blob shared key not configured. Set AZURE_STORAGE_CONNECTION_STRING or AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY.",
+    );
+  }
+  return {
+    account,
+    credential: new StorageSharedKeyCredential(account, key),
+  };
 }
 
 function getContainer(): ContainerClient {
@@ -117,4 +137,44 @@ export async function deleteBlob(blobName: string): Promise<void> {
   } catch {
     // Best-effort cleanup
   }
+}
+
+export async function getBlobReadUrl(blobName: string): Promise<string> {
+  if (!isBlobConfigured()) {
+    throw new Error("Blob storage is not configured");
+  }
+  const { credential } = getSharedKeyCredential();
+  const container = getContainer();
+  const blob = container.getBlobClient(blobName);
+  const expiresOn = new Date(Date.now() + 10 * 60 * 1000);
+  const sas = generateBlobSASQueryParameters(
+    {
+      containerName: CONTAINER_NAME,
+      blobName,
+      permissions: BlobSASPermissions.parse("r"),
+      expiresOn,
+    },
+    credential,
+  ).toString();
+
+  return `${blob.url}?${sas}`;
+}
+
+export async function downloadBlobToBuffer(blobName: string): Promise<{
+  buffer: Buffer;
+  contentType?: string;
+  contentLength?: number;
+}> {
+  if (!isBlobConfigured()) {
+    throw new Error("Blob storage is not configured");
+  }
+  const container = getContainer();
+  const blob = container.getBlobClient(blobName);
+  const buffer = await blob.downloadToBuffer();
+  const properties = await blob.getProperties();
+  return {
+    buffer,
+    contentType: properties.contentType,
+    contentLength: properties.contentLength,
+  };
 }

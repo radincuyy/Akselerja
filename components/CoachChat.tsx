@@ -72,8 +72,7 @@ function saveHistory(messages: Message[]) {
       savedAt: Date.now(),
     };
     window.localStorage.setItem(HISTORY_KEY, JSON.stringify(payload));
-  } catch {
-  }
+  } catch {}
 }
 
 function clearHistory() {
@@ -160,9 +159,7 @@ export default function CoachChat() {
             firstChunk = false;
           }
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === replyId ? { ...m, text: buffered } : m,
-            ),
+            prev.map((m) => (m.id === replyId ? { ...m, text: buffered } : m)),
           );
         }
       }
@@ -242,8 +239,8 @@ export default function CoachChat() {
             }
           }}
           rows={1}
-          placeholder="Tanya apa saja soal karier kamu..."
-          className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-2 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)"
+          placeholder="Tanya apa saja soal karier kamu…"
+          className="min-w-0 flex-1 min-h-[44px] resize-none bg-transparent px-2 py-2 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted) placeholder:truncate"
         />
         <button
           type="submit"

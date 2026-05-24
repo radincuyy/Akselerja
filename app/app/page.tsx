@@ -1,22 +1,22 @@
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
 import ScoreDisplay from "@/components/ScoreDisplay";
 import JobCard from "@/components/JobCard";
 import { calcMatch } from "@/lib/match";
 import { buildMatchReason } from "@/lib/match-reason";
 import { searchJobs } from "@/lib/search-store";
 import { listAssessmentsAsync } from "@/lib/assessments-store";
-import { getProfileOrSeedAsync } from "@/lib/profile-store";
-import { requireUser } from "@/lib/session";
+import { getCurrentCandidate } from "@/lib/current-candidate";
 import { completedAssessmentIdsForUser } from "@/lib/attempts-store";
+import type { Assessment, Candidate } from "@/lib/types";
+
+const HOME_RECOMMENDATION_LIMIT = 12;
 
 export default async function CandidateHome() {
-  const user = await requireUser();
-  const profile = await getProfileOrSeedAsync(user.id);
+  const { user, profile } = await getCurrentCandidate();
   const userSkillIds = profile.skills?.map((s) => s.skillId) ?? [];
   const [search, assessments, completedIds] = await Promise.all([
     searchJobs({
-      top: 50,
+      top: HOME_RECOMMENDATION_LIMIT,
       profileVector: profile.profileVector,
       skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
       includeClosed: false,
@@ -29,7 +29,9 @@ export default async function CandidateHome() {
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score);
   const top3 = ranked.slice(0, 3);
-  const matchingCount = ranked.filter((r) => r.score >= 60).length;
+  const bestMatchScore = ranked[0]?.score ?? 0;
+  const recommendationCount = top3.length;
+  const hasStrongMatch = ranked.some((r) => r.score >= 60);
   const hasSkills = userSkillIds.length > 0;
   const hasJobs = top3.length > 0;
   const canShowRecommendations = hasSkills && hasJobs;
@@ -37,20 +39,20 @@ export default async function CandidateHome() {
   const firstName = profile.name.split(" ")[0] || "kamu";
   const heading = !hasSkills
     ? `Halo ${firstName}, profilmu masih perlu diisi.`
-    : matchingCount === 0
+    : !hasStrongMatch
       ? `Belum ada lowongan yang cocok hari ini, ${firstName}.`
-      : matchingCount === 1
-        ? `Hari ini ada 1 lowongan yang cocok denganmu.`
-        : `Hari ini ada ${matchingCount} lowongan yang cocok denganmu.`;
+      : recommendationCount === 1
+        ? "Ini lowongan terbaik untukmu hari ini."
+        : `Ini ${recommendationCount} lowongan terbaik untukmu hari ini.`;
 
   const subhead = !hasSkills
     ? "Lengkapi skill dan pengalaman supaya kami bisa memilihkan lowongan yang benar-benar cocok untukmu, bukan asal urut."
-    : matchingCount === 0
+    : !hasStrongMatch
       ? "Lengkapi profil atau ikuti satu assessment supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk."
-      : `Lowongan dihitung cocok kalau match score-nya 60% ke atas. Skor naik begitu kamu menambah skill, mengikuti assessment, atau melengkapi pengalaman.`;
+      : "Lowongan ini diurutkan dari kecocokan skill, pengalaman, dan preferensi profilmu.";
 
   return (
-    <AppShell active="/app">
+    <>
       <section aria-labelledby="dashboard-heading">
         <p className="text-base text-(--color-muted)">
           Selamat datang kembali, {firstName}.
@@ -69,10 +71,19 @@ export default async function CandidateHome() {
       <section className="mt-10 rounded-lg border border-(--color-line) bg-(--color-paper) p-6">
         <ScoreDisplay
           score={profile.readinessScore}
-          label="Skor kesiapan kerja"
-          explanation="Skor ini menggabungkan kelengkapan profil, hasil assessment, dan pengalaman yang kamu tulis. Naikkan dengan satu langkah konkret di bawah."
-          action={{ label: "Tingkatkan skor", href: "/app/assessment" }}
+          label="Kelengkapan profil"
+          explanation={
+            bestMatchScore > 0
+              ? `Angka ini membaca kelengkapan profil, CV, skill, assessment, dan pengalaman. Ini berbeda dari match score lowongan; match score terbaikmu saat ini ${bestMatchScore}% dan dihitung per lowongan.`
+              : "Angka ini membaca kelengkapan profil, CV, skill, assessment, dan pengalaman. Match score lowongan akan muncul setelah ada lowongan yang cocok dengan profilmu."
+          }
+          action={
+            profile.readinessScore >= 100
+              ? { label: "Lihat lowongan", href: "/app/lowongan" }
+              : { label: "Lengkapi profil", href: "/app/profil" }
+          }
           size="lg"
+          showBand={false}
         />
       </section>
 
@@ -138,7 +149,7 @@ export default async function CandidateHome() {
           completedIds={completedIds}
         />
       </section>
-    </AppShell>
+    </>
   );
 }
 
@@ -147,8 +158,8 @@ function NextSteps({
   assessments,
   completedIds,
 }: {
-  profile: Awaited<ReturnType<typeof getProfileOrSeedAsync>>;
-  assessments: Awaited<ReturnType<typeof listAssessmentsAsync>>;
+  profile: Candidate;
+  assessments: Assessment[];
   completedIds: Set<string>;
 }) {
   const nextAssessment = assessments.find((a) => !completedIds.has(a.id));
@@ -162,7 +173,7 @@ function NextSteps({
     steps.push({
       eyebrow: "Assessment",
       title: `Ikuti tes ${nextAssessment.title}`,
-      body: `${nextAssessment.questionCount} soal, sekitar ${nextAssessment.durationMinutes} menit. Skor kesiapanmu naik begitu selesai.`,
+      body: `${nextAssessment.questionCount} soal, sekitar ${nextAssessment.durationMinutes} menit. Bukti skillmu bertambah begitu selesai.`,
       href: `/app/assessment/${nextAssessment.slug}`,
     });
   }

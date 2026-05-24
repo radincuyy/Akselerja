@@ -223,7 +223,8 @@ export async function searchJobs(
   // All filters now run server-side via OData. Fetch a small headroom over
   // top+skip in case some hits 404 during hydrate (rare but possible if a
   // job was just removed from Cosmos).
-  const fetchSize = Math.min(200, top + skip + 20);
+  const hydrateHeadroom = Math.min(20, Math.max(3, Math.ceil(top * 0.25)));
+  const fetchSize = Math.min(200, top + skip + hydrateHeadroom);
   const filter = buildFilter({
     cities: params.cities,
     types: params.types,

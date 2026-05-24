@@ -14,6 +14,7 @@ import {
   newProjectId,
   patchProfileAsync,
   profileCacheTag,
+  recomputeReadinessScoreAsync,
   setContactAsync,
   setCvAsync,
   setEducationListAsync,
@@ -23,8 +24,12 @@ import {
   setSkillsAsync,
   updateProfileBasicAsync,
 } from "./profile-store";
-import { recordAttempt as recordAttemptStore } from "./attempts-store";
+import {
+  recordAttempt as recordAttemptStore,
+  recordPracticeAttempt,
+} from "./attempts-store";
 import { getAssessmentBySlugAsync } from "./assessments-store";
+import { getPracticeTaskBySlugAsync } from "./practice-store";
 import { parseCv } from "./cv-parser";
 import { requireUser } from "./session";
 import { deleteUserById } from "./user-store";
@@ -33,6 +38,11 @@ import {
   gatherFeedbackContext,
   generateAssessmentFeedback,
 } from "./assessment-feedback";
+import {
+  calculatePracticeScore,
+  gradePracticeAnswer,
+  levelFromPracticeScore,
+} from "./practice-grading";
 import { searchJobs } from "./search-store";
 import { skillById } from "./skills";
 import type {
@@ -789,6 +799,9 @@ export async function submitAssessmentAttempt(input: {
           total: number;
           passed: boolean;
           feedback: string;
+          readinessScore: number;
+          previousReadinessScore: number;
+          readinessScoreIncrease: number;
         }
       | { ok: false; error: string }
     > {
@@ -807,9 +820,11 @@ export async function submitAssessmentAttempt(input: {
     correct: input.correct,
     total: input.total,
   });
+  const readinessScoreChange = await recomputeReadinessScoreAsync(user.id);
   revalidateTag(profileCacheTag(user.id));
   revalidatePath("/app/assessment");
   revalidatePath("/app/profil");
+  revalidatePath("/app");
 
   // Generate personal feedback. This adds 1-3s but turns a numeric score into
   // an actionable next step, which is the whole point of an assessment in an
@@ -850,6 +865,69 @@ export async function submitAssessmentAttempt(input: {
     total: input.total,
     passed,
     feedback,
+    readinessScore: readinessScoreChange.newScore,
+    previousReadinessScore: readinessScoreChange.previousScore,
+    readinessScoreIncrease: readinessScoreChange.increasedBy,
+  };
+}
+
+// ----- Practice learning -----
+
+export async function submitPracticeAttempt(input: {
+  slug: string;
+  answer: string;
+}): Promise<
+  | {
+      ok: true;
+      score: number;
+      attemptId: string;
+      passed: boolean;
+      level: string;
+      completedAt: string;
+      readinessScore: number;
+      previousReadinessScore: number;
+      readinessScoreIncrease: number;
+    }
+  | { ok: false; error: string }
+> {
+  const user = await requireUser();
+  const answer = input.answer.trim();
+  if (!answer) return { ok: false, error: "Jawaban tidak boleh kosong." };
+
+  const task = await getPracticeTaskBySlugAsync(input.slug);
+  if (!task) return { ok: false, error: "Latihan tidak ditemukan." };
+
+  const results = gradePracticeAnswer(task, answer);
+  const score = calculatePracticeScore(results);
+  const attempt = await recordPracticeAttempt({
+    userId: user.id,
+    taskId: task.id,
+    taskSlug: task.slug,
+    taskTitle: task.title,
+    skillId: task.skillId,
+    score,
+    answer,
+  });
+
+  const readinessScoreChange = await recomputeReadinessScoreAsync(user.id);
+  scheduleProfileEmbed(user.id);
+  revalidateTag(profileCacheTag(user.id));
+  revalidatePath("/app/belajar");
+  revalidatePath("/app/belajar/[slug]", "page");
+  revalidatePath("/app/profil");
+  revalidatePath("/app/lowongan");
+  revalidatePath("/app");
+
+  return {
+    ok: true,
+    score,
+    attemptId: attempt.id,
+    passed: attempt.passed,
+    level: levelFromPracticeScore(score),
+    completedAt: attempt.completedAt,
+    readinessScore: readinessScoreChange.newScore,
+    previousReadinessScore: readinessScoreChange.previousScore,
+    readinessScoreIncrease: readinessScoreChange.increasedBy,
   };
 }
 

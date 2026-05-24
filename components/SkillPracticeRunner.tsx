@@ -1,17 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { PracticeRubricCriterion, PracticeTask } from "@/lib/types";
+import Link from "next/link";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { submitPracticeAttempt } from "@/lib/profile-actions";
+import {
+  calculatePracticeScore,
+  gradePracticeAnswer,
+  levelFromPracticeScore,
+} from "@/lib/practice-grading";
+import type { PracticeTask } from "@/lib/types";
 
 type Props = {
   task: PracticeTask;
   skillName: string;
-};
-
-type CriterionResult = {
-  criterion: PracticeRubricCriterion;
-  score: number;
-  hits: number;
+  initialAttempt?: {
+    answer: string;
+    score: number;
+    passed: boolean;
+    completedAt: string;
+  } | null;
 };
 
 function typeLabel(type: PracticeTask["type"]): string {
@@ -21,53 +28,32 @@ function typeLabel(type: PracticeTask["type"]): string {
   return "Simulasi kasus";
 }
 
-function scoreCriterion(answer: string, criterion: PracticeRubricCriterion) {
-  const normalized = answer.toLowerCase();
-  const hits = criterion.signals.filter((signal) =>
-    normalized.includes(signal.toLowerCase()),
-  ).length;
-  const lengthBonus = Math.min(12, Math.floor(answer.trim().length / 180) * 4);
-  const base = hits === 0 ? 38 : 58 + hits * 9;
-  const score = Math.max(30, Math.min(96, base + lengthBonus));
-  return { score, hits };
-}
-
-function gradeAnswer(task: PracticeTask, answer: string): CriterionResult[] {
-  return task.rubric.map((criterion) => {
-    const { score, hits } = scoreCriterion(answer, criterion);
-    return { criterion, score, hits };
-  });
-}
-
-function levelFromScore(score: number) {
-  if (score >= 85) return "Siap divalidasi";
-  if (score >= 72) return "Hampir siap";
-  if (score >= 58) return "Perlu latihan ulang";
-  return "Butuh fondasi";
-}
-
-export default function SkillPracticeRunner({ task, skillName }: Props) {
-  const [answer, setAnswer] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+export default function SkillPracticeRunner({
+  task,
+  skillName,
+  initialAttempt,
+}: Props) {
+  const [answer, setAnswer] = useState(initialAttempt?.answer ?? "");
+  const [submitted, setSubmitted] = useState(Boolean(initialAttempt));
+  const [completedAt, setCompletedAt] = useState(
+    initialAttempt?.completedAt ?? "",
+  );
   const [durationMinutes, setDurationMinutes] = useState(task.estimatedMinutes);
   const [secondsLeft, setSecondsLeft] = useState(task.estimatedMinutes * 60);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   const results = useMemo(
-    () => (submitted ? gradeAnswer(task, answer) : []),
+    () => (submitted ? gradePracticeAnswer(task, answer) : []),
     [answer, submitted, task],
   );
 
-  const totalScore = results.length
-    ? Math.round(
-        results.reduce(
-          (sum, result) => sum + result.score * (result.criterion.weight / 100),
-          0,
-        ),
-      )
-    : 0;
+  const totalScore = calculatePracticeScore(results);
   const strongest = [...results].sort((a, b) => b.score - a.score)[0];
   const weakest = [...results].sort((a, b) => a.score - b.score)[0];
+  const timerExpired = secondsLeft === 0;
+  const isPassed = totalScore >= 72;
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -93,13 +79,58 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!answer.trim()) return;
-    setSubmitted(true);
+    if (!answer.trim() || timerExpired) return;
+    const nextAnswer = answer.trim();
+    setError(null);
+    setTimerRunning(false);
+
+    startTransition(async () => {
+      const res = await submitPracticeAttempt({
+        slug: task.slug,
+        answer: nextAnswer,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+
+      setAnswer(nextAnswer);
+      setCompletedAt(res.completedAt);
+      setSubmitted(true);
+
+      window.dispatchEvent(
+        new CustomEvent("akselerja:notification-created", {
+          detail: {
+            id: `practice-attempt-${res.attemptId}`,
+            title: "Belajar selesai",
+            body: res.passed
+              ? `${task.title} selesai dengan skor ${res.score}. Skill ${skillName} sudah memperkuat profilmu.`
+              : `${task.title} selesai dengan skor ${res.score}. Perbaiki jawaban untuk menaikkan bukti skill.`,
+            time: "Baru saja",
+            unread: true,
+          },
+        }),
+      );
+
+      if (res.readinessScoreIncrease > 0) {
+        window.dispatchEvent(
+          new CustomEvent("akselerja:readiness-score-increased", {
+            detail: {
+              previousScore: res.previousReadinessScore,
+              newScore: res.readinessScore,
+              increasedBy: res.readinessScoreIncrease,
+            },
+          }),
+        );
+      }
+
+      window.dispatchEvent(new Event("akselerja:notifications-refresh"));
+    });
   }
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.35fr_0.85fr]">
-      <div>
+      <div className="order-2 lg:order-1">
         <section className="rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-(--color-tint) px-3 py-1 text-xs font-medium text-(--color-teal)">
@@ -158,37 +189,53 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
           />
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-(--color-muted)">
-              {answer.trim().length} karakter. Feedback membaca sinyal pada
-              rubrik.
+              {timerExpired
+                ? "Waktu habis. Reset timer untuk mengirim jawaban."
+                : `${answer.trim().length} karakter. Feedback membaca sinyal pada rubrik.`}
             </p>
             <button
               type="submit"
-              disabled={!answer.trim()}
+              disabled={!answer.trim() || timerExpired || pending}
               className="inline-flex min-h-11 items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
             >
-              Nilai jawaban
+              {pending
+                ? "Menyimpan..."
+                : timerExpired
+                  ? "Waktu habis"
+                  : "Nilai jawaban"}
             </button>
           </div>
+          {error ? (
+            <p role="alert" className="mt-3 text-sm text-(--color-signal-clay)">
+              {error}
+            </p>
+          ) : null}
         </form>
 
         {submitted ? (
           <section className="mt-6 rounded-lg border border-(--color-teal) bg-(--color-teal-soft) p-6 sm:p-7">
             <p className="text-sm font-medium text-(--color-teal-deep)">
-              Feedback rubrik
+              Feedback Rubrik
             </p>
-            <p className="mt-1 text-xs text-(--color-muted)">
-              Demo: skor dihitung dari sinyal di rubrik. Versi production memakai
-              Azure OpenAI dengan rubrik yang sama.
-            </p>
+            {completedAt ? (
+              <p className="mt-1 text-xs text-(--color-muted)">
+                Tersimpan {formatCompletedAt(completedAt)}
+              </p>
+            ) : null}
             <div className="mt-4 flex flex-wrap items-end gap-3">
               <span className="text-6xl font-semibold leading-none tabular-nums text-(--color-teal)">
                 {totalScore}
               </span>
               <span className="pb-2 text-xl text-(--color-muted)">/100</span>
               <span className="mb-2 rounded-full bg-(--color-paper) px-3 py-1 text-sm font-medium text-(--color-ink)">
-                {levelFromScore(totalScore)}
+                {levelFromPracticeScore(totalScore)}
               </span>
             </div>
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-(--color-ink)">
+              {isPassed
+                ? `Skill ${skillName} sudah ditambahkan ke profil jika sebelumnya belum ada. Match score akan diperbarui saat halaman belajar atau lowongan dibuka ulang.`
+                : "Jawabanmu sudah tersimpan, tapi skor rubrik belum cukup untuk menambahkan skill ke profil. Edit jawaban untuk menaikkan bukti skill."}
+            </p>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <FeedbackBlock
@@ -246,11 +293,33 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
                 </tbody>
               </table>
             </div>
+
+            <div className="mt-6 flex flex-col gap-3 border-t border-(--color-line) pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm leading-relaxed text-(--color-muted)">
+                Latihan sudah dinilai. Kamu bisa kembali ke halaman belajar
+                atau perbaiki jawaban untuk mencoba lagi.
+              </p>
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setSubmitted(false)}
+                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+                >
+                  Edit jawaban
+                </button>
+                <Link
+                  href="/app/belajar"
+                  className="inline-flex min-h-10 items-center justify-center rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+                >
+                  Selesai dan kembali
+                </Link>
+              </div>
+            </div>
           </section>
         ) : null}
       </div>
 
-      <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
+      <aside className="order-1 space-y-5 lg:sticky lg:top-32 lg:order-2 lg:self-start">
         <section className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5">
           <h2 className="text-sm font-medium text-(--color-muted)">
             Timer latihan
@@ -261,25 +330,41 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
           </p>
           <div className="mt-5 flex items-end justify-between gap-4">
             <div>
-              <p className="text-5xl font-semibold tabular-nums leading-none text-(--color-teal)">
+              <p
+                className={`text-5xl font-semibold tabular-nums leading-none ${
+                  timerExpired
+                    ? "text-(--color-signal-clay)"
+                    : "text-(--color-teal)"
+                }`}
+              >
                 {formatTimer(secondsLeft)}
               </p>
-              <p className="mt-1 text-xs text-(--color-muted)">
-                {timerRunning ? "Sedang berjalan" : "Belum dimulai"}
+              <p
+                className={`mt-1 text-xs ${
+                  timerExpired
+                    ? "text-(--color-signal-clay)"
+                    : "text-(--color-muted)"
+                }`}
+              >
+                {timerExpired
+                  ? "Waktu habis"
+                  : timerRunning
+                    ? "Sedang berjalan"
+                    : "Belum dimulai"}
               </p>
             </div>
             <label className="w-24 text-xs font-medium text-(--color-muted)">
               Menit
               <input
                 type="number"
-                min={5}
+                min={1}
                 max={120}
-                step={5}
+                step={1}
                 value={durationMinutes}
                 onChange={(e) => {
                   const next = Math.min(
                     120,
-                    Math.max(5, Number(e.target.value) || 5),
+                    Math.max(1, Number(e.target.value) || 1),
                   );
                   resetTimer(next);
                 }}
@@ -291,7 +376,7 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
             <button
               type="button"
               onClick={() => setTimerRunning((value) => !value)}
-              disabled={secondsLeft === 0}
+              disabled={timerExpired}
               className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
             >
               {timerRunning ? "Pause" : "Mulai"}
@@ -310,6 +395,10 @@ export default function SkillPracticeRunner({ task, skillName }: Props) {
           <h2 className="text-sm font-medium text-(--color-muted)">
             Bukti yang dicari
           </h2>
+          <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
+            Ini sinyal bukti yang dicari dari jawabanmu. Rubrik lengkap dengan
+            bobot dan skor akan muncul setelah jawaban dinilai.
+          </p>
           <ul className="mt-4 space-y-2">
             {task.expectedEvidence.map((evidence) => (
               <li
@@ -334,6 +423,15 @@ function formatTimer(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+}
+
+function formatCompletedAt(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "baru saja";
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
 function FeedbackBlock({ title, body }: { title: string; body: string }) {

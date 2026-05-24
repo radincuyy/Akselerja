@@ -1,19 +1,42 @@
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
 import PageHeader from "@/components/PageHeader";
+import Pagination from "@/components/Pagination";
 import { skillById } from "@/lib/skills";
 import { listAssessmentsAsync } from "@/lib/assessments-store";
 import { completedAssessmentIdsForUser } from "@/lib/attempts-store";
 import { requireUser } from "@/lib/session";
 
-export default async function AssessmentListPage() {
+type SearchParams = Promise<{ page?: string }>;
+
+const PAGE_SIZE = 6;
+
+function parsePage(value: string | undefined): number {
+  const parsed = Number.parseInt(value ?? "1", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function assessmentPageHref(page: number): string {
+  return page <= 1 ? "/app/assessment" : `/app/assessment?page=${page}`;
+}
+
+export default async function AssessmentListPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const { page } = await searchParams;
   const user = await requireUser();
   const [assessments, completedIds] = await Promise.all([
     listAssessmentsAsync(),
     completedAssessmentIdsForUser(user.id),
   ]);
+  const totalPages = Math.max(1, Math.ceil(assessments.length / PAGE_SIZE));
+  const currentPage = Math.min(parsePage(page), totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pagedAssessments = assessments.slice(start, start + PAGE_SIZE);
+
   return (
-    <AppShell active="/app/assessment">
+    <>
       <PageHeader
         eyebrow="Assessment"
         title="Buktikan skill kamu, bukan hanya tulis"
@@ -21,7 +44,7 @@ export default async function AssessmentListPage() {
       />
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
-        {assessments.map((a) => {
+        {pagedAssessments.map((a) => {
           const isDone = completedIds.has(a.id);
           return (
             <article
@@ -37,11 +60,11 @@ export default async function AssessmentListPage() {
                     {a.title}
                   </h2>
                 </div>
-                {isDone && (
+                {isDone ? (
                   <span className="shrink-0 rounded-full bg-(--color-tint) px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-(--color-signal-green)">
                     Selesai
                   </span>
-                )}
+                ) : null}
               </div>
               <p className="mt-3 flex-1 text-sm leading-relaxed text-(--color-muted)">
                 {a.description}
@@ -61,6 +84,14 @@ export default async function AssessmentListPage() {
           );
         })}
       </div>
-    </AppShell>
+
+      <Pagination
+        className="mt-8"
+        currentPage={currentPage}
+        totalPages={totalPages}
+        hrefForPage={assessmentPageHref}
+        label="assessment"
+      />
+    </>
   );
 }
