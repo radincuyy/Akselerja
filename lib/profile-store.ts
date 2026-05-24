@@ -213,19 +213,6 @@ export function newProjectId() {
   return uid("pj");
 }
 
-export async function setCvAsync(cv: CvFile, userId = ME_ID): Promise<Candidate> {
-  const container = getContainer(CONTAINERS.candidates);
-  const existing = await readRecord(userId);
-  if (!existing) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
-    );
-  }
-  const next: CandidateRecord = { ...existing, cv };
-  await container.items.upsert(next);
-  return stripCosmos(next);
-}
-
 export async function setSkillsAsync(
   skills: CandidateSkill[],
   userId = ME_ID,

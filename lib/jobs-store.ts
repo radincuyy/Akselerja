@@ -21,24 +21,6 @@ const listJobsCached = unstable_cache(
   },
 );
 
-const listOpenJobsCached = unstable_cache(
-  async (): Promise<Job[]> => {
-    const container = getContainer(CONTAINERS.jobs);
-    const { resources } = await container.items
-      .query<Job>({
-        query:
-          "SELECT * FROM c WHERE c.status != 'closed' OR NOT IS_DEFINED(c.status) ORDER BY c.postedAt DESC",
-      })
-      .fetchAll();
-    return resources.map(ensureCompanyId);
-  },
-  ["open-jobs-list"],
-  {
-    tags: [JOB_CACHE_TAG],
-    revalidate: 3600,
-  },
-);
-
 const getJobsByIdsCached = unstable_cache(
   async (idsKey: string): Promise<Job[]> => {
     const ids = idsKey.split("\n").filter(Boolean);
@@ -90,10 +72,6 @@ function ensureCompanyId(job: Job): Job {
 
 export async function listJobsAsync(): Promise<Job[]> {
   return listJobsCached();
-}
-
-export async function listOpenJobsAsync(): Promise<Job[]> {
-  return listOpenJobsCached();
 }
 
 export async function getJobByIdAsync(

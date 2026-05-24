@@ -16,7 +16,6 @@ import {
   profileCacheTag,
   recomputeReadinessScoreAsync,
   setContactAsync,
-  setCvAsync,
   setEducationListAsync,
   setExperienceListAsync,
   setOrganizationListAsync,
