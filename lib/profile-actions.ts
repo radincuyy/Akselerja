@@ -71,16 +71,22 @@ function scheduleProfileEmbed(userId: string): void {
   }, 0);
 }
 
-function revalidateProfileSurfaces() {
-  // Profile-relevant changes invalidate every surface that ranks or displays
-  // the candidate. We also kick off a vector refresh here so any user-facing
-  // mutation that revalidates UI also keeps the embedding current.
-  scheduleProfileEmbed("me");
-  revalidateTag(profileCacheTag("me"));
+function revalidateProfileSurfaces(userId: string) {
+  scheduleProfileEmbed(userId);
+  revalidateTag(profileCacheTag(userId));
   revalidatePath("/app/profil");
   revalidatePath("/app");
   revalidatePath("/app/lowongan");
   revalidatePath("/app/lowongan/[id]", "page");
+}
+
+async function refreshProfileScore(userId: string) {
+  try {
+    await recomputeReadinessScoreAsync(userId);
+  } catch (err) {
+    console.error("[profile-actions] readiness recompute failed", err);
+  }
+  revalidateProfileSurfaces(userId);
 }
 
 function asString(v: FormDataEntryValue | null): string {
@@ -383,7 +389,7 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
     }
   }
 
-  revalidateProfileSurfaces();
+  await refreshProfileScore(user.id);
   redirect("/app/profil?cv=1");
 }
 
@@ -468,7 +474,7 @@ export async function savePersonalSection(
     },
     user.id,
   );
-  revalidateProfileSurfaces();
+  await refreshProfileScore(user.id);
   return { ok: true };
 }
 
@@ -509,7 +515,7 @@ export async function saveEducationSection(
   if (Object.keys(errors).length > 0) return failSection(errors);
   const user = await requireUser();
   await setEducationListAsync(cleaned, user.id);
-  revalidateProfileSurfaces();
+  await refreshProfileScore(user.id);
   return { ok: true };
 }
 
@@ -548,7 +554,7 @@ export async function saveExperienceSection(
   if (Object.keys(errors).length > 0) return failSection(errors);
   const user = await requireUser();
   await setExperienceListAsync(cleaned, user.id);
-  revalidateProfileSurfaces();
+  await refreshProfileScore(user.id);
   return { ok: true };
 }
 
@@ -587,7 +593,7 @@ export async function saveOrganizationSection(
   if (Object.keys(errors).length > 0) return failSection(errors);
   const user = await requireUser();
   await setOrganizationListAsync(cleaned, user.id);
-  revalidateProfileSurfaces();
+  await refreshProfileScore(user.id);
   return { ok: true };
 }
 
@@ -623,7 +629,7 @@ export async function saveProjectSection(
   if (Object.keys(errors).length > 0) return failSection(errors);
   const user = await requireUser();
   await setProjectListAsync(cleaned, user.id);
-  revalidateProfileSurfaces();
+  await refreshProfileScore(user.id);
   return { ok: true };
 }
 
@@ -643,15 +649,13 @@ export async function saveSkillsSection(
     }));
   const user = await requireUser();
   await setSkillsAsync(cleaned, user.id);
-  revalidateProfileSurfaces();
+  await refreshProfileScore(user.id);
   return { ok: true };
 }
 
 export type PreferencesDraft = {
   preferredJobTypes: JobType[];
   preferredWorkModes: WorkMode[];
-  preferredCities: string[];
-  industries: string[];
 };
 
 export async function savePreferencesSection(
@@ -664,27 +668,15 @@ export async function savePreferencesSection(
   if (!Array.isArray(draft.preferredWorkModes) || draft.preferredWorkModes.length === 0) {
     errors.preferredWorkModes = "Pilih minimal satu mode kerja.";
   }
-  if (!Array.isArray(draft.preferredCities) || draft.preferredCities.length === 0) {
-    errors.preferredCities = "Pilih minimal satu kota.";
-  }
-  if (!Array.isArray(draft.industries) || draft.industries.length === 0) {
-    errors.industries = "Pilih minimal satu industri yang diminati.";
-  }
   if (Object.keys(errors).length > 0) return failSection(errors);
 
   const user = await requireUser();
-  const primaryCity = draft.preferredCities[0] ?? "";
   await patchProfileAsync(user.id, (base) => ({
     ...base,
     preferredJobTypes: draft.preferredJobTypes,
     preferredWorkModes: draft.preferredWorkModes,
-    preferredCities: draft.preferredCities,
-    industries: draft.industries,
-    // Keep top-level location synced with primary preferred city so other
-    // surfaces (location chip, AppShell sidebar) reflect the change too.
-    location: primaryCity || base.location,
   }));
-  revalidateProfileSurfaces();
+  await refreshProfileScore(user.id);
   return { ok: true };
 }
 
@@ -693,8 +685,6 @@ export async function savePreferencesSection(
 export type OnboardingPreferencesInput = {
   preferredJobTypes: JobType[];
   preferredWorkModes: WorkMode[];
-  preferredCities: string[];
-  industries: string[];
 };
 
 export type OnboardingInput = {
@@ -718,7 +708,6 @@ export async function completeOnboarding(input: OnboardingInput) {
   const accountName = user.name ?? "Pencari Kerja";
   const accountEmail = user.email ?? "";
   const prefs = input.preferences;
-  const primaryCity = prefs.preferredCities[0] ?? "";
 
   const cv = input.cv;
   const cvPersonal = cv?.personal ?? {};
@@ -726,7 +715,7 @@ export async function completeOnboarding(input: OnboardingInput) {
   const resolvedEmail =
     cvEmail && cvEmail.length > 0 ? cvEmail : accountEmail;
   const resolvedName = cvPersonal.name?.trim() || accountName;
-  const resolvedLocation = cvPersonal.location?.trim() || primaryCity;
+  const resolvedLocation = cvPersonal.location?.trim() || "";
   const resolvedBio = cvPersonal.bio?.trim() ?? "";
   const education =
     cv?.education.map((e) => ({
@@ -793,8 +782,6 @@ export async function completeOnboarding(input: OnboardingInput) {
     readinessScore: base.readinessScore ?? 0,
     preferredJobTypes: prefs.preferredJobTypes,
     preferredWorkModes: prefs.preferredWorkModes,
-    preferredCities: prefs.preferredCities,
-    industries: prefs.industries,
     skills: skills.length > 0 ? skills : base.skills ?? [],
     education: education.length > 0 ? education : base.education,
     experience: experience.length > 0 ? experience : base.experience,

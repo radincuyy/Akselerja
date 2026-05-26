@@ -21,8 +21,6 @@ import {
   type SkillDraft,
 } from "@/lib/profile-actions";
 import type { Candidate, JobType, WorkMode } from "@/lib/types";
-import { CITY_OPTIONS, INDUSTRY_OPTIONS } from "@/lib/preferences-options";
-import MultiSelectInput from "@/components/MultiSelectInput";
 import CvUploader from "@/components/CvUploader";
 
 type SectionKey =
@@ -785,8 +783,6 @@ function toPreferencesInitial(me: Candidate): PreferencesDraft {
   return {
     preferredJobTypes: me.preferredJobTypes ?? [],
     preferredWorkModes: me.preferredWorkModes ?? [],
-    preferredCities: me.preferredCities ?? [],
-    industries: me.industries ?? [],
   };
 }
 
@@ -799,13 +795,7 @@ function PreferencesDisplay({
 }) {
   const types = me.preferredJobTypes ?? [];
   const modes = me.preferredWorkModes ?? [];
-  const cities = me.preferredCities ?? [];
-  const industries = me.industries ?? [];
-  const isEmpty =
-    types.length === 0 &&
-    modes.length === 0 &&
-    cities.length === 0 &&
-    industries.length === 0;
+  const isEmpty = types.length === 0 && modes.length === 0;
 
   if (isEmpty) {
     return (
@@ -825,8 +815,6 @@ function PreferencesDisplay({
           m === "onsite" ? "Onsite" : m === "hybrid" ? "Hybrid" : "Remote",
         )}
       />
-      <PreferenceItem label="Kota" values={cities} />
-      <PreferenceItem label="Industri yang diminati" values={industries} />
     </dl>
   );
 }
@@ -888,14 +876,6 @@ function PreferencesForm({
     }
     if (data.preferredWorkModes.length === 0) {
       setError("Pilih minimal satu mode kerja.");
-      return;
-    }
-    if (data.preferredCities.length === 0) {
-      setError("Pilih minimal satu kota.");
-      return;
-    }
-    if (data.industries.length === 0) {
-      setError("Pilih minimal satu industri yang diminati.");
       return;
     }
     start(async () => {
@@ -1013,23 +993,6 @@ function PreferencesForm({
           })}
         </div>
       </fieldset>
-
-      <MultiSelectInput
-        label="Kota"
-        values={data.preferredCities}
-        options={CITY_OPTIONS}
-        onChange={(next) => setData({ ...data, preferredCities: next })}
-        placeholder="Tambah kota"
-        helperText="Kota pertama jadi lokasi utama profil kamu."
-      />
-
-      <MultiSelectInput
-        label="Industri yang diminati"
-        values={data.industries}
-        options={INDUSTRY_OPTIONS}
-        onChange={(next) => setData({ ...data, industries: next })}
-        placeholder="Tambah industri"
-      />
 
       <FormFooter
         error={error}

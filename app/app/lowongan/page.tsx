@@ -19,7 +19,6 @@ type SearchParams = Promise<{
   pendidikan?: string;
   gaji?: string;
   page?: string;
-  clear?: string;
 }>;
 
 const PAGE_SIZE = 20;
@@ -81,38 +80,14 @@ export default async function LowonganListPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const { lokasi, tipe, industri, mode, q, pengalaman, pendidikan, gaji, page, clear } = sp;
+  const { lokasi, tipe, industri, mode, q, pengalaman, pendidikan, gaji, page } = sp;
   const user = await requireUser();
   const me = await getProfileOrSeedAsync(user.id);
 
-  const hasAnyParam = Boolean(
-    lokasi || tipe || industri || mode || pengalaman || pendidikan || gaji || q,
-  );
-  const useProfileDefaults = clear !== "1" && !hasAnyParam;
-  const lokasiList = useProfileDefaults
-    ? me.preferredCities ?? []
-    : csvList(lokasi);
-  const tipeList = useProfileDefaults
-    ? me.preferredJobTypes ?? []
-    : csvList(tipe);
-  const industriList = useProfileDefaults
-    ? me.industries ?? []
-    : csvList(industri);
-  const modeList = useProfileDefaults
-    ? me.preferredWorkModes ?? []
-    : csvList(mode);
-
-  const fallbackSearchParams: Record<string, string> | undefined =
-    useProfileDefaults
-      ? Object.fromEntries(
-          [
-            ["lokasi", lokasiList.join(",")],
-            ["tipe", tipeList.join(",")],
-            ["industri", industriList.join(",")],
-            ["mode", modeList.join(",")],
-          ].filter(([, value]) => value),
-        )
-      : undefined;
+  const lokasiList = csvList(lokasi);
+  const tipeList = csvList(tipe);
+  const industriList = csvList(industri);
+  const modeList = csvList(mode);
 
   const pageNum = Math.max(1, parseInt(page ?? "1", 10) || 1);
   const top = pageNum * PAGE_SIZE;
@@ -190,10 +165,7 @@ export default async function LowonganListPage({
       />
 
       <div className="mt-8 max-w-2xl">
-        <JobSearchInput
-          defaultValue={q ?? ""}
-          fallbackSearchParams={fallbackSearchParams}
-        />
+        <JobSearchInput defaultValue={q ?? ""} />
         {fromSearch && hasSkills ? (
           <p className="mt-2 text-xs text-(--color-muted)">
             Pencarian semantik berdasarkan profilmu, jadi urutan menyesuaikan
@@ -244,7 +216,6 @@ export default async function LowonganListPage({
           defaultExperience={pengalaman ?? ""}
           defaultEducation={pendidikan ?? ""}
           defaultSalary={gaji ?? ""}
-          fallbackSearchParams={fallbackSearchParams}
         />
       </div>
 
@@ -259,7 +230,6 @@ export default async function LowonganListPage({
             defaultExperience={pengalaman ?? ""}
             defaultEducation={pendidikan ?? ""}
             defaultSalary={gaji ?? ""}
-            fallbackSearchParams={fallbackSearchParams}
           />
         </div>
 

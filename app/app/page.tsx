@@ -6,6 +6,7 @@ import { buildMatchReason } from "@/lib/match-reason";
 import { searchJobs } from "@/lib/search-store";
 import { listAssessmentsAsync } from "@/lib/assessments-store";
 import { getCurrentCandidate } from "@/lib/current-candidate";
+import { calculateReadinessScore } from "@/lib/profile-store";
 import { completedAssessmentIdsForUser } from "@/lib/attempts-store";
 import type { Assessment, Candidate } from "@/lib/types";
 
@@ -13,6 +14,7 @@ const HOME_RECOMMENDATION_LIMIT = 12;
 
 export default async function CandidateHome() {
   const { user, profile } = await getCurrentCandidate();
+  const readinessScore = calculateReadinessScore(profile);
   const userSkillIds = profile.skills?.map((s) => s.skillId) ?? [];
   const [search, assessments, completedIds] = await Promise.all([
     searchJobs({
@@ -32,6 +34,8 @@ export default async function CandidateHome() {
   const bestMatchScore = ranked[0]?.score ?? 0;
   const recommendationCount = top3.length;
   const hasStrongMatch = ranked.some((r) => r.score >= 60);
+  const mediumMatchCount = ranked.filter((r) => r.score >= 50).length;
+  const hasMediumMatch = mediumMatchCount > 0;
   const hasSkills = userSkillIds.length > 0;
   const hasJobs = top3.length > 0;
   const canShowRecommendations = hasSkills && hasJobs;
@@ -39,17 +43,23 @@ export default async function CandidateHome() {
   const firstName = profile.name.split(" ")[0] || "kamu";
   const heading = !hasSkills
     ? `Halo ${firstName}, profilmu masih perlu diisi.`
-    : !hasStrongMatch
-      ? `Belum ada lowongan yang cocok hari ini, ${firstName}.`
-      : recommendationCount === 1
+    : hasStrongMatch
+      ? recommendationCount === 1
         ? "Ini lowongan terbaik untukmu hari ini."
-        : `Ini ${recommendationCount} lowongan terbaik untukmu hari ini.`;
+        : `Ini ${recommendationCount} lowongan terbaik untukmu hari ini.`
+      : hasMediumMatch
+        ? mediumMatchCount === 1
+          ? `Ada 1 lowongan yang bisa kamu kejar, ${firstName}.`
+          : `Ada ${mediumMatchCount} lowongan yang bisa kamu kejar, ${firstName}.`
+        : `Belum ada lowongan yang cocok hari ini, ${firstName}.`;
 
   const subhead = !hasSkills
     ? "Lengkapi skill dan pengalaman supaya kami bisa memilihkan lowongan yang benar-benar cocok untukmu, bukan asal urut."
-    : !hasStrongMatch
-      ? "Lengkapi profil atau ikuti satu assessment supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk."
-      : "Lowongan ini diurutkan dari kecocokan skill, pengalaman, dan preferensi profilmu.";
+    : hasStrongMatch
+      ? "Lowongan ini diurutkan dari kecocokan skill, pengalaman, dan preferensi profilmu."
+      : hasMediumMatch
+        ? "Skill kamu sudah cocok sebagian. Tutup beberapa skill gap supaya peluangmu makin besar."
+        : "Lengkapi profil atau ikuti satu assessment supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk.";
 
   return (
     <>
@@ -70,7 +80,7 @@ export default async function CandidateHome() {
 
       <section className="mt-10 rounded-lg border border-(--color-line) bg-(--color-paper) p-6">
         <ScoreDisplay
-          score={profile.readinessScore}
+          score={readinessScore}
           label="Kelengkapan profil"
           explanation={
             bestMatchScore > 0
@@ -78,7 +88,7 @@ export default async function CandidateHome() {
               : "Angka ini membaca kelengkapan profil, CV, skill, assessment, dan pengalaman. Match score lowongan akan muncul setelah ada lowongan yang cocok dengan profilmu."
           }
           action={
-            profile.readinessScore >= 100
+            readinessScore >= 100
               ? { label: "Lihat lowongan", href: "/app/lowongan" }
               : { label: "Lengkapi profil", href: "/app/profil" }
           }

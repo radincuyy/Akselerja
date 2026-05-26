@@ -21,7 +21,6 @@ type Props = {
   defaultExperience: string;
   defaultEducation: string;
   defaultSalary: string;
-  fallbackSearchParams?: Record<string, string>;
 };
 
 const TYPE_OPTIONS: { value: string; label: string }[] = [
@@ -97,7 +96,6 @@ export default function JobFilterSheet({
   defaultExperience,
   defaultEducation,
   defaultSalary,
-  fallbackSearchParams,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -175,13 +173,6 @@ export default function JobFilterSheet({
 
   function commit(key: string, value: string) {
     const params = new URLSearchParams(searchParams);
-    if (fallbackSearchParams && params.size === 0) {
-      for (const [fallbackKey, fallbackValue] of Object.entries(
-        fallbackSearchParams,
-      )) {
-        if (fallbackValue) params.set(fallbackKey, fallbackValue);
-      }
-    }
     if (value) params.set(key, value);
     else params.delete(key);
     params.delete("page");

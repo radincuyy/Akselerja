@@ -68,9 +68,6 @@ function summarizeProfile(profile: Candidate): string {
   if (profile.preferredJobTypes && profile.preferredJobTypes.length > 0) {
     lines.push(`Tipe kerja diminati: ${profile.preferredJobTypes.join(", ")}`);
   }
-  if (profile.industries && profile.industries.length > 0) {
-    lines.push(`Industri diminati: ${profile.industries.join(", ")}`);
-  }
   const skills = (profile.skills ?? [])
     .map((s) => s.name ?? skillById[s.skillId]?.name ?? s.skillId)
     .filter(Boolean);

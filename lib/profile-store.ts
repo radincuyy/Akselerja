@@ -266,10 +266,7 @@ export function calculateReadinessScore(profile: Candidate): number {
     profile.phone || profile.linkedin || profile.github || profile.portfolio,
   );
   const hasPreferences = Boolean(
-    profile.preferredJobTypes?.length &&
-      profile.preferredWorkModes?.length &&
-      profile.preferredCities?.length &&
-      profile.industries?.length,
+    profile.preferredJobTypes?.length && profile.preferredWorkModes?.length,
   );
 
   let score = 0;

@@ -8,14 +8,8 @@ import {
 } from "@/lib/profile-actions";
 import type {
   OnboardingPreferencesInput,
-  ParsedCvPreview,
 } from "@/lib/profile-actions";
 import type { JobType, WorkMode } from "@/lib/types";
-import {
-  CITY_OPTIONS,
-  INDUSTRY_OPTIONS,
-} from "@/lib/preferences-options";
-import MultiSelectInput from "@/components/MultiSelectInput";
 
 type Step = "preferences" | "cv";
 
@@ -26,8 +20,6 @@ type OnboardingDraft = {
   step: Step;
   jobTypes: JobType[];
   workModes: WorkMode[];
-  cities: string[];
-  industries: string[];
   savedAt: number;
 };
 
@@ -49,8 +41,6 @@ function loadDraft(): OnboardingDraft | null {
       step: parsed.step === "cv" ? "cv" : "preferences",
       jobTypes: Array.isArray(parsed.jobTypes) ? parsed.jobTypes : [],
       workModes: Array.isArray(parsed.workModes) ? parsed.workModes : [],
-      cities: Array.isArray(parsed.cities) ? parsed.cities : [],
-      industries: Array.isArray(parsed.industries) ? parsed.industries : [],
       savedAt: parsed.savedAt,
     };
   } catch {
@@ -94,40 +84,30 @@ export default function OnboardingFlow() {
 
   const [jobTypes, setJobTypes] = useState<JobType[]>(["Full-time"]);
   const [workModes, setWorkModes] = useState<WorkMode[]>(["onsite"]);
-  const [cities, setCities] = useState<string[]>([]);
-  const [industries, setIndustries] = useState<string[]>([]);
 
   const [preferences, setPreferences] =
     useState<OnboardingPreferencesInput | null>(null);
 
-  // Restore draft once on mount, before any user interaction.
   useEffect(() => {
     const draft = loadDraft();
     if (!draft) return;
     if (draft.jobTypes.length > 0) setJobTypes(draft.jobTypes);
     if (draft.workModes.length > 0) setWorkModes(draft.workModes);
-    setCities(draft.cities);
-    setIndustries(draft.industries);
     if (draft.step === "cv") {
       setPreferences({
         preferredJobTypes: draft.jobTypes,
         preferredWorkModes: draft.workModes,
-        preferredCities: draft.cities,
-        industries: draft.industries,
       });
       setStep("cv");
     }
   }, []);
 
-  // Persist a draft on each meaningful change so a reload keeps progress.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const draft: OnboardingDraft = {
       step,
       jobTypes,
       workModes,
-      cities,
-      industries,
       savedAt: Date.now(),
     };
     try {
@@ -135,7 +115,7 @@ export default function OnboardingFlow() {
     } catch {
       // Ignore storage errors (quota, private mode).
     }
-  }, [step, jobTypes, workModes, cities, industries]);
+  }, [step, jobTypes, workModes]);
 
   const jobTypeId = useId();
   const workModeId = useId();
@@ -151,20 +131,10 @@ export default function OnboardingFlow() {
       setError("Pilih minimal satu mode kerja.");
       return;
     }
-    if (cities.length === 0) {
-      setError("Pilih minimal satu kota.");
-      return;
-    }
-    if (industries.length === 0) {
-      setError("Pilih minimal satu industri yang kamu minati.");
-      return;
-    }
     setError(null);
     setPreferences({
       preferredJobTypes: jobTypes,
       preferredWorkModes: workModes,
-      preferredCities: cities,
-      industries,
     });
     setStep("cv");
   }
@@ -294,9 +264,8 @@ export default function OnboardingFlow() {
               Pekerjaan seperti apa yang kamu cari?
             </h2>
             <p className="mt-3 max-w-xl text-base leading-relaxed text-(--color-muted)">
-              Pilih semua yang sesuai. Kamu bisa pilih lebih dari satu tipe,
-              mode kerja, kota, atau industri. Bisa diubah kapan saja dari
-              profil.
+              Pilih semua yang sesuai. Kamu bisa pilih lebih dari satu tipe atau
+              mode kerja. Bisa diubah kapan saja dari profil.
             </p>
 
             <form onSubmit={handlePreferencesSubmit} className="mt-8 grid max-w-2xl gap-7">
@@ -373,23 +342,6 @@ export default function OnboardingFlow() {
                   })}
                 </div>
               </fieldset>
-
-              <MultiSelectInput
-                label="Kota"
-                placeholder="Ketik atau pilih kota"
-                options={CITY_OPTIONS}
-                values={cities}
-                onChange={setCities}
-              />
-
-              <MultiSelectInput
-                label="Industri yang diminati"
-                placeholder="Ketik atau pilih industri"
-                options={INDUSTRY_OPTIONS}
-                values={industries}
-                onChange={setIndustries}
-                helperText="Boleh dilewati. Bisa diubah kapan saja dari profil."
-              />
 
               {error && (
                 <p role="alert" className="text-sm text-(--color-signal-clay)">

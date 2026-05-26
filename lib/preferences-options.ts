@@ -1,35 +1,3 @@
-export const CITY_OPTIONS = [
-  "Jakarta Pusat",
-  "Jakarta Selatan",
-  "Jakarta Barat",
-  "Jakarta Timur",
-  "Jakarta Utara",
-  "Bogor",
-  "Depok",
-  "Tangerang",
-  "Tangerang Selatan",
-  "Bekasi",
-  "Cikarang",
-  "Bandung",
-  "Cimahi",
-  "Semarang",
-  "Yogyakarta",
-  "Surakarta",
-  "Surabaya",
-  "Malang",
-  "Sidoarjo",
-  "Denpasar",
-  "Medan",
-  "Pekanbaru",
-  "Palembang",
-  "Batam",
-  "Makassar",
-  "Manado",
-  "Balikpapan",
-  "Samarinda",
-  "Banjarmasin",
-] as const;
-
 export const INDUSTRY_OPTIONS = [
   "Layanan Profesional",
   "Marketing",
@@ -48,4 +16,3 @@ export const INDUSTRY_OPTIONS = [
   "Teknologi Informasi",
   "Hotel & Pariwisata",
 ] as const;
-

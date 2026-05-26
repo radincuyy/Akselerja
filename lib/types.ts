@@ -154,8 +154,6 @@ export type Candidate = {
   status?: "ready" | "trainable";
   preferredJobTypes?: JobType[];
   preferredWorkModes?: WorkMode[];
-  preferredCities?: string[];
-  industries?: string[];
   education?: Education[];
   experience?: Experience[];
   organizations?: OrganizationExperience[];
