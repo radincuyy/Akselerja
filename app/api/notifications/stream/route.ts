@@ -9,8 +9,9 @@ import { getProfileAsync } from "@/lib/profile-store";
 export const runtime = "nodejs";
 
 const STREAM_INTERVAL_MS = 20_000;
+const STREAM_MAX_DURATION_MS = 5 * 60 * 1000;
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return new Response("event: error\ndata: {}\n\n", {
@@ -26,6 +27,19 @@ export async function GET() {
   const encoder = new TextEncoder();
   let closed = false;
   let interval: ReturnType<typeof setInterval> | null = null;
+  let maxLifetime: ReturnType<typeof setTimeout> | null = null;
+
+  function teardown() {
+    closed = true;
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
+    }
+    if (maxLifetime) {
+      clearTimeout(maxLifetime);
+      maxLifetime = null;
+    }
+  }
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -55,12 +69,29 @@ export async function GET() {
         }
       }
 
+      request.signal.addEventListener("abort", () => {
+        teardown();
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      });
+
+      maxLifetime = setTimeout(() => {
+        teardown();
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      }, STREAM_MAX_DURATION_MS);
+
       await push();
       interval = setInterval(push, STREAM_INTERVAL_MS);
     },
     cancel() {
-      closed = true;
-      if (interval) clearInterval(interval);
+      teardown();
     },
   });
 

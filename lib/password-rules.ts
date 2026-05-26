@@ -1,13 +1,8 @@
 export type PasswordCheck = {
-  id: "length" | "number" | "symbol" | "capital";
+  id: "length" | "number" | "symbol" | "letter";
   label: string;
   met: boolean;
 };
-
-function startsWithCapitalLetter(password: string): boolean {
-  const first = password.charAt(0);
-  return Boolean(first && first !== first.toLowerCase() && first === first.toUpperCase());
-}
 
 export function getPasswordChecks(password: string): PasswordCheck[] {
   return [
@@ -15,6 +10,11 @@ export function getPasswordChecks(password: string): PasswordCheck[] {
       id: "length",
       label: "Minimal 8 karakter",
       met: password.length >= 8,
+    },
+    {
+      id: "letter",
+      label: "Mengandung huruf",
+      met: /[A-Za-z]/.test(password),
     },
     {
       id: "number",
@@ -26,11 +26,6 @@ export function getPasswordChecks(password: string): PasswordCheck[] {
       label: "Minimal 1 simbol (!, ?, &, ...)",
       met: /[^A-Za-z0-9\s]/.test(password),
     },
-    {
-      id: "capital",
-      label: "Huruf pertama kapital",
-      met: startsWithCapitalLetter(password),
-    },
   ];
 }
 
@@ -39,4 +34,4 @@ export function isPasswordValid(password: string): boolean {
 }
 
 export const PASSWORD_RULE_ERROR =
-  "Password harus minimal 8 karakter, punya 1 angka, punya 1 simbol, dan diawali huruf kapital.";
+  "Password harus minimal 8 karakter dan punya huruf, angka, dan simbol.";

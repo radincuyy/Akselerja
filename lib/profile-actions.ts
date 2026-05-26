@@ -147,6 +147,42 @@ const ALLOWED_CONTENT_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
+function detectFileSignature(
+  buffer: Buffer,
+): "pdf" | "docx" | "doc" | "unknown" {
+  if (buffer.length < 4) return "unknown";
+  if (
+    buffer[0] === 0x25 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x44 &&
+    buffer[3] === 0x46
+  ) {
+    return "pdf";
+  }
+  if (
+    buffer[0] === 0x50 &&
+    buffer[1] === 0x4b &&
+    buffer[2] === 0x03 &&
+    buffer[3] === 0x04
+  ) {
+    return "docx";
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0xd0 &&
+    buffer[1] === 0xcf &&
+    buffer[2] === 0x11 &&
+    buffer[3] === 0xe0 &&
+    buffer[4] === 0xa1 &&
+    buffer[5] === 0xb1 &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0xe1
+  ) {
+    return "doc";
+  }
+  return "unknown";
+}
+
 export async function uploadCvForReview(
   formData: FormData,
 ): Promise<ParsedCvPreview | { error: string }> {
@@ -172,7 +208,20 @@ export async function uploadCvForReview(
   const user = await requireUser();
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-  const contentType = file.type || "application/octet-stream";
+
+  const signature = detectFileSignature(buffer);
+  if (signature === "unknown") {
+    return {
+      error:
+        "File tidak terbaca sebagai PDF, DOC, atau DOCX. Pastikan ekstensi sesuai isinya.",
+    };
+  }
+  const contentType =
+    signature === "pdf"
+      ? "application/pdf"
+      : signature === "docx"
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : "application/msword";
 
   let blobName: string | undefined;
   if (isBlobConfigured()) {

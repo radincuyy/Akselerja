@@ -5,6 +5,12 @@ import { getProfileAsync } from "@/lib/profile-store";
 
 export const runtime = "nodejs";
 
+const SAFE_CONTENT_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -23,13 +29,22 @@ export async function GET() {
   try {
     const { buffer, contentType, contentLength } =
       await downloadBlobToBuffer(cv.blobName);
-    const filename = cv.filename.replace(/"/g, "");
+    const filename = cv.filename.replace(/[\r\n"]/g, "");
+    const candidateType = cv.contentType ?? contentType ?? "";
+    const isPdf = candidateType === "application/pdf";
+    const safeType = SAFE_CONTENT_TYPES.has(candidateType)
+      ? candidateType
+      : "application/octet-stream";
+    const disposition = isPdf
+      ? `inline; filename="${filename}"`
+      : `attachment; filename="${filename}"`;
     return new Response(new Uint8Array(buffer), {
       headers: {
         "Cache-Control": "no-store",
-        "Content-Type": cv.contentType ?? contentType ?? "application/pdf",
+        "Content-Type": safeType,
         "Content-Length": String(contentLength ?? buffer.byteLength),
-        "Content-Disposition": `inline; filename="${filename}"`,
+        "Content-Disposition": disposition,
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (err) {
