@@ -49,14 +49,7 @@ export async function getProfileAsync(userId = ME_ID): Promise<Candidate | null>
         if (!resource) return null;
         return stripCosmos(resource);
       } catch (err: unknown) {
-        if (
-          err &&
-          typeof err === "object" &&
-          "code" in err &&
-          (err as { code: number }).code === 404
-        ) {
-          return null;
-        }
+        if (is404(err)) return null;
         throw err;
       }
     },
@@ -88,6 +81,10 @@ export type ProfileBasicInput = {
   email: string;
 };
 
+function is404(err: unknown): boolean {
+  return Boolean(err && typeof err === "object" && "code" in err && (err as { code: number }).code === 404);
+}
+
 async function readRecord(
   userId: string,
 ): Promise<CandidateRecord | null> {
@@ -98,9 +95,7 @@ async function readRecord(
       .read<CandidateRecord>();
     return resource ?? null;
   } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && (err as { code: number }).code === 404) {
-      return null;
-    }
+    if (is404(err)) return null;
     throw err;
   }
 }
@@ -363,14 +358,7 @@ export async function migrateProfileIdAsync(
   try {
     await container.item(existing.id, existing.userId ?? existing.id).delete();
   } catch (err: unknown) {
-    if (
-      !err ||
-      typeof err !== "object" ||
-      !("code" in err) ||
-      (err as { code: number }).code !== 404
-    ) {
-      throw err;
-    }
+    if (!is404(err)) throw err;
   }
   return stripCosmos(migrated);
 }
@@ -380,14 +368,7 @@ export async function deleteProfileAsync(userId: string): Promise<void> {
   try {
     await container.item(userId, userId).delete();
   } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: number }).code === 404
-    ) {
-      return;
-    }
+    if (is404(err)) return;
     throw err;
   }
 }

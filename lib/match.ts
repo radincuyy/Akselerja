@@ -151,26 +151,14 @@ function experienceRatio(
   if (min != null && years < min) {
     const gap = min - years;
     const ratio = Math.max(0, 1 - gap / Math.max(min, 1));
-    return {
-      ratio,
-      applicable: true,
-      detail: `Kamu ${years} thn, posisi minta ${min}+ thn`,
-    };
+    return { ratio, applicable: true, detail: `Kamu ${years} thn, posisi minta ${min}+ thn` };
   }
   if (max != null && years > max + 2) {
     const over = years - max;
     const ratio = Math.max(0.5, 1 - over / 10);
-    return {
-      ratio,
-      applicable: true,
-      detail: `Kamu ${years} thn, posisi targetkan ${max} thn`,
-    };
+    return { ratio, applicable: true, detail: `Kamu ${years} thn, posisi targetkan ${max} thn` };
   }
-  return {
-    ratio: 1,
-    applicable: true,
-    detail: `Kamu ${years} thn, sesuai`,
-  };
+  return { ratio: 1, applicable: true, detail: `Kamu ${years} thn, sesuai` };
 }
 
 function highestCandidateEducation(candidate: Candidate): number {
@@ -227,18 +215,10 @@ function educationRatio(
   const reqRank = EDUCATION_RANK[required] ?? EDUCATION_RANK[required.toLowerCase()];
   if (reqRank == null) return { ratio: 1, applicable: false, detail: "Tidak disebut" };
   const candidateRank = highestCandidateEducation(candidate);
-  if (candidateRank < 0) {
-    return { ratio: 0, applicable: true, detail: "Pendidikanmu belum diisi" };
-  }
-  if (candidateRank >= reqRank) {
-    return { ratio: 1, applicable: true, detail: "Pendidikanmu memenuhi" };
-  }
+  if (candidateRank < 0) return { ratio: 0, applicable: true, detail: "Pendidikanmu belum diisi" };
+  if (candidateRank >= reqRank) return { ratio: 1, applicable: true, detail: "Pendidikanmu memenuhi" };
   const gap = reqRank - candidateRank;
-  return {
-    ratio: Math.max(0, 1 - gap * 0.4),
-    applicable: true,
-    detail: `Posisi minta jenjang lebih tinggi`,
-  };
+  return { ratio: Math.max(0, 1 - gap * 0.4), applicable: true, detail: "Posisi minta jenjang lebih tinggi" };
 }
 
 export function calcMatch(candidate: Candidate, job: Job): MatchResult {

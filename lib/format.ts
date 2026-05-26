@@ -33,10 +33,7 @@ function scoreBand(score: number): ScoreBand {
 
 export type ScoreAudience = "candidate" | "hr";
 
-export function scoreBandLabel(
-  score: number,
-  audience: ScoreAudience = "candidate",
-): string {
+export function scoreBandLabel(score: number, audience: ScoreAudience = "candidate"): string {
   const band = scoreBand(score);
   if (audience === "hr") {
     if (band === "siap") return "Siap kerja";

@@ -6,10 +6,6 @@ export type MatchReason = {
   negative: string;
 };
 
-function uniq<T>(arr: T[]): T[] {
-  return Array.from(new Set(arr));
-}
-
 function joinList(parts: string[], max = 2): string {
   const trimmed = parts.slice(0, max);
   if (trimmed.length === 0) return "";
@@ -105,7 +101,7 @@ export function buildMatchReason(
 }
 
 function composeSentence(parts: string[], prefix: string): string {
-  const items = uniq(parts).slice(0, 3);
+  const items = Array.from(new Set(parts)).slice(0, 3);
   if (items.length === 0) return "";
   const joined = joinList(items, items.length);
   return `${prefix} ${joined}.`;

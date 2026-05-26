@@ -86,12 +86,7 @@ export async function getJobByIdAsync(
           const { resource } = await container.item(jobId, partition).read<Job>();
           return resource ? ensureCompanyId(resource) : undefined;
         } catch (err: unknown) {
-          if (
-            err &&
-            typeof err === "object" &&
-            "code" in err &&
-            (err as { code: number }).code === 404
-          ) {
+          if (err && typeof err === "object" && "code" in err && (err as { code: number }).code === 404) {
             return undefined;
           }
           throw err;

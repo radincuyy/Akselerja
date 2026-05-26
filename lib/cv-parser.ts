@@ -75,19 +75,6 @@ export type CvParseInput = {
 
 type CvParserEngine = (input: CvParseInput) => Promise<ParsedCv>;
 
-// Slug stabil supaya re-upload CV tidak bikin skill duplikat.
-function slugifySkillName(name: string): string {
-  return (
-    name
-      .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 80) || "skill"
-  );
-}
-
 // Map label umum/colloquial ke skillId taksonomi supaya match score nyala
 // untuk skill yang dikenal lib/skills.ts.
 const TAXONOMY_ALIASES: Record<string, string> = {
@@ -127,6 +114,17 @@ const TAXONOMY_ALIASES: Record<string, string> = {
   "sap-inventory": "sap-inventory",
   "sap": "sap-inventory",
 };
+
+// Slug stabil supaya re-upload CV tidak bikin skill duplikat.
+function slugifySkillName(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "skill";
+}
 
 function resolveSkillId(name: string): string {
   const slug = slugifySkillName(name);

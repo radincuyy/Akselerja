@@ -94,6 +94,22 @@ function asInt(v: FormDataEntryValue | null, fallback = 0): number {
   return Number.isFinite(n) ? Math.round(n) : fallback;
 }
 
+function monthsBetween(startMonth?: string, endMonth?: string): number {
+  if (!startMonth) return 0;
+  const start = parseMonth(startMonth);
+  if (!start) return 0;
+  const end = endMonth ? parseMonth(endMonth) : new Date();
+  if (!end) return 0;
+  const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  return Math.max(0, months);
+}
+
+function parseMonth(value: string): Date | null {
+  const m = value.match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, 1);
+}
+
 export type ParsedCvPreview = {
   filename: string;
   sizeBytes: number;
@@ -873,27 +889,25 @@ export async function submitAssessmentAttempt(input: {
   slug: string;
   correct: number;
   total: number;
-}):
-  | Promise<
-      | {
-          ok: true;
-          score: number;
-          correct: number;
-          total: number;
-          passed: boolean;
-          feedback: string;
-          readinessScore: number;
-          previousReadinessScore: number;
-          readinessScoreIncrease: number;
-        }
-      | { ok: false; error: string }
-    > {
+}): Promise<
+  | {
+      ok: true;
+      score: number;
+      correct: number;
+      total: number;
+      passed: boolean;
+      feedback: string;
+      readinessScore: number;
+      previousReadinessScore: number;
+      readinessScoreIncrease: number;
+    }
+  | { ok: false; error: string }
+> {
   const user = await requireUser();
   const assessment = await getAssessmentBySlugAsync(input.slug);
-  if (!assessment)
-    return { ok: false as const, error: "Assessment tidak ditemukan." };
-  const score =
-    input.total > 0 ? Math.round((input.correct / input.total) * 100) : 0;
+  if (!assessment) return { ok: false, error: "Assessment tidak ditemukan." };
+
+  const score = input.total > 0 ? Math.round((input.correct / input.total) * 100) : 0;
   const passed = score >= 50;
   await recordAttemptStore({
     userId: user.id,
@@ -909,9 +923,6 @@ export async function submitAssessmentAttempt(input: {
   revalidatePath("/app/profil");
   revalidatePath("/app");
 
-  // Generate personal feedback. This adds 1-3s but turns a numeric score into
-  // an actionable next step, which is the whole point of an assessment in an
-  // upskilling app. Failures fall back to a static template inside the lib.
   const skillName = skillById[assessment.skillId]?.name ?? assessment.skillId;
   let feedback = "";
   try {
@@ -942,7 +953,7 @@ export async function submitAssessmentAttempt(input: {
   }
 
   return {
-    ok: true as const,
+    ok: true,
     score,
     correct: input.correct,
     total: input.total,
@@ -1012,22 +1023,4 @@ export async function submitPracticeAttempt(input: {
     previousReadinessScore: readinessScoreChange.previousScore,
     readinessScoreIncrease: readinessScoreChange.increasedBy,
   };
-}
-
-function monthsBetween(startMonth?: string, endMonth?: string): number {
-  if (!startMonth) return 0;
-  const start = parseMonth(startMonth);
-  if (!start) return 0;
-  const end = endMonth ? parseMonth(endMonth) : new Date();
-  if (!end) return 0;
-  const months =
-    (end.getFullYear() - start.getFullYear()) * 12 +
-    (end.getMonth() - start.getMonth());
-  return Math.max(0, months);
-}
-
-function parseMonth(value: string): Date | null {
-  const m = value.match(/^(\d{4})-(\d{2})$/);
-  if (!m) return null;
-  return new Date(Number(m[1]), Number(m[2]) - 1, 1);
 }

@@ -15,10 +15,7 @@ export function isBlobConfigured(): boolean {
   return Boolean(CONNECTION_STRING || (ACCOUNT_NAME && ACCOUNT_KEY));
 }
 
-function parseAccountFromConnectionString(): {
-  account: string;
-  key: string;
-} | null {
+function parseAccountFromConnectionString(): { account: string; key: string } | null {
   if (!CONNECTION_STRING) return null;
   const parts = Object.fromEntries(
     CONNECTION_STRING.split(";")
@@ -55,10 +52,7 @@ function getService(): BlobServiceClient {
   return _service;
 }
 
-function getSharedKeyCredential(): {
-  account: string;
-  credential: StorageSharedKeyCredential;
-} {
+function getSharedKeyCredential(): { account: string; credential: StorageSharedKeyCredential } {
   const parsed = parseAccountFromConnectionString();
   const account = parsed?.account ?? ACCOUNT_NAME;
   const key = parsed?.key ?? ACCOUNT_KEY;

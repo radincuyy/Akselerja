@@ -17,6 +17,10 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+function is404Error(err: unknown): boolean {
+  return Boolean(err && typeof err === "object" && "code" in err && (err as { code: number }).code === 404);
+}
+
 export type CreateUserInput = {
   name: string;
   email: string;
@@ -40,8 +44,7 @@ export async function createUserWithPassword(
     const { resource } = await container.item(email, email).read<UserRecord>();
     if (resource) return { ok: false, reason: "email-taken" };
   } catch (err: unknown) {
-    const is404 = err && typeof err === "object" && "code" in err && (err as { code: number }).code === 404;
-    if (!is404) {
+    if (!is404Error(err)) {
       return {
         ok: false,
         reason: "cosmos-error",
@@ -63,12 +66,7 @@ export async function createUserWithPassword(
   try {
     await container.items.create(record);
   } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: number }).code === 409
-    ) {
+    if (err && typeof err === "object" && "code" in err && (err as { code: number }).code === 409) {
       return { ok: false, reason: "email-taken" };
     }
     return {
@@ -130,14 +128,7 @@ export async function verifyUserCredentials(
       },
     };
   } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: number }).code === 404
-    ) {
-      return { ok: false, reason: "invalid" };
-    }
+    if (is404Error(err)) return { ok: false, reason: "invalid" };
     return {
       ok: false,
       reason: "cosmos-error",
@@ -161,14 +152,7 @@ export async function deleteUserById(userId: string): Promise<void> {
   try {
     await container.item(record.id, record.id).delete();
   } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: number }).code === 404
-    ) {
-      return;
-    }
+    if (is404Error(err)) return;
     throw err;
   }
 }

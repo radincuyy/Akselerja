@@ -43,15 +43,7 @@ async function readCache(key: string): Promise<string | null> {
     const ageMs = Date.now() - new Date(resource.createdAt).getTime();
     if (ageMs > CACHE_TTL_HOURS * 60 * 60 * 1000) return null;
     return resource.text;
-  } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: number }).code === 404
-    ) {
-      return null;
-    }
+  } catch {
     return null;
   }
 }
