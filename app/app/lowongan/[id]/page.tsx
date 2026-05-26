@@ -114,7 +114,7 @@ export default async function LowonganDetailPage({
   ]);
   if (!job) notFound();
 
-  const { score, breakdown } = calcMatch(me, job);
+  const { score, breakdown, dimensions } = calcMatch(me, job);
   const matched = breakdown.filter((b) => b.state === "match");
   const missing = breakdown.filter((b) => b.state === "missing");
   const matchReason = buildMatchReason(me, job, { score, breakdown });
@@ -329,6 +329,45 @@ export default async function LowonganDetailPage({
                 ) : null}
               </div>
             ) : null}
+
+            <div className="mt-7 space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-muted)">
+                Komponen skor
+              </h2>
+              <ul className="space-y-2">
+                {dimensions
+                  .filter((d) => d.applicable)
+                  .map((d) => (
+                    <li
+                      key={d.id}
+                      className="rounded-md border border-(--color-line) bg-(--color-paper) p-3"
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="text-sm font-medium text-(--color-ink)">
+                          {d.label}
+                        </p>
+                        <p className="text-sm font-semibold tabular-nums text-(--color-ink)">
+                          {d.contribution}
+                          <span className="text-xs font-normal text-(--color-muted)">
+                            {" "}/ {d.weight}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-(--color-tint)">
+                        <div
+                          className="h-full rounded-full bg-(--color-teal)"
+                          style={{
+                            width: `${Math.min(100, Math.round(d.ratio * 100))}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="mt-1.5 text-xs text-(--color-muted)">
+                        {d.detail}
+                      </p>
+                    </li>
+                  ))}
+              </ul>
+            </div>
 
             <div className="mt-7 space-y-3">
               <h2

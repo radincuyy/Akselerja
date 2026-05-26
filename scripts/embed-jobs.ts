@@ -171,6 +171,16 @@ async function main() {
 
     pendingUploads.push({ id: job.id, descriptionVector: vector });
 
+    try {
+      await container
+        .item(job.id, job.companyId ?? job.id)
+        .patch([{ op: "set", path: "/descriptionVector", value: vector }]);
+    } catch (err) {
+      console.warn(
+        `  cosmos vector patch failed for ${job.id}: ${String(err).slice(0, 120)}`,
+      );
+    }
+
     if ((i + 1) % FLUSH_INTERVAL === 0 || i + 1 === jobs.length) {
       console.log(
         `  ${i + 1}/${jobs.length} (embedded=${embedded} cached=${cached} failed=${failed})`,

@@ -20,7 +20,7 @@ function joinList(parts: string[], max = 2): string {
 export function buildMatchReason(
   candidate: Candidate,
   job: Job,
-  match: MatchResult,
+  match: Pick<MatchResult, "score" | "breakdown">,
 ): MatchReason {
   const matched = match.breakdown.filter((b) => b.state === "match");
   const missing = match.breakdown.filter((b) => b.state === "missing");

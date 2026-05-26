@@ -108,4 +108,45 @@ describe("calcMatch", () => {
     expect(score).toBe(0);
     expect(breakdown).toHaveLength(0);
   });
+
+  it("returns 4 dimensions with skill always applicable when reqs exist", () => {
+    const candidate = buildCandidate(["a"]);
+    const job = buildJob([{ skillId: "a", mustHave: true }]);
+    const { dimensions } = calcMatch(candidate, job);
+    expect(dimensions.map((d) => d.id)).toEqual([
+      "skill",
+      "semantic",
+      "experience",
+      "education",
+    ]);
+    expect(dimensions.find((d) => d.id === "skill")?.applicable).toBe(true);
+  });
+
+  it("redistributes weight when only skill dimension applies", () => {
+    const candidate = buildCandidate(["a"]);
+    const job = buildJob([{ skillId: "a", mustHave: true }]);
+    const { dimensions } = calcMatch(candidate, job);
+    const skill = dimensions.find((d) => d.id === "skill");
+    expect(skill?.weight).toBe(100);
+  });
+
+  it("semantic dimension inactive when no profileVector", () => {
+    const candidate = buildCandidate(["a"]);
+    const job = buildJob([{ skillId: "a", mustHave: true }]);
+    const { dimensions } = calcMatch(candidate, job);
+    expect(
+      dimensions.find((d) => d.id === "semantic")?.applicable,
+    ).toBe(false);
+  });
+
+  it("dimension contributions sum approximately to score", () => {
+    const candidate = buildCandidate(["a", "b"]);
+    const job = buildJob([
+      { skillId: "a", mustHave: true },
+      { skillId: "b", mustHave: false },
+    ]);
+    const { score, dimensions } = calcMatch(candidate, job);
+    const sum = dimensions.reduce((acc, d) => acc + d.contribution, 0);
+    expect(Math.abs(sum - score)).toBeLessThanOrEqual(2);
+  });
 });

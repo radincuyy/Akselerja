@@ -48,6 +48,7 @@ export type Job = {
   minExperienceYears?: number;
   maxExperienceYears?: number;
   benefits?: string[];
+  descriptionVector?: number[];
 };
 
 export type Course = {
