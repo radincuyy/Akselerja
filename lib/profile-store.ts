@@ -1,4 +1,5 @@
 import type {
+  Achievement,
   Candidate,
   CvFile,
   Education,
@@ -205,12 +206,32 @@ export async function setProjectListAsync(
   return stripCosmos(next);
 }
 
+export async function setAchievementListAsync(
+  list: Achievement[],
+  userId = ME_ID,
+): Promise<Candidate> {
+  const container = getContainer(CONTAINERS.candidates);
+  const existing = await readRecord(userId);
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
+  }
+  const next: CandidateRecord = { ...existing, achievements: list };
+  await container.items.upsert(next);
+  return stripCosmos(next);
+}
+
 export function newOrganizationId() {
   return uid("og");
 }
 
 export function newProjectId() {
   return uid("pj");
+}
+
+export function newAchievementId() {
+  return uid("ac");
 }
 
 export async function setSkillsAsync(

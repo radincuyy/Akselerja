@@ -174,6 +174,7 @@ export default function OnboardingFlow() {
           experience: result.experience,
           organizations: result.organizations,
           projects: result.projects,
+          achievements: result.achievements,
         },
       });
       clearDraft();

@@ -39,6 +39,12 @@ type ParsedProject = {
   link?: string;
 };
 
+type ParsedAchievement = {
+  title: string;
+  year: string;
+  description?: string;
+};
+
 type ParsedPersonal = {
   name?: string;
   email?: string;
@@ -57,6 +63,7 @@ export type ParsedCv = {
   experience: ParsedExperience[];
   organizations: ParsedOrganization[];
   projects: ParsedProject[];
+  achievements: ParsedAchievement[];
   notes: string[];
 };
 
@@ -155,10 +162,15 @@ Aturan data identitas (personal):
 - Field yang tidak ada di CV → kosongkan (jangan menebak).
 
 Aturan skill:
+- Pecah skill umbrella jadi item terpisah. Kalau CV menulis "Pemrograman
+  (Java, Python, C++)", kembalikan 4 item: "Pemrograman", "Java",
+  "Python", "C++". Kalau CV menulis "Pengembangan Web (HTML, CSS,
+  JavaScript, React)", kembalikan 5 item: "Pengembangan Web", "HTML",
+  "CSS", "JavaScript", "React". Hapus tanda kurung dari nama skill.
 - Kembalikan nama skill apa adanya seperti yang tertulis di CV. Boleh Bahasa
   Indonesia atau Bahasa Inggris, sesuai aslinya. Jangan terjemahkan.
 - Pakai bentuk standar: "Microsoft Excel", "JavaScript", "Komunikasi".
-- Maksimal 15 skill, prioritaskan yang paling jelas didukung isi CV.
+- Maksimal 100 skill, prioritaskan yang paling jelas didukung isi CV.
 - Hanya skill yang benar-benar disebut atau jelas tersirat. Jangan menebak.
 
 Aturan pendidikan, pengalaman, organisasi, dan proyek:
@@ -183,6 +195,13 @@ Aturan pendidikan, pengalaman, organisasi, dan proyek:
   JANGAN masukkan ke experience. "title" = judul proyek, "context" =
   konteks singkat (mis. "Tugas akhir", "Hackathon Kemenpora 2024",
   "Proyek pribadi"), "link" = URL kalau ada.
+- Untuk prestasi (achievements), masukkan penghargaan, juara lomba,
+  beasiswa, sertifikat kompetisi, atau pencapaian akademik/profesional
+  yang bisa diverifikasi. Section di CV biasanya bernama "Achievements",
+  "Awards", "Prestasi", atau "Penghargaan". JANGAN masukkan sertifikasi
+  rutin (mis. TOEFL, AWS Certified) ke prestasi. "title" = nama prestasi
+  (mis. "Juara 1 Hackathon Kemenpora"), "year" = tahun atau periode
+  (mis. "2024"), "description" = ringkasan singkat (boleh kosong).
 - Tidak ada data → kembalikan array kosong. Jangan menebak.
 
 Output JSON sesuai schema.`;
@@ -277,6 +296,18 @@ Output JSON sesuai schema.`;
                   link: { type: "string" },
                 },
                 required: ["title"],
+              },
+            },
+            achievements: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  year: { type: "string" },
+                  description: { type: "string" },
+                },
+                required: ["title", "year"],
               },
             },
           },
@@ -385,6 +416,19 @@ Output JSON sesuai schema.`;
     })
     .filter((p) => p.title);
 
+  const achievements: ParsedAchievement[] = (
+    (parsed as { achievements?: unknown[] }).achievements ?? []
+  )
+    .map((raw) => {
+      const a = raw as Record<string, unknown>;
+      return {
+        title: String(a.title ?? "").trim(),
+        year: String(a.year ?? "").trim(),
+        description: a.description ? String(a.description).trim() : undefined,
+      };
+    })
+    .filter((a) => a.title);
+
   const taxonomyHits = skills.filter((s) => skillById[s.id]).length;
 
   const rawPersonal = ((parsed as { personal?: unknown }).personal ?? {}) as
@@ -420,6 +464,7 @@ Output JSON sesuai schema.`;
     experience,
     organizations,
     projects,
+    achievements,
     notes: [
       skills.length > 0
         ? `Kami menemukan ${skills.length} skill dari CV-mu.`

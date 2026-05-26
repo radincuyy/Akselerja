@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { skillById } from "@/lib/skills";
 import { formatPeriod } from "@/lib/profile-store";
 import {
+  saveAchievementSection,
   saveEducationSection,
   saveExperienceSection,
   saveOrganizationSection,
@@ -12,6 +13,7 @@ import {
   savePreferencesSection,
   saveProjectSection,
   saveSkillsSection,
+  type AchievementDraft,
   type EducationDraft,
   type ExperienceDraft,
   type OrganizationDraft,
@@ -30,6 +32,7 @@ type SectionKey =
   | "pengalaman"
   | "organisasi"
   | "proyek"
+  | "prestasi"
   | "skills";
 
 const TABS: { id: SectionKey | "cv"; label: string }[] = [
@@ -39,6 +42,7 @@ const TABS: { id: SectionKey | "cv"; label: string }[] = [
   { id: "pengalaman", label: "Pengalaman Kerja" },
   { id: "organisasi", label: "Organisasi" },
   { id: "proyek", label: "Proyek" },
+  { id: "prestasi", label: "Prestasi" },
   { id: "skills", label: "Skills" },
   { id: "cv", label: "CV" },
 ];
@@ -351,6 +355,35 @@ export default function ProfileEditUI({ me }: { me: Candidate }) {
         )}
       </Section>
 
+      <Section
+        id="prestasi"
+        title="Prestasi"
+        onEdit={() => openDrawer("prestasi")}
+      >
+        {(me.achievements ?? []).length === 0 ? (
+          <Empty
+            text="Belum ada prestasi. Tambahkan penghargaan, juara lomba, atau pencapaian akademik."
+            ctaText="Tambah prestasi"
+            onClick={() => openDrawer("prestasi")}
+          />
+        ) : (
+          <Timeline>
+            {(me.achievements ?? []).map((a) => (
+              <TimelineItem key={a.id} period={a.year || "—"}>
+                <p className="text-base font-semibold text-(--color-ink)">
+                  {a.title}
+                </p>
+                {a.description ? (
+                  <p className="mt-2 text-sm leading-relaxed text-(--color-ink)">
+                    {a.description}
+                  </p>
+                ) : null}
+              </TimelineItem>
+            ))}
+          </Timeline>
+        )}
+      </Section>
+
       <Section id="skills" title="Skills" onEdit={() => openDrawer("skills")}>
         {me.skills.length === 0 ? (
           <Empty
@@ -439,6 +472,8 @@ function drawerTitle(s: SectionKey): string {
       return "Pengalaman Organisasi";
     case "proyek":
       return "Pengalaman Proyek";
+    case "prestasi":
+      return "Prestasi";
     case "skills":
       return "Skills";
   }
@@ -524,6 +559,19 @@ function DrawerBody({
         initial={toProjectInitial(me)}
         onSubmit={async (list) => {
           const r = await saveProjectSection(list);
+          if (r.ok) onSaved();
+          return r;
+        }}
+        submitLabel="Update"
+      />
+    );
+  }
+  if (section === "prestasi") {
+    return (
+      <AchievementForm
+        initial={toAchievementInitial(me)}
+        onSubmit={async (list) => {
+          const r = await saveAchievementSection(list);
           if (r.ok) onSaved();
           return r;
         }}
@@ -769,6 +817,15 @@ function toProjectInitial(me: Candidate): ProjectDraft[] {
     endMonth: x.endMonth,
     duties: x.duties,
     link: x.link,
+  }));
+}
+
+function toAchievementInitial(me: Candidate): AchievementDraft[] {
+  return (me.achievements ?? []).map((x) => ({
+    id: x.id,
+    title: x.title,
+    year: x.year,
+    description: x.description,
   }));
 }
 
@@ -1659,6 +1716,108 @@ function ProjectForm({
   );
 }
 
+function AchievementForm({
+  initial,
+  onSubmit,
+  submitLabel,
+  secondary,
+}: {
+  initial: AchievementDraft[];
+  onSubmit: (
+    list: AchievementDraft[],
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  submitLabel: string;
+  secondary?: { label: string; onClick: () => void };
+}) {
+  const [list, setList] = useState<AchievementDraft[]>(
+    initial.length > 0 ? initial : [emptyAch()],
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  function update(i: number, patch: Partial<AchievementDraft>) {
+    setList((prev) => prev.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+  }
+
+  function remove(i: number) {
+    setList((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function add() {
+    setList((prev) => [...prev, emptyAch()]);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const cleaned = list.filter((row) => (row.title ?? "").trim().length > 0);
+    start(async () => {
+      const r = await onSubmit(cleaned);
+      if (!r.ok) setError(r.error);
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      {list.map((row, i) => (
+        <div
+          key={i}
+          className="rounded-md border border-(--color-line) bg-(--color-tint) p-4"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-(--color-ink)">
+              Prestasi {i + 1}
+            </p>
+            {list.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                className="text-xs font-medium text-(--color-muted) hover:text-(--color-signal-clay)"
+              >
+                Hapus
+              </button>
+            ) : null}
+          </div>
+          <div className="mt-3 grid gap-3">
+            <input
+              value={row.title ?? ""}
+              onChange={(e) => update(i, { title: e.target.value })}
+              placeholder="Judul prestasi (mis. Juara 1 Hackathon Kemenpora)"
+              className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none focus:border-(--color-teal)"
+            />
+            <input
+              value={row.year ?? ""}
+              onChange={(e) => update(i, { year: e.target.value })}
+              placeholder="Tahun (mis. 2024)"
+              className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none focus:border-(--color-teal)"
+            />
+            <textarea
+              rows={3}
+              value={row.description ?? ""}
+              onChange={(e) => update(i, { description: e.target.value })}
+              placeholder="Deskripsi singkat (opsional)"
+              className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none focus:border-(--color-teal)"
+            />
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        className="self-start rounded-md border border-(--color-line) px-3 py-1.5 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)"
+      >
+        + Tambah prestasi
+      </button>
+      <FormFooter
+        error={error}
+        pending={pending}
+        submitLabel={submitLabel}
+        secondary={secondary}
+      />
+    </form>
+  );
+}
+
 function SkillsForm({
   initial,
   onSubmit,
@@ -1855,6 +2014,10 @@ function emptyOrg(): OrganizationDraft {
 
 function emptyProj(): ProjectDraft {
   return { title: "", context: "", startMonth: "", endMonth: "" };
+}
+
+function emptyAch(): AchievementDraft {
+  return { title: "", year: "", description: "" };
 }
 
 function Drawer({

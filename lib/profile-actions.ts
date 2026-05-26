@@ -12,6 +12,7 @@ import {
   newExperienceId,
   newOrganizationId,
   newProjectId,
+  newAchievementId,
   patchProfileAsync,
   profileCacheTag,
   recomputeReadinessScoreAsync,
@@ -20,6 +21,7 @@ import {
   setExperienceListAsync,
   setOrganizationListAsync,
   setProjectListAsync,
+  setAchievementListAsync,
   setSkillsAsync,
   updateProfileBasicAsync,
 } from "./profile-store";
@@ -53,13 +55,7 @@ import type {
   WorkMode,
 } from "./types";
 
-// Recompute the profile embedding off the request path so saves stay fast.
-// Failures are swallowed inside refreshProfileVector — we only need the call
-// to complete eventually.
 function scheduleProfileEmbed(userId: string): void {
-  // Defer to next tick so the response can flush before the Gemini call
-  // (~800-1500ms) blocks the request. Failures are logged but never surface
-  // to the user; the vector regenerates on the next mutation.
   setTimeout(() => {
     refreshProfileVector(userId).catch((err) => {
       console.error(
@@ -98,7 +94,6 @@ function asInt(v: FormDataEntryValue | null, fallback = 0): number {
   return Number.isFinite(n) ? Math.round(n) : fallback;
 }
 
-// CV upload via Azure Blob; jatuh ke metadata-only kalau Blob belum dikonfig.
 export type ParsedCvPreview = {
   filename: string;
   sizeBytes: number;
@@ -143,6 +138,11 @@ export type ParsedCvPreview = {
     endMonth?: string;
     duties?: string;
     link?: string;
+  }[];
+  achievements: {
+    title: string;
+    year: string;
+    description?: string;
   }[];
   notes: string[];
 };
@@ -260,6 +260,7 @@ export async function uploadCvForReview(
       experience: parsed.experience,
       organizations: parsed.organizations,
       projects: parsed.projects,
+      achievements: parsed.achievements,
       notes: parsed.notes,
     };
   } catch (err) {
@@ -296,6 +297,7 @@ export type ConfirmCvInput = {
   extractedExperience?: ParsedCvPreview["experience"];
   extractedOrganizations?: ParsedCvPreview["organizations"];
   extractedProjects?: ParsedCvPreview["projects"];
+  extractedAchievements?: ParsedCvPreview["achievements"];
 };
 
 export async function confirmCvUpdate(input: ConfirmCvInput) {
@@ -339,46 +341,44 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
     duties: p.duties,
     link: p.link,
   }));
+  const achievements = (input.extractedAchievements ?? []).map((a) => ({
+    id: newAchievementId(),
+    title: a.title,
+    year: a.year,
+    description: a.description,
+  }));
   const totalMonths = experience.reduce(
     (acc, e) => acc + monthsBetween(e.startMonth, e.endMonth),
     0,
   );
   const experienceYears = Math.max(0, Math.round(totalMonths / 12));
 
-  // Read current profile first to capture the old blob name before we
-  // overwrite the cv field, and to keep account-level fields (auth email)
-  // available for the hybrid email rule below.
   const previousProfile = await getProfileOrSeedAsync(user.id).catch(
     () => null,
   );
   const previousBlobName = previousProfile?.cv?.blobName;
   const accountEmail = user.email ?? previousProfile?.email ?? "";
 
-  // Hybrid email rule: if the CV has an email, prefer it; otherwise fall
-  // back to the account email (login). The account email is never lost.
   const personal = input.extractedPersonal ?? {};
   const cvEmail = personal.email?.trim();
   const resolvedEmail = cvEmail && cvEmail.length > 0 ? cvEmail : accountEmail;
 
-  // Replace semantics: a fresh CV is the new source of truth, so all
-  // CV-derived sections are overwritten as a unit. Personal fields use
-  // "fallback to existing if CV blank" so we don't wipe data the user typed
-  // manually with an empty CV value.
   await patchProfileAsync(user.id, (base) => ({
     ...base,
     name: personal.name?.trim() || base.name,
     email: resolvedEmail || base.email,
-    phone: personal.phone?.trim() || base.phone,
+    phone: personal.phone?.trim() || undefined,
     location: personal.location?.trim() || base.location,
-    linkedin: personal.linkedin?.trim() || base.linkedin,
-    github: personal.github?.trim() || base.github,
-    portfolio: personal.portfolio?.trim() || base.portfolio,
-    bio: personal.bio?.trim() || base.bio,
+    linkedin: personal.linkedin?.trim() || undefined,
+    github: personal.github?.trim() || undefined,
+    portfolio: personal.portfolio?.trim() || undefined,
+    bio: personal.bio?.trim() || "",
     skills,
     education,
     experience,
     organizations,
     projects,
+    achievements,
     experienceYears,
     cv: {
       filename: input.filename,
@@ -645,6 +645,33 @@ export async function saveProjectSection(
   return { ok: true };
 }
 
+export type AchievementDraft = {
+  id?: string;
+  title?: string;
+  year?: string;
+  description?: string;
+};
+
+export async function saveAchievementSection(
+  drafts: AchievementDraft[],
+): Promise<SectionResult> {
+  const cleaned: { id: string; title: string; year: string; description?: string }[] = [];
+  for (const d of drafts) {
+    const title = d.title?.trim() ?? "";
+    if (!title) continue;
+    cleaned.push({
+      id: d.id || newAchievementId(),
+      title,
+      year: d.year?.trim() || "",
+      description: d.description?.trim() || undefined,
+    });
+  }
+  const user = await requireUser();
+  await setAchievementListAsync(cleaned, user.id);
+  await refreshProfileScore(user.id);
+  return { ok: true };
+}
+
 export type SkillDraft = {
   id: string;
   name?: string;
@@ -712,6 +739,7 @@ export type OnboardingInput = {
     experience: ParsedCvPreview["experience"];
     organizations: ParsedCvPreview["organizations"];
     projects: ParsedCvPreview["projects"];
+    achievements: ParsedCvPreview["achievements"];
   };
 };
 
@@ -766,6 +794,13 @@ export async function completeOnboarding(input: OnboardingInput) {
       duties: p.duties,
       link: p.link,
     })) ?? [];
+  const achievements =
+    cv?.achievements.map((a) => ({
+      id: newAchievementId(),
+      title: a.title,
+      year: a.year,
+      description: a.description,
+    })) ?? [];
   const totalMonths = experience.reduce(
     (acc, e) => acc + monthsBetween(e.startMonth, e.endMonth),
     0,
@@ -800,6 +835,7 @@ export async function completeOnboarding(input: OnboardingInput) {
     organizations:
       organizations.length > 0 ? organizations : base.organizations,
     projects: projects.length > 0 ? projects : base.projects,
+    achievements: achievements.length > 0 ? achievements : base.achievements,
     cv: cv
       ? {
           filename: cv.filename,

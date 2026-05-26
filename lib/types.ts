@@ -130,6 +130,13 @@ export type ProjectExperience = {
   link?: string;
 };
 
+export type Achievement = {
+  id: string;
+  title: string;
+  year: string;
+  description?: string;
+};
+
 export type CvFile = {
   filename: string;
   uploadedAt: string;
@@ -159,6 +166,7 @@ export type Candidate = {
   experience?: Experience[];
   organizations?: OrganizationExperience[];
   projects?: ProjectExperience[];
+  achievements?: Achievement[];
   cv?: CvFile;
   profileSummary?: string;
   profileVector?: number[];

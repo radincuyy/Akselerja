@@ -111,6 +111,7 @@ export default function CvUploader({ currentCv }: Props) {
       experience,
       organizations,
       projects,
+      achievements,
     } = state.preview;
     startTransition(async () => {
       await confirmCvUpdate({
@@ -124,6 +125,7 @@ export default function CvUploader({ currentCv }: Props) {
         extractedExperience: experience,
         extractedOrganizations: organizations,
         extractedProjects: projects,
+        extractedAchievements: achievements,
       });
     });
   }

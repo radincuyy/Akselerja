@@ -2,8 +2,6 @@ import { skillById } from "./skills";
 import type { Candidate } from "./types";
 import { embedText } from "./gemini-embed";
 import { CONTAINERS, getContainer } from "./db";
-import { revalidateTag } from "next/cache";
-import { profileCacheTag } from "./profile-store";
 
 function buildProfileText(profile: Candidate): string {
   const skills = (profile.skills ?? [])
@@ -70,6 +68,14 @@ function buildProfileText(profile: Candidate): string {
     })
     .join("\n");
 
+  const achievements = (profile.achievements ?? [])
+    .map((a) => {
+      const desc = a.description?.replace(/\s+/g, " ").trim();
+      const head = a.year ? `${a.title} (${a.year})` : a.title;
+      return desc ? `${head}. ${desc}` : head;
+    })
+    .join("\n");
+
   const totals = profile.experienceYears
     ? `Total pengalaman: ${profile.experienceYears} tahun`
     : "";
@@ -81,6 +87,7 @@ function buildProfileText(profile: Candidate): string {
     experience ? `Pengalaman kerja:\n${experience}` : "",
     organizations ? `Pengalaman organisasi:\n${organizations}` : "",
     projects ? `Proyek:\n${projects}` : "",
+    achievements ? `Prestasi:\n${achievements}` : "",
     education ? `Pendidikan:\n${education}` : "",
   ]
     .filter(Boolean)
@@ -103,7 +110,6 @@ export async function refreshProfileVector(userId: string): Promise<void> {
       { op: "set", path: "/profileVector", value: vector },
       { op: "set", path: "/profileVectorUpdatedAt", value: new Date().toISOString() },
     ]);
-    revalidateTag(profileCacheTag(userId));
   } catch (err) {
     console.error("[profile-summary] refresh failed for", userId, err);
   }
