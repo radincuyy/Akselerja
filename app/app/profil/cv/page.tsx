@@ -1,11 +1,9 @@
 import Link from "next/link";
 import CvUploader from "@/components/CvUploader";
-import { getProfileOrSeedAsync } from "@/lib/profile-store";
-import { requireUser } from "@/lib/session";
+import { getCurrentCandidate } from "@/lib/current-candidate";
 
 export default async function UpdateCvPage() {
-  const user = await requireUser();
-  const profile = await getProfileOrSeedAsync(user.id);
+  const { profile } = await getCurrentCandidate();
 
   return (
     <>

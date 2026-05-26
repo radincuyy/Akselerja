@@ -10,8 +10,7 @@ import { buildMatchReason } from "@/lib/match-reason";
 import { formatIdr, formatRelativeId } from "@/lib/format";
 import { getJobByIdAsync } from "@/lib/jobs-store";
 import { getCoursesForSkillsAsync } from "@/lib/courses-store";
-import { getProfileOrSeedAsync } from "@/lib/profile-store";
-import { requireUser } from "@/lib/session";
+import { getCurrentCandidate } from "@/lib/current-candidate";
 
 type Params = Promise<{ id: string }>;
 
@@ -107,10 +106,9 @@ export default async function LowonganDetailPage({
   params: Params;
 }) {
   const { id } = await params;
-  const user = await requireUser();
-  const [job, me] = await Promise.all([
+  const [job, { profile: me }] = await Promise.all([
     getJobByIdAsync(id),
-    getProfileOrSeedAsync(user.id),
+    getCurrentCandidate(),
   ]);
   if (!job) notFound();
 

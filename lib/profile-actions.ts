@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { signOut } from "@/auth";
 import { deleteBlob, isBlobConfigured, uploadCv } from "./blob-store";
@@ -56,15 +57,17 @@ import type {
 } from "./types";
 
 function scheduleProfileEmbed(userId: string): void {
-  setTimeout(() => {
-    refreshProfileVector(userId).catch((err) => {
+  after(async () => {
+    try {
+      await refreshProfileVector(userId);
+    } catch (err) {
       console.error(
         "[profile-actions] background embed failed for",
         userId,
         err,
       );
-    });
-  }, 0);
+    }
+  });
 }
 
 function revalidateProfileSurfaces(userId: string) {

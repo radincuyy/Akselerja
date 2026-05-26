@@ -76,7 +76,6 @@ export default function CompanyLogo({
       loading={priority ? "eager" : "lazy"}
       priority={priority}
       onError={() => setErrored(true)}
-      unoptimized
       className={`shrink-0 rounded-md object-contain ${ringCls} ${sizeCls} ${className ?? ""}`}
     />
   );

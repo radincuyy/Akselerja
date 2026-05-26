@@ -3,11 +3,11 @@ import PageHeader from "@/components/PageHeader";
 import JobCard from "@/components/JobCard";
 import JobSearchInput from "@/components/JobSearchInput";
 import JobFilterSheet from "@/components/JobFilterSheet";
+import Pagination from "@/components/Pagination";
 import { calcMatch } from "@/lib/match";
 import { buildMatchReason } from "@/lib/match-reason";
 import { listCityFacetsAsync, searchJobs } from "@/lib/search-store";
-import { getProfileOrSeedAsync } from "@/lib/profile-store";
-import { requireUser } from "@/lib/session";
+import { getCurrentCandidate } from "@/lib/current-candidate";
 import { expandIndustryGroups } from "@/lib/preferences-options";
 
 type SearchParams = Promise<{
@@ -82,8 +82,7 @@ export default async function LowonganListPage({
 }) {
   const sp = await searchParams;
   const { lokasi, tipe, industri, mode, q, pengalaman, pendidikan, gaji, page } = sp;
-  const user = await requireUser();
-  const me = await getProfileOrSeedAsync(user.id);
+  const { profile: me } = await getCurrentCandidate();
 
   const lokasiList = csvList(lokasi);
   const tipeList = csvList(tipe);
@@ -91,7 +90,6 @@ export default async function LowonganListPage({
   const modeList = csvList(mode);
 
   const pageNum = Math.max(1, parseInt(page ?? "1", 10) || 1);
-  const top = pageNum * PAGE_SIZE;
 
   const [{ jobs, relevance, fromSearch, fromFallback, totalCount }, cityFacets] =
     await Promise.all([
@@ -108,8 +106,8 @@ export default async function LowonganListPage({
         ...parseExperience(pengalaman),
         ...parseSalary(gaji),
         includeClosed: false,
-        top,
-        skip: 0,
+        top: PAGE_SIZE,
+        skip: (pageNum - 1) * PAGE_SIZE,
         profileVector: me.profileVector,
       }),
       listCityFacetsAsync({ types: tipeList.length > 0 ? tipeList : undefined }),
@@ -138,7 +136,8 @@ export default async function LowonganListPage({
       gaji,
   );
   const total = totalCount ?? ranked.length;
-  const hasMore = ranked.length < total;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(pageNum, totalPages);
   const hasSkills = (me.skills?.length ?? 0) > 0;
 
   function buildPageHref(nextPage: number): string {
@@ -155,6 +154,9 @@ export default async function LowonganListPage({
     const qs = params.toString();
     return qs ? `/app/lowongan?${qs}` : "/app/lowongan";
   }
+
+  const rangeStart = (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = (currentPage - 1) * PAGE_SIZE + ranked.length;
 
   return (
     <>
@@ -243,7 +245,7 @@ export default async function LowonganListPage({
           ) : (
             <>
               <p className="mb-4 text-sm text-(--color-muted)">
-                Menampilkan {ranked.length} dari {total} lowongan
+                Menampilkan {rangeStart}–{rangeEnd} dari {total} lowongan
                 {lokasiList.length > 0 ? ` di ${lokasiList.join(", ")}` : ""}
                 {tipeList.length > 0 ? ` · ${tipeList.join(", ")}` : ""}
               </p>
@@ -261,16 +263,13 @@ export default async function LowonganListPage({
                 })}
               </div>
 
-              {hasMore ? (
-                <div className="mt-8 flex justify-center">
-                  <Link
-                    href={buildPageHref(pageNum + 1)}
-                    className="inline-flex h-11 items-center rounded-full border border-(--color-line) bg-(--color-paper) px-6 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)/40"
-                  >
-                    Lihat lebih banyak ({total - ranked.length} sisa)
-                  </Link>
-                </div>
-              ) : null}
+              <Pagination
+                className="mt-8"
+                currentPage={currentPage}
+                totalPages={totalPages}
+                hrefForPage={buildPageHref}
+                label="lowongan"
+              />
             </>
           )}
         </div>

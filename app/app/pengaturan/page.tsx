@@ -1,12 +1,10 @@
 import PageHeader from "@/components/PageHeader";
 import DangerConfirmForm from "@/components/DangerConfirmForm";
-import { getProfileOrSeedAsync } from "@/lib/profile-store";
+import { getCurrentCandidate } from "@/lib/current-candidate";
 import { deleteCandidateAccount } from "@/lib/profile-actions";
-import { requireUser } from "@/lib/session";
 
 export default async function PengaturanPage() {
-  const user = await requireUser();
-  const profile = await getProfileOrSeedAsync(user.id);
+  const { profile } = await getCurrentCandidate();
 
   return (
     <>

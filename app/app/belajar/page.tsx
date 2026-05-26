@@ -9,9 +9,8 @@ import { calcMatch } from "@/lib/match";
 import { searchJobs } from "@/lib/search-store";
 import { findCoursesForGapsAsync } from "@/lib/courses-store";
 import { readCachedGapExplanations } from "@/lib/gap-explain";
-import { getProfileOrSeedAsync } from "@/lib/profile-store";
+import { getCurrentCandidate } from "@/lib/current-candidate";
 import { listPracticeTasksAsync } from "@/lib/practice-store";
-import { requireUser } from "@/lib/session";
 import { skillById } from "@/lib/skills";
 import type { Course, Job, PracticeTask } from "@/lib/types";
 
@@ -245,18 +244,21 @@ export default async function BelajarPage({
   searchParams: SearchParams;
 }) {
   const { target, roadmapPage } = await searchParams;
-  const user = await requireUser();
-  const me = await getProfileOrSeedAsync(user.id);
+  const { user, profile: me } = await getCurrentCandidate();
 
   const userSkillIds = me.skills?.map((s) => s.skillId) ?? [];
   // Same as dashboard: filter to jobs that share at least one skill with the
   // user so the "target job" the roadmap is built for is actually relevant.
-  const search = await searchJobs({
-    top: 50,
-    profileVector: me.profileVector,
-    skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
-    includeClosed: false,
-  });
+  const [search, practiceTasks, practiceAttempts] = await Promise.all([
+    searchJobs({
+      top: 50,
+      profileVector: me.profileVector,
+      skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
+      includeClosed: false,
+    }),
+    listPracticeTasksAsync(),
+    listPracticeAttemptsForUser(user.id),
+  ]);
   const ranked = search.jobs
     .map((job) => ({ job, ...calcMatch(me, job) }))
     .sort((a, b) => b.score - a.score);
@@ -274,18 +276,15 @@ export default async function BelajarPage({
   const matched = breakdown.filter((b) => b.state === "match");
 
   const gapSkillIds = gaps.map((g) => g.skillId);
-  const [courses, explanations, practiceTasks, practiceAttempts] =
-    await Promise.all([
-      findCoursesForGapsAsync(gapSkillIds, 4),
-      readCachedGapExplanations({
-        job: targetJob,
-        gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
-        candidateSkillIds: me.skills.map((s) => s.skillId),
-        limit: 4,
-      }),
-      listPracticeTasksAsync(),
-      listPracticeAttemptsForUser(user.id),
-    ]);
+  const [courses, explanations] = await Promise.all([
+    findCoursesForGapsAsync(gapSkillIds, 4),
+    readCachedGapExplanations({
+      job: targetJob,
+      gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
+      candidateSkillIds: me.skills.map((s) => s.skillId),
+      limit: 4,
+    }),
+  ]);
   const roadmap = buildRoadmap(
     gaps,
     courses,

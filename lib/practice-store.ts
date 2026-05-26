@@ -1,8 +1,10 @@
 import type { PracticeTask } from "./types";
 import { CONTAINERS, getContainer } from "./db";
 import { skillById } from "./skills";
+import { unstable_cache } from "next/cache";
 
 const SYNTHETIC_PRACTICE_PREFIX = "skill-drill-";
+const PRACTICE_CACHE_TAG = "practice-tasks";
 
 function createSyntheticPracticeTask(skillId: string): PracticeTask {
   const name = skillById[skillId]?.name ?? skillId;
@@ -71,29 +73,51 @@ function syntheticSkillIdFromSlug(slug: string): string | null {
 }
 
 export async function listPracticeTasksAsync(): Promise<PracticeTask[]> {
-  const container = getContainer(CONTAINERS.practiceTasks);
-  const { resources } = await container.items
-    .query<PracticeTask>({ query: "SELECT * FROM c" })
-    .fetchAll();
-  const coveredSkillIds = new Set(resources.map((task) => task.skillId));
-  const syntheticTasks = Object.keys(skillById)
-    .filter((skillId) => !coveredSkillIds.has(skillId))
-    .map(createSyntheticPracticeTask);
-  return [...resources, ...syntheticTasks];
+  return listPracticeTasksCached();
 }
+
+const listPracticeTasksCached = unstable_cache(
+  async (): Promise<PracticeTask[]> => {
+    const container = getContainer(CONTAINERS.practiceTasks);
+    const { resources } = await container.items
+      .query<PracticeTask>({ query: "SELECT * FROM c" })
+      .fetchAll();
+    const coveredSkillIds = new Set(resources.map((task) => task.skillId));
+    const syntheticTasks = Object.keys(skillById)
+      .filter((skillId) => !coveredSkillIds.has(skillId))
+      .map(createSyntheticPracticeTask);
+    return [...resources, ...syntheticTasks];
+  },
+  ["practice-tasks"],
+  {
+    tags: [PRACTICE_CACHE_TAG],
+    revalidate: 3600,
+  },
+);
 
 export async function getPracticeTaskBySlugAsync(
   slug: string,
 ): Promise<PracticeTask | undefined> {
-  const container = getContainer(CONTAINERS.practiceTasks);
-  const { resources } = await container.items
-    .query<PracticeTask>({
-      query: "SELECT * FROM c WHERE c.slug = @slug",
-      parameters: [{ name: "@slug", value: slug }],
-    })
-    .fetchAll();
-  if (resources[0]) return resources[0];
-
-  const syntheticSkillId = syntheticSkillIdFromSlug(slug);
-  return syntheticSkillId ? createSyntheticPracticeTask(syntheticSkillId) : undefined;
+  return getPracticeTaskBySlugCached(slug);
 }
+
+const getPracticeTaskBySlugCached = unstable_cache(
+  async (slug: string): Promise<PracticeTask | undefined> => {
+    const container = getContainer(CONTAINERS.practiceTasks);
+    const { resources } = await container.items
+      .query<PracticeTask>({
+        query: "SELECT * FROM c WHERE c.slug = @slug",
+        parameters: [{ name: "@slug", value: slug }],
+      })
+      .fetchAll();
+    if (resources[0]) return resources[0];
+
+    const syntheticSkillId = syntheticSkillIdFromSlug(slug);
+    return syntheticSkillId ? createSyntheticPracticeTask(syntheticSkillId) : undefined;
+  },
+  ["practice-task-by-slug"],
+  {
+    tags: [PRACTICE_CACHE_TAG],
+    revalidate: 3600,
+  },
+);
