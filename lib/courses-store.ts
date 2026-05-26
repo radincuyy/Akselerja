@@ -10,23 +10,6 @@ type CourseRecord = Course & {
 
 const COURSE_CACHE_TAG = "courses";
 
-const listCoursesCached = unstable_cache(
-  async (): Promise<Course[]> => {
-    const container = getContainer(CONTAINERS.courses);
-    const { resources } = await container.items
-      .query<CourseRecord>({
-        query: "SELECT c.id, c.title, c.provider, c.durationHours, c.free, c.priceIdr, c.skillId, c.description FROM c",
-      })
-      .fetchAll();
-    return resources;
-  },
-  ["courses"],
-  {
-    tags: [COURSE_CACHE_TAG],
-    revalidate: 3600,
-  },
-);
-
 const listCourseRecordsCached = unstable_cache(
   async (): Promise<CourseRecord[]> => {
     const container = getContainer(CONTAINERS.courses);
@@ -53,10 +36,6 @@ const findCoursesForGapsCached = unstable_cache(
     revalidate: 86400,
   },
 );
-
-export async function listCoursesAsync(): Promise<Course[]> {
-  return listCoursesCached();
-}
 
 function cosineSim(a: number[], b: number[]): number {
   let dot = 0;
