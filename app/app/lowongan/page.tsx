@@ -8,6 +8,7 @@ import { buildMatchReason } from "@/lib/match-reason";
 import { listCityFacetsAsync, searchJobs } from "@/lib/search-store";
 import { getProfileOrSeedAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
+import { expandIndustryGroups } from "@/lib/preferences-options";
 
 type SearchParams = Promise<{
   lokasi?: string;
@@ -98,7 +99,10 @@ export default async function LowonganListPage({
         query: q,
         cities: lokasiList.length > 0 ? lokasiList : undefined,
         types: tipeList.length > 0 ? tipeList : undefined,
-        industryIds: industriList.length > 0 ? industriList : undefined,
+        industryIds:
+          industriList.length > 0
+            ? expandIndustryGroups(industriList)
+            : undefined,
         workModes: modeList.length > 0 ? modeList : undefined,
         education: pendidikan || undefined,
         ...parseExperience(pengalaman),
