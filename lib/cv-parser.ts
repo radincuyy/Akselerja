@@ -475,28 +475,11 @@ Output JSON sesuai schema.`;
   };
 };
 
-// Engine registry. Tambahkan provider dengan import + entry baru di sini.
-const providers: Record<string, CvParserEngine> = {
-  gemini: geminiEngine,
-};
-
-function pickEngine(): { name: string; engine: CvParserEngine } {
-  const requested = process.env.CV_PARSER_PROVIDER ?? "gemini";
-  const engine = providers[requested];
-  if (!engine) {
-    throw new Error(
-      `Unknown CV_PARSER_PROVIDER="${requested}". Available: ${Object.keys(providers).join(", ")}`,
-    );
-  }
-  return { name: requested, engine };
-}
-
 export async function parseCv(input: CvParseInput): Promise<ParsedCv> {
-  const { name, engine } = pickEngine();
   try {
-    return await engine(input);
+    return await geminiEngine(input);
   } catch (err) {
-    console.error(`[cv-parser] Engine "${name}" threw:`, err);
+    console.error("[cv-parser] Gemini threw:", err);
     throw new Error(
       err instanceof Error
         ? err.message

@@ -137,12 +137,28 @@ export type Achievement = {
   description?: string;
 };
 
+export type CvLanguageEntity = {
+  text: string;
+  category: string;
+  type?: string;
+  confidenceScore?: number;
+};
+
+export type CvLanguageInsights = {
+  keyPhrases: string[];
+  entities: CvLanguageEntity[];
+  modelVersion?: string;
+  analyzedAt: string;
+  truncated?: boolean;
+};
+
 export type CvFile = {
   filename: string;
   uploadedAt: string;
   sizeBytes?: number;
   blobName?: string;
   contentType?: string;
+  languageInsights?: CvLanguageInsights;
 };
 
 export type Candidate = {

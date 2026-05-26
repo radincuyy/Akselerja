@@ -89,12 +89,12 @@ Tulis 3-4 kalimat feedback personal untuk user.`;
       },
     });
     const text = response.text?.trim();
-    if (!text) return defaultFeedback(input);
-    return text;
+    if (text) return text;
   } catch (err) {
-    console.warn("[assessment-feedback] generation failed:", err);
-    return defaultFeedback(input);
+    console.warn("[assessment-feedback] Gemini failed:", err);
   }
+
+  return defaultFeedback(input);
 }
 
 function defaultFeedback(input: AssessmentFeedbackInput): string {

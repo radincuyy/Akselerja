@@ -4,7 +4,7 @@ import JobCard from "@/components/JobCard";
 import { calcMatch } from "@/lib/match";
 import { buildMatchReason } from "@/lib/match-reason";
 import { searchJobs } from "@/lib/search-store";
-import { listAssessmentsAsync } from "@/lib/assessments-store";
+import { listAssessmentsForSkillIdsAsync } from "@/lib/assessments-store";
 import { getCurrentCandidate } from "@/lib/current-candidate";
 import { calculateReadinessScore } from "@/lib/profile-store";
 import { completedAssessmentIdsForUser } from "@/lib/attempts-store";
@@ -16,16 +16,24 @@ export default async function CandidateHome() {
   const { user, profile } = await getCurrentCandidate();
   const readinessScore = calculateReadinessScore(profile);
   const userSkillIds = profile.skills?.map((s) => s.skillId) ?? [];
-  const [search, assessments, completedIds] = await Promise.all([
+  const [initialSearch, assessments, completedIds] = await Promise.all([
     searchJobs({
       top: HOME_RECOMMENDATION_LIMIT,
       profileVector: profile.profileVector,
       skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
       includeClosed: false,
     }),
-    listAssessmentsAsync(),
+    listAssessmentsForSkillIdsAsync(userSkillIds),
     completedAssessmentIdsForUser(user.id),
   ]);
+  const search =
+    initialSearch.jobs.length === 0 && userSkillIds.length > 0
+      ? await searchJobs({
+          top: HOME_RECOMMENDATION_LIMIT,
+          profileVector: profile.profileVector,
+          includeClosed: false,
+        })
+      : initialSearch;
   const ranked = search.jobs
     .map((job) => ({ job, ...calcMatch(profile, job) }))
     .filter((r) => r.score > 0)

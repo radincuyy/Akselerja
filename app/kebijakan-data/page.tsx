@@ -14,8 +14,8 @@ export default function KebijakanDataPage() {
     >
       <p>
         Kebijakan ini menjelaskan secara teknis bagaimana Akselerja
-        menggunakan data untuk menghitung match score, melatih atau
-        mempribadikan model AI, dan riset agregat. Untuk pertanyaan privasi
+        menggunakan data untuk menghitung match score, mempribadikan
+        rekomendasi, dan riset agregat. Untuk pertanyaan privasi
         umum, lihat <a href="/privasi">Kebijakan Privasi</a>.
       </p>
 
@@ -52,9 +52,9 @@ export default function KebijakanDataPage() {
       <p>
         Akselerja memakai model bahasa untuk tiga hal: parsing CV menjadi
         struktur profil, penjelasan singkat di balik match score, dan career
-        coach. Prompt dan output melewati filter konten dasar Azure OpenAI.
-        Kami tidak memakai isi CV atau percakapanmu untuk melatih model
-        publik di luar Akselerja.
+        coach. Pesan coach melewati filter keamanan konten sebelum diproses.
+        Kami tidak memakai isi CV atau percakapanmu untuk melatih model publik
+        di luar Akselerja.
       </p>
 
       <h2>4. Fairness dan pengawasan</h2>

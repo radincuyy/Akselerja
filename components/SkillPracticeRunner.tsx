@@ -386,6 +386,29 @@ export default function SkillPracticeRunner({
             ))}
           </ul>
         </section>
+
+        {task.sourceLabel.toLowerCase().includes("skkni") &&
+        task.sourceNotes.length > 0 ? (
+          <section className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5">
+            <h2 className="text-sm font-medium text-(--color-muted)">
+              {task.sourceLabel}
+            </h2>
+            <ul className="mt-4 space-y-2">
+              {task.sourceNotes.map((note) => (
+                <li
+                  key={note}
+                  className="flex gap-2 text-xs leading-relaxed text-(--color-muted)"
+                >
+                  <span
+                    aria-hidden
+                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-(--color-teal)"
+                  />
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </aside>
     </div>
   );

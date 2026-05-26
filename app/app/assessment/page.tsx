@@ -2,8 +2,9 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import Pagination from "@/components/Pagination";
 import { skillById } from "@/lib/skills";
-import { listAssessmentsAsync } from "@/lib/assessments-store";
+import { listAssessmentsForSkillIdsAsync } from "@/lib/assessments-store";
 import { completedAssessmentIdsForUser } from "@/lib/attempts-store";
+import { getProfileOrSeedAsync } from "@/lib/profile-store";
 import { requireUser } from "@/lib/session";
 
 type SearchParams = Promise<{ page?: string }>;
@@ -26,8 +27,10 @@ export default async function AssessmentListPage({
 }) {
   const { page } = await searchParams;
   const user = await requireUser();
+  const profile = await getProfileOrSeedAsync(user.id);
+  const profileSkillIds = profile.skills.map((skill) => skill.skillId);
   const [assessments, completedIds] = await Promise.all([
-    listAssessmentsAsync(),
+    listAssessmentsForSkillIdsAsync(profileSkillIds),
     completedAssessmentIdsForUser(user.id),
   ]);
   const totalPages = Math.max(1, Math.ceil(assessments.length / PAGE_SIZE));

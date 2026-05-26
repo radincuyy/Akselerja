@@ -7,11 +7,21 @@ import { calcMatch } from "@/lib/match";
 import { skillById } from "@/lib/skills";
 import { findCoursesForGapsAsync } from "@/lib/courses-store";
 import { listPracticeTasksAsync } from "@/lib/practice-store";
+import {
+  analyzeTextSafety,
+  contentSafetyBlockedMessage,
+  shouldCheckGeneratedTextSafety,
+} from "@/lib/azure-content-safety";
 import type { Candidate, Course, Job, PracticeTask } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-2.5-flash";
+const CHAT_MAX_OUTPUT_TOKENS = parseIntegerEnv(
+  "GEMINI_CHAT_MAX_OUTPUT_TOKENS",
+  2048,
+);
+const CHAT_THINKING_BUDGET = parseIntegerEnv("GEMINI_CHAT_THINKING_BUDGET", 0);
 const MAX_HISTORY = 8;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX = 20;
@@ -22,6 +32,27 @@ type ClientMessage = { role: Role; text: string };
 // In-memory sliding window. Resets on cold start, which is fine for a demo
 // app. For production back this with Cosmos or Redis.
 const userBuckets = new Map<string, number[]>();
+
+function parseIntegerEnv(key: string, fallback: number): number {
+  const value = Number.parseInt(process.env[key] ?? "", 10);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function interruptedMessage(reason?: string): string {
+  const detail =
+    reason && reason !== "STOP"
+      ? ` karena ${reason.toLowerCase().replace(/_/g, " ")}`
+      : "";
+  return `\n\n[Jawaban coach terputus${detail}. Coba kirim ulang pertanyaanmu.]`;
+}
+
+function finishReasonFromChunk(chunk: unknown): string | undefined {
+  const candidate = (chunk as { candidates?: Array<{ finishReason?: unknown }> })
+    .candidates?.[0];
+  return typeof candidate?.finishReason === "string"
+    ? candidate.finishReason
+    : undefined;
+}
 
 function checkRateLimit(userId: string): { ok: true } | { ok: false; retryAfterSec: number } {
   const now = Date.now();
@@ -210,6 +241,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Belum ada pesan user." }, { status: 400 });
   }
 
+  const inputSafety = await analyzeTextSafety(lastUser.text);
+  if (!inputSafety.allowed) {
+    return NextResponse.json(
+      { error: contentSafetyBlockedMessage() },
+      { status: 400 },
+    );
+  }
+
   const profile = await getProfileAsync(session.user.id);
   if (!profile) {
     return NextResponse.json(
@@ -281,7 +320,11 @@ export async function POST(req: Request) {
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.6,
-        maxOutputTokens: 600,
+        maxOutputTokens: CHAT_MAX_OUTPUT_TOKENS,
+        thinkingConfig: {
+          includeThoughts: false,
+          thinkingBudget: CHAT_THINKING_BUDGET,
+        },
       },
     });
 
@@ -289,12 +332,41 @@ export async function POST(req: Request) {
     const body = new ReadableStream<Uint8Array>({
       async start(controller) {
         let any = false;
+        let finishReason: string | undefined;
         try {
-          for await (const chunk of stream) {
-            const text = chunk.text;
-            if (typeof text === "string" && text.length > 0) {
-              controller.enqueue(encoder.encode(text));
-              any = true;
+          if (shouldCheckGeneratedTextSafety()) {
+            let reply = "";
+            for await (const chunk of stream) {
+              finishReason = finishReasonFromChunk(chunk) ?? finishReason;
+              const text = chunk.text;
+              if (typeof text === "string" && text.length > 0) {
+                reply += text;
+              }
+            }
+            if (finishReason && finishReason !== "STOP") {
+              reply += interruptedMessage(finishReason);
+            }
+            const outputSafety = await analyzeTextSafety(reply);
+            controller.enqueue(
+              encoder.encode(
+                outputSafety.allowed
+                  ? reply ||
+                      "Coach belum bisa menjawab sekarang. Coba ulangi sebentar."
+                  : "Coach belum bisa menampilkan jawaban itu. Coba tanyakan ulang dengan konteks yang lebih spesifik.",
+              ),
+            );
+            any = true;
+          } else {
+            for await (const chunk of stream) {
+              finishReason = finishReasonFromChunk(chunk) ?? finishReason;
+              const text = chunk.text;
+              if (typeof text === "string" && text.length > 0) {
+                controller.enqueue(encoder.encode(text));
+                any = true;
+              }
+            }
+            if (finishReason && finishReason !== "STOP") {
+              controller.enqueue(encoder.encode(interruptedMessage(finishReason)));
             }
           }
           if (!any) {

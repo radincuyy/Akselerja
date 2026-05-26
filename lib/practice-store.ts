@@ -1,22 +1,24 @@
 import type { PracticeTask } from "./types";
 import { CONTAINERS, getContainer } from "./db";
+import { getGeneratedPracticeTask } from "./practice-generation";
 import { skillById } from "./skills";
 import { unstable_cache } from "next/cache";
 
-const SYNTHETIC_PRACTICE_PREFIX = "skill-drill-";
+const DYNAMIC_PRACTICE_PREFIX = "latihan-praktik-";
+const LEGACY_SYNTHETIC_PRACTICE_PREFIX = "skill-drill-";
 const PRACTICE_CACHE_TAG = "practice-tasks";
 
 function createSyntheticPracticeTask(skillId: string): PracticeTask {
   const name = skillById[skillId]?.name ?? skillId;
   return {
-    id: `${SYNTHETIC_PRACTICE_PREFIX}${skillId}`,
-    slug: `${SYNTHETIC_PRACTICE_PREFIX}${skillId}`,
+    id: `${DYNAMIC_PRACTICE_PREFIX}${skillId}`,
+    slug: `${DYNAMIC_PRACTICE_PREFIX}${skillId}`,
     role: "Latihan mandiri",
     title: `Latihan praktik ${name}`,
     skillId,
     type: "case-simulation",
     estimatedMinutes: 10,
-    sourceLabel: "Akselerja Skill Drill",
+    sourceLabel: "Latihan Praktik",
     sourceNotes: [
       "Latihan fallback dibuat otomatis ketika belum ada materi terkurasi untuk skill ini.",
       "Gunakan jawaban konkret agar rubrik bisa membaca bukti kemampuanmu.",
@@ -68,8 +70,13 @@ function createSyntheticPracticeTask(skillId: string): PracticeTask {
 }
 
 function syntheticSkillIdFromSlug(slug: string): string | null {
-  if (!slug.startsWith(SYNTHETIC_PRACTICE_PREFIX)) return null;
-  return slug.slice(SYNTHETIC_PRACTICE_PREFIX.length) || null;
+  if (slug.startsWith(DYNAMIC_PRACTICE_PREFIX)) {
+    return slug.slice(DYNAMIC_PRACTICE_PREFIX.length) || null;
+  }
+  if (slug.startsWith(LEGACY_SYNTHETIC_PRACTICE_PREFIX)) {
+    return slug.slice(LEGACY_SYNTHETIC_PRACTICE_PREFIX.length) || null;
+  }
+  return null;
 }
 
 export async function listPracticeTasksAsync(): Promise<PracticeTask[]> {
@@ -113,7 +120,9 @@ const getPracticeTaskBySlugCached = unstable_cache(
     if (resources[0]) return resources[0];
 
     const syntheticSkillId = syntheticSkillIdFromSlug(slug);
-    return syntheticSkillId ? createSyntheticPracticeTask(syntheticSkillId) : undefined;
+    if (!syntheticSkillId) return undefined;
+    const generated = await getGeneratedPracticeTask(syntheticSkillId);
+    return generated ?? createSyntheticPracticeTask(syntheticSkillId);
   },
   ["practice-task-by-slug"],
   {

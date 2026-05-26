@@ -33,6 +33,10 @@ import {
 import { getAssessmentBySlugAsync } from "./assessments-store";
 import { getPracticeTaskBySlugAsync } from "./practice-store";
 import { parseCv } from "./cv-parser";
+import {
+  analyzeParsedCvWithLanguage,
+  cvLanguageInsightNotes,
+} from "./azure-language";
 import { requireUser } from "./session";
 import { deleteUserById } from "./user-store";
 import { refreshProfileVector } from "./profile-summary";
@@ -40,6 +44,7 @@ import {
   gatherFeedbackContext,
   generateAssessmentFeedback,
 } from "./assessment-feedback";
+import { scheduleLearningPrewarmForProfile } from "./learning-prewarm";
 import {
   calculatePracticeScore,
   gradePracticeAnswer,
@@ -54,6 +59,7 @@ import type {
   OrganizationExperience,
   ProjectExperience,
   WorkMode,
+  CvLanguageInsights,
 } from "./types";
 
 function scheduleProfileEmbed(userId: string): void {
@@ -163,6 +169,7 @@ export type ParsedCvPreview = {
     year: string;
     description?: string;
   }[];
+  languageInsights?: CvLanguageInsights;
   notes: string[];
 };
 
@@ -267,6 +274,12 @@ export async function uploadCvForReview(
       contentType,
       filename: file.name,
     });
+    let languageInsights: CvLanguageInsights | undefined;
+    try {
+      languageInsights = await analyzeParsedCvWithLanguage(parsed);
+    } catch (err) {
+      console.warn("[cv] language insights failed:", err);
+    }
 
     return {
       filename: file.name,
@@ -280,7 +293,8 @@ export async function uploadCvForReview(
       organizations: parsed.organizations,
       projects: parsed.projects,
       achievements: parsed.achievements,
-      notes: parsed.notes,
+      languageInsights,
+      notes: [...parsed.notes, ...cvLanguageInsightNotes(languageInsights)],
     };
   } catch (err) {
     console.error("[cv-parser] Engine failed:", err);
@@ -317,6 +331,7 @@ export type ConfirmCvInput = {
   extractedOrganizations?: ParsedCvPreview["organizations"];
   extractedProjects?: ParsedCvPreview["projects"];
   extractedAchievements?: ParsedCvPreview["achievements"];
+  languageInsights?: CvLanguageInsights;
 };
 
 export async function confirmCvUpdate(input: ConfirmCvInput) {
@@ -382,7 +397,11 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
   const cvEmail = personal.email?.trim();
   const resolvedEmail = cvEmail && cvEmail.length > 0 ? cvEmail : accountEmail;
 
-  await patchProfileAsync(user.id, (base) => ({
+  // Replace semantics: a fresh CV is the new source of truth, so all
+  // CV-derived sections are overwritten as a unit. Personal fields use
+  // "fallback to existing if CV blank" so we don't wipe data the user typed
+  // manually with an empty CV value.
+  const updatedProfile = await patchProfileAsync(user.id, (base) => ({
     ...base,
     name: personal.name?.trim() || base.name,
     email: resolvedEmail || base.email,
@@ -405,6 +424,7 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
       uploadedAt: new Date().toISOString(),
       blobName: input.blobName,
       contentType: input.contentType,
+      languageInsights: input.languageInsights,
     },
   }));
 
@@ -421,6 +441,7 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
   }
 
   await refreshProfileScore(user.id);
+  scheduleLearningPrewarmForProfile(updatedProfile);
   redirect("/app/profil?cv=1");
 }
 
@@ -759,6 +780,7 @@ export type OnboardingInput = {
     organizations: ParsedCvPreview["organizations"];
     projects: ParsedCvPreview["projects"];
     achievements: ParsedCvPreview["achievements"];
+    languageInsights?: CvLanguageInsights;
   };
 };
 
@@ -831,7 +853,7 @@ export async function completeOnboarding(input: OnboardingInput) {
       name: s.name,
     })) ?? [];
 
-  await patchProfileAsync(user.id, (base) => ({
+  const updatedProfile = await patchProfileAsync(user.id, (base) => ({
     ...base,
     id: user.id,
     userId: user.id,
@@ -862,6 +884,7 @@ export async function completeOnboarding(input: OnboardingInput) {
           uploadedAt: new Date().toISOString(),
           blobName: cv.blobName,
           contentType: cv.contentType,
+          languageInsights: cv.languageInsights,
         }
       : base.cv,
     visibility: base.visibility ?? "applied-only",
@@ -884,6 +907,9 @@ export async function completeOnboarding(input: OnboardingInput) {
   revalidateTag(profileCacheTag(user.id));
   revalidatePath("/app");
   revalidatePath("/app/profil");
+  if (cv) {
+    scheduleLearningPrewarmForProfile(updatedProfile);
+  }
 }
 
 // ----- Assessments -----

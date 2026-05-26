@@ -10,6 +10,7 @@ import { searchJobs } from "@/lib/search-store";
 import { findCoursesForGapsAsync } from "@/lib/courses-store";
 import { readCachedGapExplanations } from "@/lib/gap-explain";
 import { getCurrentCandidate } from "@/lib/current-candidate";
+import { getGeneratedPracticeTask } from "@/lib/practice-generation";
 import { listPracticeTasksAsync } from "@/lib/practice-store";
 import { skillById } from "@/lib/skills";
 import type { Course, Job, PracticeTask } from "@/lib/types";
@@ -19,8 +20,8 @@ type SearchParams = Promise<{
   roadmapPage?: string;
 }>;
 
-const MAX_GAP_STEPS = 4;
-const ROADMAP_PAGE_SIZE = 6;
+const MAX_GAP_STEPS = 2;
+const ROADMAP_PAGE_SIZE = 3;
 
 function parsePage(value: string | undefined): number {
   const parsed = Number.parseInt(value ?? "1", 10);
@@ -91,6 +92,16 @@ function skillName(skillId: string, fallback?: string): string {
   return fallback ?? skillById[skillId]?.name ?? skillId;
 }
 
+async function generatePriorityPracticeTasks(
+  skillIds: string[],
+): Promise<PracticeTask[]> {
+  const uniqueSkillIds = Array.from(new Set(skillIds)).slice(0, MAX_GAP_STEPS);
+  const tasks = await Promise.all(
+    uniqueSkillIds.map((skillId) => getGeneratedPracticeTask(skillId)),
+  );
+  return tasks.filter((task): task is PracticeTask => Boolean(task));
+}
+
 function buildRoadmap(
   gaps: { skillId: string; name: string }[],
   courses: Course[],
@@ -141,7 +152,9 @@ function buildRoadmap(
   const daySpans = [1, 2, 3, 3];
   const labels = ["Hari 1", "Hari 3-4", "Minggu 1", "Minggu 2"];
 
-  const completedSteps: RoadmapStep[] = completedTasks.map((task, idx) => {
+  const completedSteps: RoadmapStep[] = completedTasks
+    .slice(0, MAX_GAP_STEPS)
+    .map((task, idx) => {
     const attempt = latestAttemptByTaskId.get(task.id);
     const name = skillName(task.skillId);
     return {
@@ -174,6 +187,8 @@ function buildRoadmap(
       const practice = practiceTasks.find(
         (task) => task.skillId === gap.skillId,
       );
+      const generatedPractice =
+        practice?.sourceLabel === "Referensi SKKNI" ? practice : null;
       const name = skillName(gap.skillId, gap.name);
       const ragBody = explanations.get(gap.skillId);
       const fallbackBody = course
@@ -181,13 +196,15 @@ function buildRoadmap(
         : `Latihan mandiri disiapkan untuk ${name}. Jawabanmu akan menjadi bukti awal bahwa skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
       return {
         label: labels[idx] ?? `Tahap ${idx + 1}`,
-        title: `Tutup gap ${name}`,
-        body: ragBody ?? fallbackBody,
-        evidence: course
-          ? `${course.title} (${course.provider}, ${course.durationHours} jam${course.free ? ", gratis" : ""}).`
-          : `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
+        title: generatedPractice?.title ?? `Tutup gap ${name}`,
+        body: generatedPractice?.scenario ?? ragBody ?? fallbackBody,
+        evidence:
+          generatedPractice?.expectedEvidence?.[0] ??
+          (course
+            ? `${course.title} (${course.provider}, ${course.durationHours} jam${course.free ? ", gratis" : ""}).`
+            : `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`),
         action: practice
-          ? "Mulai Kursus"
+          ? "Mulai Praktik"
           : course
             ? "Buka materi"
             : "Mulai Latihan",
@@ -195,7 +212,7 @@ function buildRoadmap(
           ? `/app/belajar/${practice.slug}`
           : course
             ? `/app/belajar/kursus/${course.id}`
-            : `/app/belajar/skill-drill-${gap.skillId}`,
+            : `/app/belajar/latihan-praktik-${gap.skillId}`,
         calendarHref: googleCalendarHref({
           title: `Belajar ${name}`,
           details: `Roadmap Akselerja: tutup gap ${name} untuk ${targetJob.title} di ${targetJob.company}.`,
@@ -210,7 +227,7 @@ function buildRoadmap(
   steps.push({
     label: "Minggu 2",
     title: "Update profil dan lamar",
-    body: "Setelah dua sampai tiga gap teratas selesai, hasil belajar jadi bukti kesiapan kerja. Update profil supaya match score-nya ikut naik, lalu lamar.",
+    body: "Setelah gap prioritas selesai, hasil belajar jadi bukti kesiapan kerja. Update profil supaya match score-nya ikut naik, lalu lamar.",
     evidence:
       "Profil punya skill baru, dan kamu siap menjelaskan satu hal konkret untuk tiap skill.",
     href: `/app/lowongan/${targetJob.id}`,
@@ -249,7 +266,7 @@ export default async function BelajarPage({
   const userSkillIds = me.skills?.map((s) => s.skillId) ?? [];
   // Same as dashboard: filter to jobs that share at least one skill with the
   // user so the "target job" the roadmap is built for is actually relevant.
-  const [search, practiceTasks, practiceAttempts] = await Promise.all([
+  const [initialSearch, basePracticeTasks, practiceAttempts] = await Promise.all([
     searchJobs({
       top: 50,
       profileVector: me.profileVector,
@@ -259,6 +276,14 @@ export default async function BelajarPage({
     listPracticeTasksAsync(),
     listPracticeAttemptsForUser(user.id),
   ]);
+  let search = initialSearch;
+  if (search.jobs.length === 0 && userSkillIds.length > 0) {
+    search = await searchJobs({
+      top: 50,
+      profileVector: me.profileVector,
+      includeClosed: false,
+    });
+  }
   const ranked = search.jobs
     .map((job) => ({ job, ...calcMatch(me, job) }))
     .sort((a, b) => b.score - a.score);
@@ -276,15 +301,20 @@ export default async function BelajarPage({
   const matched = breakdown.filter((b) => b.state === "match");
 
   const gapSkillIds = gaps.map((g) => g.skillId);
-  const [courses, explanations] = await Promise.all([
+  const priorityPracticeSkillIds = gaps
+    .slice(0, MAX_GAP_STEPS)
+    .map((gap) => gap.skillId);
+  const [courses, explanations, generatedPracticeTasks] = await Promise.all([
     findCoursesForGapsAsync(gapSkillIds, 4),
     readCachedGapExplanations({
-      job: targetJob,
-      gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
-      candidateSkillIds: me.skills.map((s) => s.skillId),
-      limit: 4,
-    }),
+        job: targetJob,
+        gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
+        candidateSkillIds: me.skills.map((s) => s.skillId),
+        limit: 4,
+      }),
+    generatePriorityPracticeTasks(priorityPracticeSkillIds),
   ]);
+  const practiceTasks = [...generatedPracticeTasks, ...basePracticeTasks];
   const roadmap = buildRoadmap(
     gaps,
     courses,
@@ -589,21 +619,21 @@ function NoJobsState() {
       <PageHeader
         eyebrow="Belajar"
         title="Belum ada target kerja"
-        description="Kami belum menemukan lowongan yang cocok dengan profilmu. Lengkapi profil atau upload CV supaya kami bisa menyusun roadmap belajar yang tepat."
+        description="Kami belum menemukan lowongan aktif yang bisa dijadikan target roadmap saat ini. Coba buka halaman lowongan atau pilih target lain setelah data lowongan tersedia."
       />
       <div className="mt-10 rounded-lg border border-(--color-line) bg-(--color-tint) p-8">
         <p className="text-sm font-semibold text-(--color-ink)">
           Mulai dari profilmu
         </p>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-(--color-muted)">
-          Setelah profil terisi, kami otomatis memilih satu lowongan target dan
-          menyusun roadmap belajar dua minggu yang spesifik untukmu.
+          Profilmu tetap tersimpan. Roadmap belajar akan muncul saat ada
+          lowongan aktif yang bisa dibandingkan dengan skill di profilmu.
         </p>
         <Link
-          href="/app/profil"
+          href="/app/lowongan"
           className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
         >
-          Lengkapi profil →
+          Lihat lowongan →
         </Link>
       </div>
     </>

@@ -35,8 +35,9 @@ const INITIAL_MESSAGE: Message = {
   text: "Halo. Saya pendamping karier kamu di Akselerja. Saya bisa bantu jelaskan skor kecocokan, urutin skill yang perlu kamu pelajari, atau bantu kamu pikir realistis soal target kerja. Mau mulai dari mana?",
 };
 
-const HISTORY_KEY = "akselerja:coach-history:v1";
+const HISTORY_KEY = "akselerja:coach-history:v4";
 const HISTORY_TTL_MS = 24 * 60 * 60 * 1000;
+const INTERRUPTED_MARKER = "[Jawaban coach terputus";
 
 type StoredHistory = {
   messages: Message[];
@@ -80,10 +81,15 @@ function clearHistory() {
   window.localStorage.removeItem(HISTORY_KEY);
 }
 
+function isInterruptedReply(text: string): boolean {
+  return text.includes(INTERRUPTED_MARKER);
+}
+
 export default function CoachChat() {
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
-  const [thinking, setThinking] = useState(false);
+  const [isResponding, setIsResponding] = useState(false);
+  const [showTyping, setShowTyping] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
@@ -94,16 +100,16 @@ export default function CoachChat() {
 
   useEffect(() => {
     const hasUserTurn = messages.some((m) => m.role === "user");
-    if (hasUserTurn) saveHistory(messages);
-  }, [messages]);
+    if (hasUserTurn && !isResponding) saveHistory(messages);
+  }, [messages, isResponding]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, thinking]);
+  }, [messages, showTyping]);
 
   async function send(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || thinking) return;
+    if (!trimmed || isResponding) return;
     const userMsg: Message = {
       id: `u-${Date.now()}`,
       role: "user",
@@ -112,9 +118,12 @@ export default function CoachChat() {
     const nextHistory = [...messages, userMsg];
     setMessages(nextHistory);
     setInput("");
-    setThinking(true);
+    setIsResponding(true);
+    setShowTyping(true);
     setErrorMsg(null);
 
+    let replyId: string | null = null;
+    let buffered = "";
     try {
       const payload = nextHistory
         .filter((m) => m.id !== "m-0")
@@ -131,23 +140,23 @@ export default function CoachChat() {
         } catch {
           setErrorMsg("Coach belum bisa menjawab sekarang.");
         }
-        setThinking(false);
+        setShowTyping(false);
         return;
       }
       if (!res.body) {
         setErrorMsg("Coach belum mengirim balasan.");
-        setThinking(false);
+        setShowTyping(false);
         return;
       }
 
-      const replyId = `c-${Date.now()}`;
+      const nextReplyId = `c-${Date.now()}`;
+      replyId = nextReplyId;
       setMessages((prev) => [
         ...prev,
-        { id: replyId, role: "coach", text: "" },
+        { id: nextReplyId, role: "coach", text: "" },
       ]);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffered = "";
       let firstChunk = true;
       while (true) {
         const { done, value } = await reader.read();
@@ -155,7 +164,7 @@ export default function CoachChat() {
         if (value) {
           buffered += decoder.decode(value, { stream: true });
           if (firstChunk) {
-            setThinking(false);
+            setShowTyping(false);
             firstChunk = false;
           }
           setMessages((prev) =>
@@ -164,14 +173,24 @@ export default function CoachChat() {
         }
       }
       buffered += decoder.decode();
+      if (isInterruptedReply(buffered)) {
+        setErrorMsg("Jawaban coach terputus. Coba kirim ulang pertanyaanmu.");
+      }
       setMessages((prev) =>
         prev.map((m) => (m.id === replyId ? { ...m, text: buffered } : m)),
       );
     } catch (err) {
       console.error("[coach] fetch failed:", err);
       setErrorMsg("Tidak bisa menghubungi coach. Cek koneksi internetmu.");
+      if (replyId && buffered) {
+        const interrupted = `${buffered}\n\n[Koneksi terputus. Kirim ulang pertanyaanmu kalau ingin melanjutkan.]`;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === replyId ? { ...m, text: interrupted } : m)),
+        );
+      }
     } finally {
-      setThinking(false);
+      setIsResponding(false);
+      setShowTyping(false);
     }
   }
 
@@ -186,7 +205,7 @@ export default function CoachChat() {
         {messages.map((msg) => (
           <MessageBubble key={msg.id} role={msg.role} text={msg.text} />
         ))}
-        {thinking && <TypingIndicator />}
+        {showTyping && <TypingIndicator />}
         {errorMsg ? (
           <p
             role="alert"
@@ -244,7 +263,7 @@ export default function CoachChat() {
         />
         <button
           type="submit"
-          disabled={!input.trim() || thinking}
+          disabled={!input.trim() || isResponding}
           className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-4 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) transition-colors hover:bg-(--color-teal-deep) disabled:opacity-50"
         >
           Kirim
@@ -260,13 +279,13 @@ export default function CoachChat() {
           <button
             type="button"
             onClick={() => {
-              if (thinking) return;
+              if (isResponding) return;
               clearHistory();
               setMessages([INITIAL_MESSAGE]);
               setErrorMsg(null);
               setInput("");
             }}
-            disabled={thinking}
+            disabled={isResponding}
             className="shrink-0 text-xs font-medium text-(--color-muted) underline-offset-4 hover:text-(--color-ink) hover:underline disabled:opacity-60"
           >
             Mulai chat baru

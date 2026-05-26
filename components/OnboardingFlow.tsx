@@ -175,6 +175,7 @@ export default function OnboardingFlow() {
           organizations: result.organizations,
           projects: result.projects,
           achievements: result.achievements,
+          languageInsights: result.languageInsights,
         },
       });
       clearDraft();

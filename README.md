@@ -18,6 +18,9 @@ npm run dev
 
 Buka [http://localhost:3000](http://localhost:3000).
 
+Konfigurasi Azure dan env ada di [`azure.md`](azure.md). Mulai dari
+[`.env.example`](.env.example), lalu isi secret di `.env.local`.
+
 ## Build
 
 ```bash

@@ -5,7 +5,10 @@ import { resolve } from "path";
 config({ path: resolve(process.cwd(), ".env.local") });
 
 const CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
-const CONTAINER_NAME = process.env.AZURE_STORAGE_CV_CONTAINER ?? "cvs";
+const CONTAINER_NAME =
+  process.env.AZURE_STORAGE_CV_CONTAINER ??
+  process.env.BLOB_CONTAINER_CV ??
+  "cvs";
 
 if (!CONNECTION_STRING) {
   console.error("Missing AZURE_STORAGE_CONNECTION_STRING in .env.local");

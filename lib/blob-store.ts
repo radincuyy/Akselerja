@@ -7,7 +7,10 @@ import {
 const CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT;
 const ACCOUNT_KEY = process.env.AZURE_STORAGE_KEY;
-const CONTAINER_NAME = process.env.AZURE_STORAGE_CV_CONTAINER ?? "cvs";
+const CONTAINER_NAME =
+  process.env.AZURE_STORAGE_CV_CONTAINER ??
+  process.env.BLOB_CONTAINER_CV ??
+  "cvs";
 
 export function isBlobConfigured(): boolean {
   return Boolean(CONNECTION_STRING || (ACCOUNT_NAME && ACCOUNT_KEY));
