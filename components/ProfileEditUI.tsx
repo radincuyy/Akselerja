@@ -1119,11 +1119,11 @@ function PersonalForm({
       <Field id={ids.bio} label="Bio singkat" colSpan="full">
         <textarea
           id={ids.bio}
-          rows={3}
+          rows={6}
           value={data.bio}
           onChange={(e) => setData({ ...data, bio: e.target.value })}
           className="w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3.5 py-2.5 text-base text-(--color-ink) outline-none placeholder:text-(--color-muted)/70 focus:border-(--color-teal)"
-          placeholder="1-2 kalimat tentang dirimu."
+          placeholder="Ringkasan singkat tentang dirimu."
         />
       </Field>
 

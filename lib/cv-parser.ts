@@ -149,9 +149,9 @@ Aturan data identitas (personal):
 - "location" = nama kota tempat tinggal saja (mis. "Jakarta Selatan",
   "Surabaya"). Jangan masukkan provinsi atau alamat lengkap.
 - "linkedin", "github", "portfolio" = URL lengkap kalau disebut di CV.
-- "bio" = ringkasan profil 1-2 kalimat (biasanya ada di section "About
-  Me", "Profile", atau "Summary"). Maksimal 280 karakter. Kalau CV tidak
-  punya summary, kosongkan.
+- "bio" = ringkasan profil dari section "About Me", "Profile", atau
+  "Summary". Salin apa adanya, jangan dipotong. Maksimal 2000 karakter.
+  Kalau CV tidak punya summary, kosongkan.
 - Field yang tidak ada di CV → kosongkan (jangan menebak).
 
 Aturan skill:
@@ -409,7 +409,7 @@ Output JSON sesuai schema.`;
       ? String(rawPersonal.portfolio).trim()
       : undefined,
     bio: rawPersonal?.bio
-      ? String(rawPersonal.bio).trim().slice(0, 280)
+      ? String(rawPersonal.bio).trim().slice(0, 2000)
       : undefined,
   };
 

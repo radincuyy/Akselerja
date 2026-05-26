@@ -443,8 +443,8 @@ export async function savePersonalSection(
   if (!input.name?.trim()) errors.name = "Nama tidak boleh kosong.";
   if (!input.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email))
     errors.email = "Email tidak valid.";
-  if (input.bio && input.bio.length > 280)
-    errors.bio = "Bio terlalu panjang, batasi 280 karakter.";
+  if (input.bio && input.bio.length > 2000)
+    errors.bio = "Bio terlalu panjang, batasi 2000 karakter.";
   const expYears = input.experienceYears ?? 0;
   const expSalary = input.expectedSalary ?? 0;
   if (expYears < 0 || expYears > 60)
