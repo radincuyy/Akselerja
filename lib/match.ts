@@ -177,19 +177,43 @@ function highestCandidateEducation(candidate: Candidate): number {
   if (!candidate.education || candidate.education.length === 0) return -1;
   let best = -1;
   for (const e of candidate.education) {
-    const key = e.degree?.toLowerCase().trim();
-    if (!key) continue;
+    const raw = (e.degree ?? "").trim();
+    if (!raw) continue;
+    if (raw in EDUCATION_RANK) {
+      best = Math.max(best, EDUCATION_RANK[raw]);
+      continue;
+    }
+    const key = raw.toLowerCase();
     if (key in EDUCATION_RANK) {
       best = Math.max(best, EDUCATION_RANK[key]);
       continue;
     }
-    if (/sarjana|s1|bachelor|s\.?[a-z]+/i.test(e.degree)) best = Math.max(best, 5);
-    else if (/magister|s2|master/i.test(e.degree)) best = Math.max(best, 6);
-    else if (/doktor|s3|phd|ph\.?d|doctorate/i.test(e.degree)) best = Math.max(best, 7);
-    else if (/diploma|d3|d4|d-3|d-4|amd/i.test(e.degree)) best = Math.max(best, 4);
-    else if (/sma|smk|aliyah/i.test(e.degree)) best = Math.max(best, 3);
-    else if (/smp/i.test(e.degree)) best = Math.max(best, 2);
-    else if (/sd/i.test(e.degree)) best = Math.max(best, 1);
+    if (/\b(doktor|doctorate|phd|ph\.?d|s[\s.\-]?3)\b/i.test(raw)) {
+      best = Math.max(best, 7);
+    } else if (
+      /\b(magister|master|s[\s.\-]?2|m\.?(kom|m|ba|t|si|pd|hum|sn))\b/i.test(raw)
+    ) {
+      best = Math.max(best, 6);
+    } else if (
+      /\b(sarjana|bachelor|s[\s.\-]?1)\b/i.test(raw) ||
+      /\bs\.(kom|e|t|pd|h|sos|si|psi|ked|sn|kep|gz|fil|p|tr|ag|ip|st)\b/i.test(
+        raw,
+      )
+    ) {
+      best = Math.max(best, 5);
+    } else if (/\b(diploma|d[\s.\-]?[1-4]|amd|ahli\s+madya)\b/i.test(raw)) {
+      best = Math.max(best, 4);
+    } else if (
+      /\b(sma|smk|aliyah|paket\s+c|sekolah\s+menengah\s+atas)\b/i.test(raw)
+    ) {
+      best = Math.max(best, 3);
+    } else if (
+      /\b(smp|mts|paket\s+b|sekolah\s+menengah\s+pertama)\b/i.test(raw)
+    ) {
+      best = Math.max(best, 2);
+    } else if (/\b(sd|paket\s+a|sekolah\s+dasar)\b/i.test(raw)) {
+      best = Math.max(best, 1);
+    }
   }
   return best;
 }

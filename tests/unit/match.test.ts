@@ -150,3 +150,100 @@ describe("calcMatch", () => {
     expect(Math.abs(sum - score)).toBeLessThanOrEqual(2);
   });
 });
+
+describe("education detection", () => {
+  function jobWithEducation(min: string): Job {
+    return {
+      ...buildJob([{ skillId: "a", mustHave: true }]),
+      minEducation: min,
+    };
+  }
+  function candidateWithDegree(degree: string): Candidate {
+    return {
+      ...buildCandidate(["a"]),
+      education: [
+        {
+          id: "ed-1",
+          institution: "Test",
+          degree,
+          startMonth: "2020-01",
+          endMonth: "2023-01",
+        },
+      ],
+    };
+  }
+
+  it("D3 candidate is below S1 requirement", () => {
+    const job = jobWithEducation("BACHELOR_DEGREE");
+    const cand = candidateWithDegree("D3 Akuntansi");
+    const dim = calcMatch(cand, job).dimensions.find(
+      (d) => d.id === "education",
+    );
+    expect(dim?.applicable).toBe(true);
+    expect(dim?.ratio).toBeLessThan(1);
+    expect(dim?.detail).toMatch(/jenjang lebih tinggi/);
+  });
+
+  it("SMA degree does not get classified as bachelor (regression)", () => {
+    const job = jobWithEducation("BACHELOR_DEGREE");
+    const cand = candidateWithDegree("SMA Negeri 1");
+    const dim = calcMatch(cand, job).dimensions.find(
+      (d) => d.id === "education",
+    );
+    expect(dim?.ratio).toBeLessThan(1);
+  });
+
+  it("Sarjana Komputer (S1) meets bachelor requirement", () => {
+    const job = jobWithEducation("BACHELOR_DEGREE");
+    const cand = candidateWithDegree("Sarjana Komputer");
+    const dim = calcMatch(cand, job).dimensions.find(
+      (d) => d.id === "education",
+    );
+    expect(dim?.ratio).toBe(1);
+  });
+
+  it("S.Kom title meets bachelor requirement", () => {
+    const job = jobWithEducation("BACHELOR_DEGREE");
+    const cand = candidateWithDegree("S.Kom Informatika");
+    const dim = calcMatch(cand, job).dimensions.find(
+      (d) => d.id === "education",
+    );
+    expect(dim?.ratio).toBe(1);
+  });
+
+  it("S2 / Magister exceeds S1 requirement", () => {
+    const job = jobWithEducation("BACHELOR_DEGREE");
+    const cand = candidateWithDegree("Magister Teknik");
+    const dim = calcMatch(cand, job).dimensions.find(
+      (d) => d.id === "education",
+    );
+    expect(dim?.ratio).toBe(1);
+  });
+
+  it("uses highest degree when multiple education entries", () => {
+    const job = jobWithEducation("BACHELOR_DEGREE");
+    const cand: Candidate = {
+      ...buildCandidate(["a"]),
+      education: [
+        {
+          id: "ed-1",
+          institution: "SMA",
+          degree: "SMA",
+          startMonth: "2014-01",
+          endMonth: "2017-01",
+        },
+        {
+          id: "ed-2",
+          institution: "Univ",
+          degree: "Sarjana Teknik",
+          startMonth: "2017-01",
+          endMonth: "2021-01",
+        },
+      ],
+    };
+    const dim = calcMatch(cand, job).dimensions.find(
+      (d) => d.id === "education",
+    );
+    expect(dim?.ratio).toBe(1);
+  });
+});
