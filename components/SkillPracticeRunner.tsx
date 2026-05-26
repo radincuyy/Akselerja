@@ -97,34 +97,6 @@ export default function SkillPracticeRunner({
       setAnswer(nextAnswer);
       setCompletedAt(res.completedAt);
       setSubmitted(true);
-
-      window.dispatchEvent(
-        new CustomEvent("akselerja:notification-created", {
-          detail: {
-            id: `practice-attempt-${res.attemptId}`,
-            title: "Belajar selesai",
-            body: res.passed
-              ? `${task.title} selesai dengan skor ${res.score}. Skill ${skillName} sudah memperkuat profilmu.`
-              : `${task.title} selesai dengan skor ${res.score}. Perbaiki jawaban untuk menaikkan bukti skill.`,
-            time: "Baru saja",
-            unread: true,
-          },
-        }),
-      );
-
-      if (res.readinessScoreIncrease > 0) {
-        window.dispatchEvent(
-          new CustomEvent("akselerja:readiness-score-increased", {
-            detail: {
-              previousScore: res.previousReadinessScore,
-              newScore: res.readinessScore,
-              increasedBy: res.readinessScoreIncrease,
-            },
-          }),
-        );
-      }
-
-      window.dispatchEvent(new Event("akselerja:notifications-refresh"));
     });
   }
 

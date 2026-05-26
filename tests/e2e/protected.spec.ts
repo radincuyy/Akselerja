@@ -6,9 +6,9 @@ test.describe("protected routes", () => {
     await expect(page).toHaveURL(/\/masuk/);
   });
 
-  test("/api/notifications returns 401 without session", async () => {
+  test("/api/cv/current returns 401 without session", async () => {
     const ctx = await request.newContext();
-    const res = await ctx.get("/api/notifications");
+    const res = await ctx.get("/api/cv/current");
     expect(res.status()).toBe(401);
   });
 

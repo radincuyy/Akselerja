@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Logo from "./Logo";
-import { buildNotifications, type AppNotification } from "@/lib/notifications";
 import type { CurrentUser } from "@/lib/session";
 import type { Candidate } from "@/lib/types";
 
@@ -162,31 +161,6 @@ function isActivePath(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-const LOCAL_NOTIFICATION_LIMIT = 12;
-
-function isAppNotification(value: unknown): value is AppNotification {
-  if (!value || typeof value !== "object") return false;
-  const item = value as Partial<AppNotification>;
-  return (
-    typeof item.id === "string" &&
-    typeof item.title === "string" &&
-    typeof item.body === "string" &&
-    typeof item.time === "string"
-  );
-}
-
-function mergeNotifications(
-  localNotifications: AppNotification[],
-  serverNotifications: AppNotification[],
-): AppNotification[] {
-  const seen = new Set<string>();
-  return [...localNotifications, ...serverNotifications].filter((item) => {
-    if (seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
-}
-
 function GearIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -198,20 +172,6 @@ function GearIcon() {
         strokeLinejoin="round"
       />
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function BellIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M10.27 21a2 2 0 0 0 3.46 0M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
     </svg>
   );
 }
@@ -256,30 +216,9 @@ export default function AppShell({ currentUser, profile, children }: Props) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [serverNotifications, setServerNotifications] = useState<
-    AppNotification[]
-  >(() =>
-    buildNotifications({
-      hasCv: Boolean(profile.cv),
-      skillCount: profile.skills?.length ?? 0,
-      readinessScore: profile.readinessScore,
-    }),
-  );
-  const [localNotifications, setLocalNotifications] = useState<
-    AppNotification[]
-  >([]);
-  const [notificationsLive, setNotificationsLive] = useState(false);
-  const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [notificationStorageLoaded, setNotificationStorageLoaded] =
-    useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const desktopProfileMenuRef = useRef<HTMLDivElement | null>(null);
   const mobileProfileMenuRef = useRef<HTMLDivElement | null>(null);
-  const desktopNotificationRef = useRef<HTMLDivElement | null>(null);
-  const mobileNotificationRef = useRef<HTMLDivElement | null>(null);
   const profileName = currentUser.name || profile.name;
   const yearsLabel =
     profile.experienceYears === 0
@@ -288,270 +227,25 @@ export default function AppShell({ currentUser, profile, children }: Props) {
   const cityLabel = profile.location.split(",")[0] || "Indonesia";
   const profileMeta = `${cityLabel} · ${yearsLabel}`;
   const initials = initialsFromName(profileName);
-  const readNotificationStorageKey = `akselerja:${currentUser.id}:notification-read`;
-  const localNotificationStorageKey = `akselerja:${currentUser.id}:notification-local`;
-  const readinessScoreStorageKey = `akselerja:${currentUser.id}:readiness-score`;
-  const notifications = mergeNotifications(
-    localNotifications,
-    serverNotifications,
-  );
-  const unreadCount = notifications.filter(
-    (item) => item.unread && !readNotificationIds.has(item.id),
-  ).length;
-
-  function addLocalNotification(notification: AppNotification) {
-    setLocalNotifications((current) => {
-      const next = [
-        notification,
-        ...current.filter((item) => item.id !== notification.id),
-      ];
-      return next.slice(0, LOCAL_NOTIFICATION_LIMIT);
-    });
-    setReadNotificationIds((current) => {
-      const next = new Set(current);
-      next.delete(notification.id);
-      return next;
-    });
-  }
 
   useEffect(() => {
     setIsSidebarOpen(false);
     setIsProfileMenuOpen(false);
-    setIsNotificationOpen(false);
   }, [pathname]);
 
   useEffect(() => {
-    try {
-      const savedReadIds = JSON.parse(
-        window.localStorage.getItem(readNotificationStorageKey) ?? "[]",
-      );
-      if (Array.isArray(savedReadIds)) {
-        setReadNotificationIds(
-          new Set(savedReadIds.filter((id) => typeof id === "string")),
-        );
-      }
-
-      const savedLocalNotifications = JSON.parse(
-        window.localStorage.getItem(localNotificationStorageKey) ?? "[]",
-      );
-      if (Array.isArray(savedLocalNotifications)) {
-        setLocalNotifications(
-          savedLocalNotifications
-            .filter(isAppNotification)
-            .slice(0, LOCAL_NOTIFICATION_LIMIT),
-        );
-      }
-    } catch {
-    } finally {
-      setNotificationStorageLoaded(true);
-    }
-  }, [localNotificationStorageKey, readNotificationStorageKey]);
-
-  useEffect(() => {
-    if (!notificationStorageLoaded) return;
-    window.localStorage.setItem(
-      readNotificationStorageKey,
-      JSON.stringify([...readNotificationIds]),
-    );
-  }, [
-    notificationStorageLoaded,
-    readNotificationIds,
-    readNotificationStorageKey,
-  ]);
-
-  useEffect(() => {
-    if (!notificationStorageLoaded) return;
-    window.localStorage.setItem(
-      localNotificationStorageKey,
-      JSON.stringify(localNotifications),
-    );
-  }, [
-    localNotificationStorageKey,
-    localNotifications,
-    notificationStorageLoaded,
-  ]);
-
-  useEffect(() => {
-    function handleNotificationCreated(event: Event) {
-      const detail = (event as CustomEvent<unknown>).detail;
-      if (!isAppNotification(detail)) return;
-
-      addLocalNotification(detail);
-    }
-
-    window.addEventListener(
-      "akselerja:notification-created",
-      handleNotificationCreated,
-    );
-    return () => {
-      window.removeEventListener(
-        "akselerja:notification-created",
-        handleNotificationCreated,
-      );
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!notificationStorageLoaded) return;
-
-    const currentScore = profile.readinessScore ?? 0;
-    const savedScore = window.localStorage.getItem(readinessScoreStorageKey);
-    const previousScore =
-      savedScore === null ? currentScore : Number(savedScore);
-
-    if (
-      savedScore !== null &&
-      Number.isFinite(previousScore) &&
-      currentScore > previousScore
-    ) {
-      addLocalNotification({
-        id: `readiness-score-${currentScore}-${Date.now()}`,
-        title: "Skor kesiapan naik",
-        body: `Skor kesiapan kerja kamu naik ${currentScore - previousScore} poin menjadi ${currentScore}.`,
-        time: "Baru saja",
-        unread: true,
-      });
-    }
-
-    window.localStorage.setItem(
-      readinessScoreStorageKey,
-      String(currentScore),
-    );
-  }, [
-    notificationStorageLoaded,
-    profile.readinessScore,
-    readinessScoreStorageKey,
-  ]);
-
-  useEffect(() => {
-    function handleReadinessScoreIncreased(event: Event) {
-      const detail = (event as CustomEvent<unknown>).detail;
-      if (!detail || typeof detail !== "object") return;
-
-      const payload = detail as {
-        newScore?: unknown;
-        increasedBy?: unknown;
-      };
-      if (
-        typeof payload.newScore !== "number" ||
-        typeof payload.increasedBy !== "number" ||
-        payload.increasedBy <= 0
-      ) {
-        return;
-      }
-
-      addLocalNotification({
-        id: `readiness-score-${payload.newScore}-${Date.now()}`,
-        title: "Skor kesiapan naik",
-        body: `Skor kesiapan kerja kamu naik ${payload.increasedBy} poin menjadi ${payload.newScore}.`,
-        time: "Baru saja",
-        unread: true,
-      });
-      window.localStorage.setItem(
-        readinessScoreStorageKey,
-        String(payload.newScore),
-      );
-    }
-
-    window.addEventListener(
-      "akselerja:readiness-score-increased",
-      handleReadinessScoreIncreased,
-    );
-    return () => {
-      window.removeEventListener(
-        "akselerja:readiness-score-increased",
-        handleReadinessScoreIncreased,
-      );
-    };
-  }, [readinessScoreStorageKey]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let pollId: ReturnType<typeof setInterval> | null = null;
-
-    function applyPayload(payload: unknown) {
-      if (
-        payload &&
-        typeof payload === "object" &&
-        "notifications" in payload &&
-        Array.isArray((payload as { notifications: unknown }).notifications)
-      ) {
-        setServerNotifications(
-          (payload as { notifications: AppNotification[] }).notifications,
-        );
-      }
-    }
-
-    async function fetchLatest() {
-      try {
-        const res = await fetch("/api/notifications", { cache: "no-store" });
-        if (!res.ok) return;
-        applyPayload(await res.json());
-      } catch {
-      }
-    }
-
-    window.addEventListener("akselerja:notifications-refresh", fetchLatest);
-
-    if (typeof window !== "undefined" && "EventSource" in window) {
-      const source = new EventSource("/api/notifications/stream");
-      source.addEventListener("open", () => {
-        if (!cancelled) setNotificationsLive(true);
-      });
-      source.addEventListener("notifications", (event) => {
-        if (cancelled) return;
-        try {
-          applyPayload(JSON.parse((event as MessageEvent).data));
-        } catch {
-        }
-      });
-      source.addEventListener("error", () => {
-        if (cancelled) return;
-        setNotificationsLive(false);
-        source.close();
-        fetchLatest();
-        pollId = setInterval(fetchLatest, 20_000);
-      });
-      return () => {
-        cancelled = true;
-        window.removeEventListener(
-          "akselerja:notifications-refresh",
-          fetchLatest,
-        );
-        source.close();
-        if (pollId) clearInterval(pollId);
-      };
-    }
-
-    fetchLatest();
-    pollId = setInterval(fetchLatest, 20_000);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(
-        "akselerja:notifications-refresh",
-        fetchLatest,
-      );
-      if (pollId) clearInterval(pollId);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isProfileMenuOpen && !isNotificationOpen) return;
+    if (!isProfileMenuOpen) return;
 
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as Node;
       if (desktopProfileMenuRef.current?.contains(target)) return;
       if (mobileProfileMenuRef.current?.contains(target)) return;
-      if (desktopNotificationRef.current?.contains(target)) return;
-      if (mobileNotificationRef.current?.contains(target)) return;
       setIsProfileMenuOpen(false);
-      setIsNotificationOpen(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsProfileMenuOpen(false);
-        setIsNotificationOpen(false);
       }
     }
 
@@ -561,15 +255,11 @@ export default function AppShell({ currentUser, profile, children }: Props) {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isProfileMenuOpen, isNotificationOpen]);
+  }, [isProfileMenuOpen]);
 
   function handleSignOut() {
     setIsSigningOut(true);
     signOut({ callbackUrl: "/" });
-  }
-
-  function markAllNotificationsRead() {
-    setReadNotificationIds(new Set(notifications.map((item) => item.id)));
   }
 
   const navList = (
@@ -593,74 +283,6 @@ export default function AppShell({ currentUser, profile, children }: Props) {
         );
       })}
     </nav>
-  );
-
-  const notificationMenu = (
-    <div className="absolute right-0 top-full z-40 mt-2 w-[calc(100vw-2.5rem)] overflow-hidden rounded-md border border-(--color-line) bg-(--color-paper) shadow-xl sm:w-96 md:w-80">
-      <div className="flex items-center justify-between gap-3 border-b border-(--color-line) px-4 py-3">
-        <div>
-          <p className="text-sm font-semibold text-(--color-ink)">Notifikasi</p>
-          <p className="text-xs text-(--color-muted)">
-            {unreadCount > 0
-              ? `${unreadCount} belum dibaca`
-              : "Semua sudah dibaca"}
-          </p>
-          <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-(--color-muted)">
-            <span
-              aria-hidden
-              className={`h-1.5 w-1.5 rounded-full ${
-                notificationsLive
-                  ? "bg-(--color-signal-green)"
-                  : "bg-(--color-signal-amber)"
-              }`}
-            />
-            {notificationsLive ? "Realtime aktif" : "Memperbarui berkala"}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={markAllNotificationsRead}
-          className="rounded-md px-2 py-1 text-xs font-medium text-(--color-teal) transition-colors hover:bg-(--color-tint)"
-        >
-          Tandai dibaca
-        </button>
-      </div>
-      <div className="pretty-scrollbar max-h-80 overflow-y-auto p-2 pr-1">
-        {notifications.map((item) => {
-          const unread = Boolean(
-            item.unread && !readNotificationIds.has(item.id),
-          );
-          return (
-            <div
-              key={item.id}
-              className="rounded-md px-3 py-3 transition-colors hover:bg-(--color-tint)"
-            >
-              <div className="flex items-start gap-3">
-                <span
-                  aria-hidden
-                  className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-                    unread ? "bg-(--color-teal)" : "bg-(--color-line)"
-                  }`}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-medium leading-snug text-(--color-ink)">
-                      {item.title}
-                    </p>
-                    <span className="shrink-0 text-xs text-(--color-muted)">
-                      {item.time}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm leading-relaxed text-(--color-muted)">
-                    {item.body}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 
   const profileMenu = (
@@ -713,28 +335,6 @@ export default function AppShell({ currentUser, profile, children }: Props) {
         <header className="sticky top-0 z-20 hidden border-b border-(--color-line) bg-(--color-paper) md:block">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-end px-8">
             <div className="flex items-center justify-end gap-4">
-              <div ref={desktopNotificationRef} className="relative">
-                <button
-                  type="button"
-                  aria-label="Buka notifikasi"
-                  aria-expanded={isNotificationOpen}
-                  title="Notifikasi"
-                  onClick={() => {
-                    setIsNotificationOpen((open) => !open);
-                    setIsProfileMenuOpen(false);
-                  }}
-                  className="relative inline-flex h-11 w-11 items-center justify-center rounded-md text-(--color-muted) transition-colors hover:bg-(--color-tint) hover:text-(--color-ink)"
-                >
-                  <BellIcon />
-                  {unreadCount > 0 ? (
-                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-(--color-teal)" />
-                  ) : null}
-                </button>
-                {isNotificationOpen ? notificationMenu : null}
-              </div>
-
-              <div className="h-6 w-px rounded-md bg-(--color-line)" />
-
               <div ref={desktopProfileMenuRef} className="relative">
                 <button
                   type="button"
@@ -742,7 +342,6 @@ export default function AppShell({ currentUser, profile, children }: Props) {
                   aria-expanded={isProfileMenuOpen}
                   onClick={() => {
                     setIsProfileMenuOpen((open) => !open);
-                    setIsNotificationOpen(false);
                   }}
                   className="inline-flex h-11 items-center gap-3 rounded-md px-2.5 text-left transition-colors hover:bg-(--color-tint)"
                 >
@@ -794,32 +393,11 @@ export default function AppShell({ currentUser, profile, children }: Props) {
             </div>
 
             <div className="flex items-center gap-2">
-              <div ref={mobileNotificationRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNotificationOpen((open) => !open);
-                    setIsProfileMenuOpen(false);
-                  }}
-                  aria-label="Buka notifikasi"
-                  aria-expanded={isNotificationOpen}
-                  title="Notifikasi"
-                  className="relative inline-flex h-11 w-11 items-center justify-center rounded-md border border-(--color-line) text-(--color-muted) transition-colors hover:border-(--color-ink) hover:text-(--color-ink)"
-                >
-                  <BellIcon />
-                  {unreadCount > 0 ? (
-                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-(--color-teal)" />
-                  ) : null}
-                </button>
-                {isNotificationOpen ? notificationMenu : null}
-              </div>
-
               <div ref={mobileProfileMenuRef} className="relative">
                 <button
                   type="button"
                   onClick={() => {
                     setIsProfileMenuOpen((open) => !open);
-                    setIsNotificationOpen(false);
                   }}
                   aria-label="Buka menu profil"
                   aria-expanded={isProfileMenuOpen}

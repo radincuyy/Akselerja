@@ -1,5 +1,4 @@
 import Link from "next/link";
-import CalendarNotificationLink from "@/components/CalendarNotificationLink";
 import PageHeader from "@/components/PageHeader";
 import Pagination from "@/components/Pagination";
 import {
@@ -554,15 +553,14 @@ export default async function BelajarPage({
                     {step.disabledReason}
                   </p>
                 ) : null}
-                <CalendarNotificationLink
+                <a
                   href={step.calendarHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
-                  notificationKey={`${targetJob.id}-${roadmapStart + i + 1}`}
-                  notificationTitle="Jadwal belajar disiapkan"
-                  notificationBody={`Reminder untuk ${step.title} sudah dibuka di Google Calendar.`}
                 >
                   Tambah ke Google Calendar
-                </CalendarNotificationLink>
+                </a>
               </div>
             </li>
           ))}
