@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 const PROTECTED_API_PREFIX = "/api/";
-const PUBLIC_API_PREFIXES = ["/api/auth/"];
+const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/test/"];
 
 export default async function middleware(req: NextRequest) {
   const { nextUrl } = req;
@@ -19,7 +19,9 @@ export default async function middleware(req: NextRequest) {
     const token = await getToken({
       req,
       secret: process.env.AUTH_SECRET,
-      secureCookie: process.env.NODE_ENV === "production",
+      secureCookie:
+        process.env.NODE_ENV === "production" &&
+        process.env.E2E_MODE !== "true",
     });
     if (!token) {
       return NextResponse.json(
