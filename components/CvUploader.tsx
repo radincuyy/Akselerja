@@ -3,6 +3,7 @@
 import { useId, useRef, useState, useTransition } from "react";
 import {
   confirmCvUpdate,
+  discardCvPreview,
   uploadCvForReview,
   type ParsedCvPreview,
 } from "@/lib/profile-actions";
@@ -89,6 +90,9 @@ export default function CvUploader({ currentCv }: Props) {
   }
 
   function reset() {
+    if (state.kind === "review" && state.preview.blobName) {
+      void discardCvPreview(state.preview.blobName);
+    }
     setState({ kind: "idle" });
     if (inputRef.current) inputRef.current.value = "";
   }

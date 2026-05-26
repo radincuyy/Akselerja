@@ -273,6 +273,18 @@ export async function uploadCvForReview(
   }
 }
 
+export async function discardCvPreview(blobName: string) {
+  if (!blobName) return;
+  await requireUser();
+  if (!isBlobConfigured()) return;
+  if (!blobName.includes("/")) return;
+  try {
+    await deleteBlob(blobName);
+  } catch (err) {
+    console.error("[cv] discard preview failed", err);
+  }
+}
+
 export type ConfirmCvInput = {
   filename: string;
   sizeBytes: number;
