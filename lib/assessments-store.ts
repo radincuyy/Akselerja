@@ -2,7 +2,7 @@ import type { Assessment, AssessmentQuestion } from "./types";
 import { CONTAINERS, getContainer } from "./db";
 import { unstable_cache } from "next/cache";
 
-export const ASSESSMENTS_CACHE_TAG = "assessments";
+const ASSESSMENTS_CACHE_TAG = "assessments";
 
 const listAssessmentsCached = unstable_cache(
   async (): Promise<Assessment[]> => {

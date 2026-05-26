@@ -137,28 +137,6 @@ function defaultExplanation(skillName: string, company: string): string {
   return `${skillName} disebut sebagai prioritas oleh ${company}, jadi menutupnya adalah langkah dengan dampak terbesar ke peluangmu di lowongan ini. Mulai dari materi paling dasar lalu lanjutkan ke kasus praktis sesuai industri perusahaan.`;
 }
 
-export async function explainGaps(input: {
-  job: Job;
-  gaps: { skillId: string; name: string }[];
-  candidateSkillIds: string[];
-  limit?: number;
-}): Promise<Map<string, string>> {
-  const limit = input.limit ?? 4;
-  const slice = input.gaps.slice(0, limit);
-  // Run in parallel so the whole page render stays under ~3s even with 4 calls.
-  const results = await Promise.all(
-    slice.map((g) =>
-      explainGap({
-        job: input.job,
-        gapSkillId: g.skillId,
-        gapSkillName: g.name,
-        candidateSkillIds: input.candidateSkillIds,
-      }).then((text) => [g.skillId, text] as const),
-    ),
-  );
-  return new Map(results);
-}
-
 export async function readCachedGapExplanations(input: {
   job: Job;
   gaps: { skillId: string; name: string }[];

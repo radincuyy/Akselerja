@@ -1,7 +1,5 @@
 import {
-  BlobSASPermissions,
   BlobServiceClient,
-  generateBlobSASQueryParameters,
   StorageSharedKeyCredential,
   type ContainerClient,
 } from "@azure/storage-blob";
@@ -13,22 +11,6 @@ const CONTAINER_NAME = process.env.AZURE_STORAGE_CV_CONTAINER ?? "cvs";
 
 export function isBlobConfigured(): boolean {
   return Boolean(CONNECTION_STRING || (ACCOUNT_NAME && ACCOUNT_KEY));
-}
-
-function parseAccountFromConnectionString(): { account: string; key: string } | null {
-  if (!CONNECTION_STRING) return null;
-  const parts = Object.fromEntries(
-    CONNECTION_STRING.split(";")
-      .filter(Boolean)
-      .map((kv) => {
-        const idx = kv.indexOf("=");
-        return [kv.slice(0, idx), kv.slice(idx + 1)];
-      }),
-  );
-  const account = parts.AccountName;
-  const key = parts.AccountKey;
-  if (!account || !key) return null;
-  return { account, key };
 }
 
 let _service: BlobServiceClient | null = null;
@@ -50,21 +32,6 @@ function getService(): BlobServiceClient {
     );
   }
   return _service;
-}
-
-function getSharedKeyCredential(): { account: string; credential: StorageSharedKeyCredential } {
-  const parsed = parseAccountFromConnectionString();
-  const account = parsed?.account ?? ACCOUNT_NAME;
-  const key = parsed?.key ?? ACCOUNT_KEY;
-  if (!account || !key) {
-    throw new Error(
-      "Azure Blob shared key not configured. Set AZURE_STORAGE_CONNECTION_STRING or AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY.",
-    );
-  }
-  return {
-    account,
-    credential: new StorageSharedKeyCredential(account, key),
-  };
 }
 
 function getContainer(): ContainerClient {
@@ -131,27 +98,6 @@ export async function deleteBlob(blobName: string): Promise<void> {
   } catch {
     // Best-effort cleanup
   }
-}
-
-export async function getBlobReadUrl(blobName: string): Promise<string> {
-  if (!isBlobConfigured()) {
-    throw new Error("Blob storage is not configured");
-  }
-  const { credential } = getSharedKeyCredential();
-  const container = getContainer();
-  const blob = container.getBlobClient(blobName);
-  const expiresOn = new Date(Date.now() + 10 * 60 * 1000);
-  const sas = generateBlobSASQueryParameters(
-    {
-      containerName: CONTAINER_NAME,
-      blobName,
-      permissions: BlobSASPermissions.parse("r"),
-      expiresOn,
-    },
-    credential,
-  ).toString();
-
-  return `${blob.url}?${sas}`;
 }
 
 export async function downloadBlobToBuffer(blobName: string): Promise<{

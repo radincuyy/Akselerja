@@ -8,7 +8,7 @@ type CourseRecord = Course & {
   courseVector?: number[];
 };
 
-export const COURSE_CACHE_TAG = "courses";
+const COURSE_CACHE_TAG = "courses";
 
 const listCoursesCached = unstable_cache(
   async (): Promise<Course[]> => {
@@ -58,17 +58,6 @@ export async function listCoursesAsync(): Promise<Course[]> {
   return listCoursesCached();
 }
 
-export async function getCourseByIdAsync(
-  id: string,
-): Promise<Course | undefined> {
-  const courses = await listCoursesAsync();
-  return courses.find((course) => course.id === id);
-}
-
-async function listCourseRecordsAsync(): Promise<CourseRecord[]> {
-  return listCourseRecordsCached();
-}
-
 function cosineSim(a: number[], b: number[]): number {
   let dot = 0;
   const len = Math.min(a.length, b.length);
@@ -90,7 +79,7 @@ async function findCoursesForGapsUncached(
   limit = 4,
 ): Promise<Course[]> {
   if (gapSkillIds.length === 0) return [];
-  const records = await listCourseRecordsAsync();
+  const records = await listCourseRecordsCached();
   if (records.length === 0) return [];
 
   const exactMatches: CourseRecord[] = [];

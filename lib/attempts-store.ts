@@ -161,14 +161,6 @@ export async function completedAssessmentIdsForUser(
   return new Set(attempts.map((a) => a.assessmentId));
 }
 
-export async function listRecentAssessmentAttemptsForUser(
-  userId: string,
-  limit = 3,
-): Promise<AssessmentAttempt[]> {
-  const attempts = await listAttemptsForUser(userId);
-  return attempts.slice(0, limit);
-}
-
 export async function listPracticeAttemptsForUser(
   userId: string,
 ): Promise<PracticeAttempt[]> {
@@ -194,25 +186,10 @@ export async function listPracticeAttemptsForUser(
   return fetcher(userId);
 }
 
-export async function completedPracticeTaskIdsForUser(
-  userId: string,
-): Promise<Set<string>> {
-  const attempts = await listPracticeAttemptsForUser(userId);
-  return new Set(attempts.map((a) => a.taskId));
-}
-
 export async function getLatestPracticeAttemptForUser(
   userId: string,
   taskId: string,
 ): Promise<PracticeAttempt | null> {
   const attempts = await listPracticeAttemptsForUser(userId);
   return attempts.find((attempt) => attempt.taskId === taskId) ?? null;
-}
-
-export async function listRecentPracticeAttemptsForUser(
-  userId: string,
-  limit = 3,
-): Promise<PracticeAttempt[]> {
-  const attempts = await listPracticeAttemptsForUser(userId);
-  return attempts.slice(0, limit);
 }

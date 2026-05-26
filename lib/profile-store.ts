@@ -325,7 +325,7 @@ export async function recomputeReadinessScoreAsync(
   return { previousScore, newScore, increasedBy };
 }
 
-export async function findProfileByEmailAsync(
+async function findProfileByEmailAsync(
   email: string,
 ): Promise<CandidateRecord | null> {
   const container = getContainer(CONTAINERS.candidates);

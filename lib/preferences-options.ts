@@ -74,7 +74,7 @@ export const INDUSTRY_OPTIONS = Object.keys(
   INDUSTRY_GROUPS,
 ) as readonly string[];
 
-export function expandIndustryGroup(label: string): string[] {
+function expandIndustryGroup(label: string): string[] {
   return [...(INDUSTRY_GROUPS[label] ?? [])];
 }
 

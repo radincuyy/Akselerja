@@ -288,7 +288,7 @@ export async function searchJobs(
   }
 }
 
-export const JOB_FACETS_TAG = "job-facets";
+const JOB_FACETS_TAG = "job-facets";
 
 export async function listCityFacetsAsync(
   filter: { types?: string[] } = {},
