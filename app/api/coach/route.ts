@@ -12,6 +12,12 @@ import {
   contentSafetyBlockedMessage,
   shouldCheckGeneratedTextSafety,
 } from "@/lib/azure-content-safety";
+import {
+  generateQwenChat,
+  isQwenConfigured,
+  shouldFallbackToQwen,
+  type QwenMessage,
+} from "@/lib/qwen-client";
 import type { Candidate, Course, Job, PracticeTask } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -393,6 +399,48 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error("[coach] generation failed:", err);
+
+    if (isQwenConfigured() && shouldFallbackToQwen(err)) {
+      try {
+        const qwenHistory: QwenMessage[] = trimmed.slice(0, -1).map((m) => ({
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.text,
+        }));
+        const reply = await generateQwenChat({
+          systemInstruction: SYSTEM_INSTRUCTION,
+          history: qwenHistory,
+          userMessage: `${context}\n\n--- Pertanyaan user ---\n${userTurn.text}`,
+          temperature: 0.6,
+          maxTokens: CHAT_MAX_OUTPUT_TOKENS,
+        });
+        const safe = shouldCheckGeneratedTextSafety()
+          ? await analyzeTextSafety(reply)
+          : { allowed: true };
+        const finalText = safe.allowed
+          ? reply ||
+            "Coach belum bisa menjawab sekarang. Coba ulangi sebentar."
+          : contentSafetyBlockedMessage();
+        const encoder = new TextEncoder();
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode(finalText));
+            controller.close();
+          },
+        });
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+            "X-Coach-Provider": "qwen",
+          },
+        });
+      } catch (fallbackErr) {
+        console.error("[coach] qwen fallback failed:", fallbackErr);
+      }
+    }
+
     const message = err instanceof Error ? err.message : "Coach error.";
     if (message.includes("quota") || message.includes("Quota")) {
       return NextResponse.json(

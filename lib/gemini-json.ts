@@ -1,4 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  generateQwenJson,
+  isQwenConfigured,
+  shouldFallbackToQwen,
+} from "./qwen-client";
 
 const DEFAULT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-2.5-flash";
 
@@ -95,6 +100,19 @@ export async function generateGeminiJson<T = unknown>({
       if (attempt >= attempts - 1 || !shouldRetry(error)) break;
       await sleep(600 * (attempt + 1));
     }
+  }
+
+  if (isQwenConfigured() && shouldFallbackToQwen(lastError)) {
+    console.warn(
+      "[gemini-json] Gemini exhausted, failing over to Qwen:",
+      String(lastError).slice(0, 160),
+    );
+    return generateQwenJson<T>({
+      prompt,
+      systemInstruction,
+      temperature,
+      maxTokens: maxOutputTokens,
+    });
   }
 
   throw lastError;

@@ -608,6 +608,25 @@ export default async function LowonganDetailPage({
             </div>
           )}
 
+          {missing.length > 0 && job.status !== "closed" ? (
+            <div className="rounded-lg border border-(--color-line) bg-(--color-paper) p-5">
+              <p className="text-sm font-semibold text-(--color-ink)">
+                Tutup skill gap dulu
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
+                Roadmap belajar akan disusun khusus untuk lowongan ini.
+                {" "}{missing.length} skill yang belum kamu punya jadi prioritas
+                pertama.
+              </p>
+              <Link
+                href={`/app/belajar?target=${encodeURIComponent(job.id)}`}
+                className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-md border border-(--color-teal) px-4 text-sm font-semibold text-(--color-teal) transition-colors hover:bg-(--color-teal) hover:text-(--color-paper-on-teal)"
+              >
+                Buka roadmap belajar
+              </Link>
+            </div>
+          ) : null}
+
           <div className="rounded-lg border border-(--color-line) bg-(--color-tint) p-5 text-sm leading-relaxed text-(--color-muted)">
             <p className="font-semibold text-(--color-ink)">
               Bagaimana skor ini dihitung?

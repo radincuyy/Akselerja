@@ -1,5 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
+import {
+  generateQwenChat,
+  isQwenConfigured,
+  shouldFallbackToQwen,
+} from "./qwen-client";
 import { formatSkkniReferences, searchSkkniReferences } from "./skkni-search";
 import { skillById } from "./skills";
 import type { Job } from "./types";
@@ -145,7 +150,25 @@ Tulis 2-3 kalimat yang menjelaskan kenapa skill ini penting untuk perusahaan ini
     await writeCache(key, text);
     return text;
   } catch (err) {
-    console.warn("[gap-explain] generation failed:", err);
+    console.warn("[gap-explain] gemini generation failed:", err);
+
+    if (isQwenConfigured() && shouldFallbackToQwen(err)) {
+      try {
+        const reply = await generateQwenChat({
+          systemInstruction: SYSTEM_INSTRUCTION,
+          userMessage: prompt,
+          temperature: 0.55,
+          maxTokens: 260,
+        });
+        if (reply) {
+          await writeCache(key, reply);
+          return reply;
+        }
+      } catch (fallbackErr) {
+        console.warn("[gap-explain] qwen fallback failed:", fallbackErr);
+      }
+    }
+
     return defaultExplanation(input.gapSkillName, input.job.company);
   }
 }
