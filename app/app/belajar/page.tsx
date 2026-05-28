@@ -13,6 +13,7 @@ import { getCurrentCandidate } from "@/lib/current-candidate";
 import { getGeneratedPracticeTask } from "@/lib/practice-generation";
 import { listPracticeTasksAsync } from "@/lib/practice-store";
 import { skillById } from "@/lib/skills";
+import { scoreBandLabel } from "@/lib/format";
 import type { Course, Job, PracticeTask } from "@/lib/types";
 
 type SearchParams = Promise<{
@@ -52,8 +53,15 @@ type RoadmapStep = {
   href?: string;
   action: string;
   completed?: boolean;
+  passed?: boolean;
   score?: number;
   disabledReason?: string;
+  skillId?: string;
+  skillLabel?: string;
+  estimatedMinutes?: number;
+  isFinal?: boolean;
+  locked?: boolean;
+  allClear?: boolean;
 };
 
 function skillName(skillId: string, fallback?: string): string {
@@ -100,18 +108,20 @@ function buildRoadmap(
   if (gaps.length === 0 && completedTasks.length === 0) {
     return [
       {
-        label: "Hari 1",
+        label: "Step 1",
         title: "Profilmu sudah cocok",
-        body: "Semua skill yang diminta lowongan ini sudah ada di profilmu. Lanjutkan dengan menulis surat lamaran yang spesifik untuk perusahaan ini.",
+        body: "Semua skill yang diminta lowongan ini sudah ada di profilmu. Buka detail lowongan dan kirim lamaran lewat Glints.",
         evidence:
           "Bisa menjelaskan dua pengalaman paling relevan dan satu hasil terukur.",
         href: `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`,
         action: "Lihat lowongan",
+        isFinal: true,
+        allClear: true,
       },
     ];
   }
 
-  const labels = ["Hari 1", "Hari 3-4", "Minggu 1", "Minggu 2"];
+  const labels = ["Step 1", "Step 2", "Step 3", "Step 4"];
 
   const completedSteps: RoadmapStep[] = completedTasks
     .slice(0, MAX_GAP_STEPS)
@@ -119,7 +129,7 @@ function buildRoadmap(
     const attempt = latestAttemptByTaskId.get(task.id);
     const name = skillName(task.skillId);
     return {
-      label: labels[idx] ?? `Tahap ${idx + 1}`,
+      label: labels[idx] ?? `Step ${idx + 1}`,
       title: `Tutup gap ${name}`,
       body: attempt?.passed
         ? `Latihan ${task.title} sudah selesai dan skill ini sudah menjadi bukti di profilmu.`
@@ -130,7 +140,10 @@ function buildRoadmap(
       action: "Selesai",
       href: `/app/belajar/${task.slug}`,
       completed: true,
+      passed: attempt?.passed,
       score: attempt?.score,
+      skillId: task.skillId,
+      skillLabel: name,
     };
   });
 
@@ -150,7 +163,7 @@ function buildRoadmap(
         ? `${course.provider} sediakan ${course.title} dengan durasi ${course.durationHours} jam. Skill ini muncul sebagai syarat di lowongan target kamu.`
         : `Latihan mandiri disiapkan untuk ${name}. Jawabanmu akan menjadi bukti awal bahwa skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
       return {
-        label: labels[idx] ?? `Tahap ${idx + 1}`,
+        label: labels[idx] ?? `Step ${idx + 1}`,
         title: generatedPractice?.title ?? `Tutup gap ${name}`,
         body: generatedPractice?.scenario ?? ragBody ?? fallbackBody,
         evidence:
@@ -158,29 +171,38 @@ function buildRoadmap(
           (course
             ? `${course.title} (${course.provider}, ${course.durationHours} jam${course.free ? ", gratis" : ""}).`
             : `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`),
-        action: practice
-          ? "Mulai Praktik"
-          : course
-            ? "Buka materi"
-            : "Mulai Latihan",
+        action: "Mulai latihan",
         href: practice
           ? `/app/belajar/${practice.slug}`
           : course
             ? `/app/belajar/kursus/${course.id}`
             : `/app/belajar/latihan-praktik-${gap.skillId}`,
+        skillId: gap.skillId,
+        skillLabel: name,
+        estimatedMinutes: practice?.estimatedMinutes,
       };
     });
 
+  const hasOpenGaps = openGaps.length > 0;
   const steps: RoadmapStep[] = [...completedSteps, ...gapSteps];
 
   steps.push({
-    label: "Minggu 2",
+    label: `Step ${steps.length + 1}`,
     title: "Update profil dan lamar",
-    body: "Setelah gap prioritas selesai, hasil belajar jadi bukti kesiapan kerja. Update profil supaya match score-nya ikut naik, lalu lamar.",
+    body: hasOpenGaps
+      ? "Selesaikan langkah di atas dulu. Setelah skill kamu lengkap, balik ke sini untuk update profil dan lamar."
+      : "Hasil belajar sudah jadi bukti kesiapan kerja. Update profil supaya match score-nya ikut naik, lalu lamar.",
     evidence:
       "Profil punya skill baru, dan kamu siap menjelaskan satu hal konkret untuk tiap skill.",
-    href: `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`,
+    href: hasOpenGaps
+      ? undefined
+      : `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`,
     action: "Lihat lowongan",
+    isFinal: true,
+    locked: hasOpenGaps,
+    disabledReason: hasOpenGaps
+      ? "Tutup skill gap di atas dulu untuk membuka langkah ini."
+      : undefined,
   });
 
   return steps;
@@ -194,7 +216,7 @@ function describeProgress(score: number): string {
     return "Posisi ini cukup cocok denganmu. Tutup beberapa skill di bawah supaya peluangmu makin besar.";
   }
   if (score >= 40) {
-    return "Posisi ini bisa kamu kejar, tapi butuh waktu di skill prioritas dulu. Roadmap di bawah memetakan langkahnya.";
+    return "Posisi ini bisa kamu kejar, tapi butuh waktu di skill prioritas dulu, atau bandingkan target lain dulu.";
   }
   return "Profilmu masih jauh dari posisi ini. Pertimbangkan target lain dulu, atau mulai dari skill paling dasar.";
 }
@@ -252,8 +274,12 @@ export default async function BelajarPage({
   const targetJob = top.job;
   const score = top.score;
   const breakdown = top.breakdown;
+  const dimensions = top.dimensions;
   const gaps = breakdown.filter((b) => b.state !== "match");
   const matched = breakdown.filter((b) => b.state === "match");
+  const roadmapGapIds = new Set(
+    gaps.slice(0, MAX_GAP_STEPS).map((g) => g.skillId),
+  );
 
   const gapSkillIds = gaps.map((g) => g.skillId);
   const priorityPracticeSkillIds = gaps
@@ -292,16 +318,22 @@ export default async function BelajarPage({
     roadmapStart + ROADMAP_PAGE_SIZE,
   );
 
-  const nearbyMatches = ranked
-    .filter((r) => r.job.id !== targetJob.id)
-    .slice(0, 3)
-    .map((r) => ({ job: r.job, score: r.score }));
-
   const hasGaps = gaps.length > 0;
   const focusGap = gaps[0];
+  const focusPractice = focusGap
+    ? practiceTasks.find((task) => task.skillId === focusGap.skillId)
+    : null;
   const focusCourse = focusGap
     ? courses.find((c) => c.skillId === focusGap.skillId)
     : null;
+  const focusHref = focusPractice
+    ? `/app/belajar/${focusPractice.slug}`
+    : focusCourse
+      ? `/app/belajar/kursus/${focusCourse.id}`
+      : focusGap
+        ? `/app/belajar/latihan-praktik-${focusGap.skillId}`
+        : null;
+  const targetJobHref = `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`;
 
   const description = overrideJob
     ? `Roadmap dari requirement spesifik ${targetJob.company}, disesuaikan dengan profilmu.`
@@ -319,226 +351,183 @@ export default async function BelajarPage({
         description={description}
         action={
           <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`}
-              className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2.5 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
-            >
-              Lihat lowongan
-            </Link>
-            {focusGap ? (
+            {focusGap && focusHref ? (
+              <>
+                <Link
+                  href={targetJobHref}
+                  className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2.5 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+                >
+                  Lihat lowongan
+                </Link>
+                <Link
+                  href={focusHref}
+                  className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+                >
+                  Mulai dari {skillName(focusGap.skillId, focusGap.name)}
+                </Link>
+              </>
+            ) : (
               <Link
-                href={`/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`}
+                href={targetJobHref}
                 className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
               >
-                Mulai dari {skillName(focusGap.skillId, focusGap.name)}
+                Lamar di Glints
               </Link>
-            ) : null}
+            )}
           </div>
         }
       />
 
-      <section className="mt-10 grid gap-6 lg:grid-cols-[1.15fr_0.85fr] items-start">
-        <div className="rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7">
+      <section className="mt-10 rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7">
+        <div className="flex items-baseline justify-between gap-3">
           <p className="text-sm font-medium text-(--color-muted)">
             Target kerja saat ini
           </p>
-          <div className="mt-3 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-(--color-ink)">
-                {targetJob.title}
-              </h2>
-              <p className="mt-1 text-sm text-(--color-muted)">
-                {targetJob.company} · {targetJob.location}
-              </p>
-            </div>
-            <div className="w-fit max-w-full self-start rounded-lg bg-(--color-tint) px-4 py-3 text-left sm:self-auto sm:text-right">
-              <p className="text-xs text-(--color-muted)">Match score</p>
-              <p className="text-3xl font-semibold tabular-nums text-(--color-teal)">
-                {score}%
-              </p>
-            </div>
+          <Link
+            href="/app/belajar"
+            className="text-xs text-(--color-muted) hover:text-(--color-teal)"
+          >
+            Ganti target kerja
+          </Link>
+        </div>
+        <div className="mt-3 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-semibold tracking-tight text-(--color-ink)">
+              {targetJob.title}
+            </h2>
+            <p className="mt-1 text-sm text-(--color-muted)">
+              {targetJob.company} · {targetJob.location}
+            </p>
           </div>
-
-          <p className="mt-6 text-sm leading-relaxed text-(--color-ink)">
-            {describeProgress(score)}
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <SkillGroup
-              title="Sudah ada di profilmu"
-              items={matched.slice(0, 4)}
-              tone="green"
-            />
-            <SkillGroup title="Perlu ditutup" items={gaps} tone="amber" />
+          <div className="w-full max-w-sm self-start sm:self-auto">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-(--color-muted)">
+                Match score
+              </p>
+              <span className="rounded-full bg-(--color-tint) px-2.5 py-1 text-xs font-medium text-(--color-ink)">
+                {scoreBandLabel(score)}
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span
+                className={`text-4xl font-semibold leading-none tabular-nums ${
+                  score >= 75
+                    ? "text-(--color-signal-green)"
+                    : score >= 50
+                      ? "text-(--color-signal-amber)"
+                      : "text-(--color-signal-clay)"
+                }`}
+              >
+                {score}
+              </span>
+            </div>
+            <div
+              className="mt-3 h-2 w-full overflow-hidden rounded-full bg-(--color-tint)"
+              role="progressbar"
+              aria-valuenow={score}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Progress match score"
+            >
+              <div
+                className={
+                  score >= 75
+                    ? "h-full rounded-full bg-(--color-signal-green)"
+                    : score >= 50
+                      ? "h-full rounded-full bg-(--color-signal-amber)"
+                      : "h-full rounded-full bg-(--color-signal-clay)"
+                }
+                style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
+              />
+            </div>
+            {dimensions.filter((d) => d.applicable).length > 0 ? (
+              <p className="mt-2 text-xs leading-relaxed text-(--color-muted)">
+                {dimensions
+                  .filter((d) => d.applicable)
+                  .map((d) => `${d.label} ${Math.round(d.ratio * 100)}%`)
+                  .join(", ")}
+              </p>
+            ) : null}
           </div>
         </div>
 
-        <div>
-          <h2 className="text-sm font-medium text-(--color-muted)">
-            {focusCourse ? "Mulai dari sini" : "Fokus utama"}
-          </h2>
-          <div className="mt-4 rounded-lg border border-(--color-line) bg-(--color-paper) p-6">
-            {focusCourse && focusGap ? (
-              <>
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-xs font-medium text-(--color-teal)">
-                    {skillName(focusGap.skillId, focusGap.name)}
-                  </p>
-                  <span className="text-xs text-(--color-muted)">
-                    {focusCourse.free ? "Gratis" : "Berbayar"}
-                  </span>
-                </div>
-                <h3 className="mt-2 text-lg font-semibold text-(--color-ink)">
-                  {focusCourse.title}
-                </h3>
-                <p className="mt-1 text-sm text-(--color-muted)">
-                  {focusCourse.provider} · {focusCourse.durationHours} jam
-                </p>
-                <p className="mt-4 text-sm leading-relaxed text-(--color-ink)">
-                  {focusCourse.description}
-                </p>
-                <Link
-                  href={`/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`}
-                  className="mt-6 inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
-                >
-                  Cek dampak ke skor
-                </Link>
-              </>
-            ) : focusGap ? (
-              <>
-                <p className="text-xs font-medium text-(--color-teal)">
-                  {skillName(focusGap.skillId, focusGap.name)}
-                </p>
-                <h3 className="mt-2 text-lg font-semibold text-(--color-ink)">
-                  Cari materi {skillName(focusGap.skillId, focusGap.name)}
-                </h3>
-                <p className="mt-3 text-sm leading-relaxed text-(--color-ink)">
-                  Belum ada kursus terkurasi untuk skill ini. Cari materi bebas
-                  dari sumber yang kamu percaya. Setelah belajar, tambahkan ke
-                  profil supaya match score ikut naik.
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 className="text-lg font-semibold text-(--color-ink)">
-                  Lanjut ke lamaran
-                </h3>
-                <p className="mt-3 text-sm leading-relaxed text-(--color-ink)">
-                  Tidak ada gap yang harus kamu tutup untuk lowongan ini.
-                  Saatnya melamar dengan rasa percaya diri.
-                </p>
-                <Link
-                  href={`/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`}
-                  className="mt-6 inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
-                >
-                  Lihat lowongan
-                </Link>
-              </>
-            )}
-          </div>
-
-          {nearbyMatches.length > 0 ? (
-            <NearbyJobsCard matches={nearbyMatches} />
+        <p className="mt-6 text-sm leading-relaxed text-(--color-ink)">
+          {describeProgress(score)}
+          {score < 50 ? (
+            <>
+              {" "}
+              <Link
+                href="/app/belajar"
+                className="font-medium text-(--color-teal) underline-offset-4 hover:underline"
+              >
+                Pilih target lain
+              </Link>
+              .
+            </>
           ) : null}
+        </p>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <SkillGroup
+            title="Sudah ada di profilmu"
+            items={matched.slice(0, 4)}
+            tone="green"
+          />
+          <SkillGroup
+            title="Perlu ditutup"
+            items={gaps}
+            tone="amber"
+            inRoadmap={roadmapGapIds}
+            hrefForSkill={(skillId) => {
+              const practice = practiceTasks.find(
+                (task) => task.skillId === skillId,
+              );
+              if (practice) return `/app/belajar/${practice.slug}`;
+              const course = courses.find((c) => c.skillId === skillId);
+              if (course) return `/app/belajar/kursus/${course.id}`;
+              return `/app/belajar/latihan-praktik-${skillId}`;
+            }}
+          />
         </div>
       </section>
 
       <section className="mt-12" aria-labelledby="roadmap-heading">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2
-              id="roadmap-heading"
-              className="text-xl font-semibold tracking-tight text-(--color-ink)"
-            >
-              Roadmap belajar 2 minggu
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-(--color-muted)">
-              Setiap langkah punya bukti yang bisa kamu pakai untuk update
-              profil dan menjelaskan kesiapan ke HR.
-            </p>
-          </div>
-          {hasGaps ? (
-            <span className="text-sm text-(--color-muted)">
-              Fokus:{" "}
-              {gaps
-                .slice(0, 2)
-                .map((g) => skillName(g.skillId, g.name))
-                .join(" + ")}
-            </span>
-          ) : null}
+        <div>
+          <h2
+            id="roadmap-heading"
+            className="text-xl font-semibold tracking-tight text-(--color-ink)"
+          >
+            Roadmap belajar
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-(--color-muted)">
+            Setiap langkah punya bukti yang bisa kamu pakai untuk update
+            profil dan menjelaskan kesiapan ke HR.
+          </p>
+          <p className="mt-2 text-sm text-(--color-muted)">
+            <strong className="font-semibold text-(--color-ink)">
+              {roadmap.length}
+            </strong>{" "}
+            langkah
+            {roadmap.filter((s) => s.completed).length > 0 ? (
+              <>
+                ,{" "}
+                <strong className="font-semibold text-(--color-ink)">
+                  {roadmap.filter((s) => s.completed).length}
+                </strong>{" "}
+                sudah selesai
+              </>
+            ) : null}
+            .
+          </p>
         </div>
 
-        <ol className="mt-6 grid gap-4 lg:grid-cols-4">
+        <ol className="mt-6 grid gap-4 lg:grid-cols-3">
           {pagedRoadmap.map((step, i) => (
-            <li
+            <RoadmapCard
               key={`${step.label}-${i}`}
-              className="flex flex-col rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="rounded-full bg-(--color-tint) px-3 py-1 text-xs font-medium text-(--color-teal)">
-                  {step.label}
-                </span>
-                <span className="text-xs text-(--color-muted)">
-                  Langkah {roadmapStart + i + 1}
-                </span>
-              </div>
-              {step.completed ? (
-                <span className="mt-3 w-fit rounded-full bg-(--color-tint) px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-(--color-signal-green)">
-                  {typeof step.score === "number"
-                    ? `Selesai · ${step.score}/100`
-                    : "Selesai"}
-                </span>
-              ) : null}
-              <h3 className="mt-4 text-base font-semibold text-(--color-ink)">
-                {step.title}
-              </h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-(--color-muted)">
-                {step.body}
-              </p>
-              <p className="mt-4 rounded-md bg-(--color-tint) p-3 text-xs leading-relaxed text-(--color-ink)">
-                {step.evidence}
-              </p>
-              <div className="mt-4 grid gap-2">
-                {step.href ? (
-                  <Link
-                    href={step.href}
-                    className={
-                      step.completed
-                        ? "inline-flex items-center justify-center gap-2 rounded-md border border-(--color-signal-green) bg-(--color-tint) px-4 py-2 text-sm font-semibold text-(--color-signal-green) hover:border-(--color-teal) hover:text-(--color-teal)"
-                        : "inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
-                    }
-                  >
-                    {step.completed ? (
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 14 14"
-                        fill="none"
-                        aria-hidden
-                      >
-                        <path
-                          d="M3 7.3 5.8 10 11 4"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    ) : null}
-                    {step.action}
-                  </Link>
-                ) : (
-                  <span className="inline-flex items-center justify-center rounded-md bg-(--color-tint) px-4 py-2 text-sm font-medium text-(--color-muted)">
-                    {step.action}
-                  </span>
-                )}
-                {step.disabledReason ? (
-                  <p className="text-xs leading-relaxed text-(--color-muted)">
-                    {step.disabledReason}
-                  </p>
-                ) : null}
-              </div>
-            </li>
+              step={step}
+              index={roadmapStart + i}
+            />
           ))}
         </ol>
         {roadmapTotalPages > 1 ? (
@@ -641,6 +630,175 @@ function TargetPicker({
   );
 }
 
+function RoadmapCard({
+  step,
+  index,
+}: {
+  step: RoadmapStep;
+  index: number;
+}) {
+  const isLocked = Boolean(step.locked);
+  const isCompleted = Boolean(step.completed);
+  const isFinal = Boolean(step.isFinal);
+
+  const cardTone = isLocked
+    ? "border-dashed border-(--color-line) bg-(--color-tint)/40"
+    : isCompleted
+      ? "border-(--color-signal-green)/40 bg-(--color-paper)"
+      : isFinal
+        ? "border-(--color-teal) bg-(--color-tint)"
+        : "border-(--color-line) bg-(--color-paper)";
+
+  const labelTone = isLocked
+    ? "bg-(--color-paper) text-(--color-muted)"
+    : isCompleted
+      ? "bg-(--color-paper) text-(--color-signal-green)"
+      : "bg-(--color-tint) text-(--color-teal)";
+
+  return (
+    <li
+      className={`flex flex-col rounded-lg border p-5 ${cardTone}`}
+      aria-current={isFinal && !isLocked ? "step" : undefined}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-medium ${labelTone}`}
+        >
+          {step.label}
+        </span>
+        <span className="text-xs text-(--color-muted)">
+          {isFinal ? "Final" : `Langkah ${index + 1}`}
+        </span>
+      </div>
+
+      {isCompleted ? (
+        <span
+          className={`mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-(--color-tint) px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${
+            step.passed === false
+              ? "text-(--color-signal-amber)"
+              : "text-(--color-signal-green)"
+          }`}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+            {step.passed === false ? (
+              <path
+                d="M3 7.5 6 4l3 3.5M6 4v6"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : (
+              <path
+                d="M2.5 6.5 5 9l4.5-5.5"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+          </svg>
+          {step.passed === false
+            ? typeof step.score === "number"
+              ? `Perlu diperbaiki · ${step.score}/100`
+              : "Perlu diperbaiki"
+            : typeof step.score === "number"
+              ? `Selesai · ${step.score}/100`
+              : "Selesai"}
+        </span>
+      ) : step.allClear ? (
+        <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-(--color-tint) px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-(--color-signal-green)">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path
+              d="M2.5 6.5 5 9l4.5-5.5"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Profil cocok
+        </span>
+      ) : isLocked ? (
+        <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-(--color-paper) px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-(--color-muted)">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path
+              d="M3.5 5.5V4a2.5 2.5 0 0 1 5 0v1.5M3 5.5h6v4.5H3z"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Terkunci
+        </span>
+      ) : null}
+
+      {step.skillLabel && !isFinal ? (
+        <p className="mt-3 text-xs font-medium uppercase tracking-wider text-(--color-teal-deep)">
+          Skill: {step.skillLabel}
+        </p>
+      ) : null}
+
+      <h3 className="mt-4 text-base font-semibold text-(--color-ink)">
+        {step.title}
+      </h3>
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-(--color-muted)">
+        {step.body}
+      </p>
+
+      {step.estimatedMinutes && !isCompleted && !isLocked ? (
+        <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-(--color-muted)">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4" />
+            <path
+              d="M6 3.5V6l1.6 1"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Estimasi {step.estimatedMinutes} menit
+        </p>
+      ) : null}
+
+      <p className="mt-4 rounded-md bg-(--color-tint) p-3 text-xs leading-relaxed text-(--color-ink)">
+        {step.evidence}
+      </p>
+
+      <div className="mt-4 grid gap-2">
+        {step.href && !isLocked ? (
+          <Link
+            href={step.href}
+            className={
+              isCompleted
+                ? "inline-flex items-center justify-center gap-2 rounded-md border border-(--color-signal-green) bg-(--color-paper) px-4 py-2 text-sm font-semibold text-(--color-signal-green) hover:border-(--color-teal) hover:text-(--color-teal)"
+                : isFinal
+                  ? "inline-flex items-center justify-center rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+                  : "inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+            }
+          >
+            {step.action}
+          </Link>
+        ) : (
+          <span
+            aria-disabled
+            className="inline-flex items-center justify-center rounded-md border border-dashed border-(--color-line) bg-(--color-paper) px-4 py-2 text-sm font-medium text-(--color-muted)"
+          >
+            {step.action}
+          </span>
+        )}
+        {step.disabledReason ? (
+          <p className="text-xs leading-relaxed text-(--color-muted)">
+            {step.disabledReason}
+          </p>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
 function NoJobsState() {
   return (
     <>
@@ -668,57 +826,18 @@ function NoJobsState() {
   );
 }
 
-function NearbyJobsCard({
-  matches,
-}: {
-  matches: { job: Job; score: number }[];
-}) {
-  return (
-    <section className="mt-4 rounded-lg border border-(--color-line) bg-(--color-tint) p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-(--color-muted)">
-          Lowongan terdekat
-        </h2>
-        <Link
-          href="/app/lowongan"
-          className="shrink-0 text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
-        >
-          Lihat Semua →
-        </Link>
-      </div>
-      <div className="mt-4 space-y-3">
-        {matches.map(({ job, score }) => (
-          <Link
-            key={job.id}
-            href={`/app/belajar?target=${job.id}`}
-            className="group grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 rounded-md border border-(--color-line) bg-(--color-paper) px-4 py-3.5 transition-colors hover:border-(--color-teal)"
-          >
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold text-(--color-ink) group-hover:text-(--color-teal)">
-                {job.title}
-              </span>
-              <span className="mt-1 block truncate text-xs text-(--color-muted)">
-                {job.company}
-              </span>
-            </span>
-            <span className="text-sm font-semibold tabular-nums text-(--color-teal)">
-              {score}%
-            </span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function SkillGroup({
   title,
   items,
   tone,
+  hrefForSkill,
+  inRoadmap,
 }: {
   title: string;
   items: ReturnType<typeof calcMatch>["breakdown"];
   tone: "green" | "amber";
+  hrefForSkill?: (skillId: string) => string | null;
+  inRoadmap?: Set<string>;
 }) {
   return (
     <div className="rounded-md border border-(--color-line) bg-(--color-tint) p-4">
@@ -727,17 +846,52 @@ function SkillGroup({
         {items.length === 0 ? (
           <li className="text-sm text-(--color-muted)">Tidak ada.</li>
         ) : (
-          items.map((item) => (
-            <li
-              key={item.skillId}
-              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
-            >
-              <span className="text-sm font-medium text-(--color-ink)">
-                {item.name}
+          items.map((item) => {
+            const href = hrefForSkill ? hrefForSkill(item.skillId) : null;
+            const inMap = inRoadmap?.has(item.skillId) ?? false;
+            const status = inMap ? (
+              <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-(--color-paper) px-2.5 py-1 text-xs font-medium text-(--color-teal)">
+                Di roadmap
               </span>
+            ) : (
               <LevelStatus item={item} tone={tone} />
-            </li>
-          ))
+            );
+            const inner = (
+              <>
+                <span className="text-sm font-medium text-(--color-ink)">
+                  {item.name}
+                </span>
+                {status}
+                {href ? (
+                  <span
+                    aria-hidden
+                    className="ml-1 text-(--color-muted) opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                  >
+                    →
+                  </span>
+                ) : null}
+              </>
+            );
+            return (
+              <li key={item.skillId}>
+                {href ? (
+                  <Link
+                    href={href}
+                    className="group grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-sm py-1 -mx-1 px-1 hover:bg-(--color-paper) focus-visible:bg-(--color-paper) focus-visible:outline focus-visible:outline-2 focus-visible:outline-(--color-teal)"
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                    <span className="text-sm font-medium text-(--color-ink)">
+                      {item.name}
+                    </span>
+                    {status}
+                  </div>
+                )}
+              </li>
+            );
+          })
         )}
       </ul>
     </div>
