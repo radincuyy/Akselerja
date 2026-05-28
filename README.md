@@ -1,6 +1,6 @@
 # Akselerja
 
-Platform AI job matching, skill assessment, dan upskilling untuk tenaga kerja Indonesia.
+Platform AI job matching dan upskilling untuk tenaga kerja Indonesia.
 
 ## Tech stack
 

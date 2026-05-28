@@ -7,7 +7,7 @@ import { signOut } from "@/auth";
 import { deleteBlob, isBlobConfigured, uploadCv } from "./blob-store";
 import {
   deleteProfileAsync,
-  getProfileOrSeedAsync,
+  getProfileAsync,
   mergeSkillsAsync,
   newEducationId,
   newExperienceId,
@@ -67,22 +67,29 @@ function scheduleProfileEmbed(userId: string): void {
   });
 }
 
-function revalidateProfileSurfaces(userId: string) {
-  scheduleProfileEmbed(userId);
+function revalidateProfileSurfaces(
+  userId: string,
+  options: { embedding?: boolean } = {},
+) {
+  if (options.embedding) {
+    scheduleProfileEmbed(userId);
+  }
   revalidateTag(profileCacheTag(userId));
   revalidatePath("/app/profil");
   revalidatePath("/app");
   revalidatePath("/app/lowongan");
-  revalidatePath("/app/lowongan/[id]", "page");
 }
 
-async function refreshProfileScore(userId: string) {
+async function refreshProfileScore(
+  userId: string,
+  options: { embedding?: boolean } = {},
+) {
   try {
     await recomputeReadinessScoreAsync(userId);
   } catch (err) {
     console.error("[profile-actions] readiness recompute failed", err);
   }
-  revalidateProfileSurfaces(userId);
+  revalidateProfileSurfaces(userId, options);
 }
 
 function asString(v: FormDataEntryValue | null): string {
@@ -378,9 +385,7 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
   );
   const experienceYears = Math.max(0, Math.round(totalMonths / 12));
 
-  const previousProfile = await getProfileOrSeedAsync(user.id).catch(
-    () => null,
-  );
+  const previousProfile = await getProfileAsync(user.id);
   const previousBlobName = previousProfile?.cv?.blobName;
   const accountEmail = user.email ?? previousProfile?.email ?? "";
 
@@ -431,14 +436,14 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
     }
   }
 
-  await refreshProfileScore(user.id);
+  await refreshProfileScore(user.id, { embedding: true });
   scheduleLearningPrewarmForProfile(updatedProfile);
   redirect("/app/profil?cv=1");
 }
 
 export async function deleteCandidateAccount() {
   const user = await requireUser();
-  const profile = await getProfileOrSeedAsync(user.id).catch(() => null);
+  const profile = await getProfileAsync(user.id);
   const blobName = profile?.cv?.blobName;
   if (blobName && isBlobConfigured()) {
     try {
@@ -517,7 +522,7 @@ export async function savePersonalSection(
     },
     user.id,
   );
-  await refreshProfileScore(user.id);
+  await refreshProfileScore(user.id, { embedding: true });
   return { ok: true };
 }
 
@@ -558,7 +563,7 @@ export async function saveEducationSection(
   if (Object.keys(errors).length > 0) return failSection(errors);
   const user = await requireUser();
   await setEducationListAsync(cleaned, user.id);
-  await refreshProfileScore(user.id);
+  await refreshProfileScore(user.id, { embedding: true });
   return { ok: true };
 }
 
@@ -597,7 +602,7 @@ export async function saveExperienceSection(
   if (Object.keys(errors).length > 0) return failSection(errors);
   const user = await requireUser();
   await setExperienceListAsync(cleaned, user.id);
-  await refreshProfileScore(user.id);
+  await refreshProfileScore(user.id, { embedding: true });
   return { ok: true };
 }
 
@@ -636,7 +641,7 @@ export async function saveOrganizationSection(
   if (Object.keys(errors).length > 0) return failSection(errors);
   const user = await requireUser();
   await setOrganizationListAsync(cleaned, user.id);
-  await refreshProfileScore(user.id);
+  await refreshProfileScore(user.id, { embedding: true });
   return { ok: true };
 }
 
@@ -672,7 +677,7 @@ export async function saveProjectSection(
   if (Object.keys(errors).length > 0) return failSection(errors);
   const user = await requireUser();
   await setProjectListAsync(cleaned, user.id);
-  await refreshProfileScore(user.id);
+  await refreshProfileScore(user.id, { embedding: true });
   return { ok: true };
 }
 
@@ -699,7 +704,7 @@ export async function saveAchievementSection(
   }
   const user = await requireUser();
   await setAchievementListAsync(cleaned, user.id);
-  await refreshProfileScore(user.id);
+  await refreshProfileScore(user.id, { embedding: true });
   return { ok: true };
 }
 
@@ -719,7 +724,7 @@ export async function saveSkillsSection(
     }));
   const user = await requireUser();
   await setSkillsAsync(cleaned, user.id);
-  await refreshProfileScore(user.id);
+  await refreshProfileScore(user.id, { embedding: true });
   return { ok: true };
 }
 
@@ -942,7 +947,6 @@ export async function submitPracticeAttempt(input: {
   });
 
   const readinessScoreChange = await recomputeReadinessScoreAsync(user.id);
-  scheduleProfileEmbed(user.id);
   revalidateTag(profileCacheTag(user.id));
   revalidatePath("/app/belajar");
   revalidatePath("/app/belajar/[slug]", "page");

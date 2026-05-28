@@ -1,37 +1,22 @@
 import Link from "next/link";
 import ScoreDisplay from "@/components/ScoreDisplay";
 import JobCard from "@/components/JobCard";
-import { calcMatch } from "@/lib/match";
 import { buildMatchReason } from "@/lib/match-reason";
-import { searchJobs } from "@/lib/search-store";
+import { rankCandidateJobs } from "@/lib/recommendations";
 import { getCurrentCandidate } from "@/lib/current-candidate";
-import { calculateReadinessScore } from "@/lib/profile-store";
-import type { Candidate, Job } from "@/lib/types";
+import type { Candidate } from "@/lib/types";
 
 const HOME_RECOMMENDATION_LIMIT = 12;
 
 export default async function CandidateHome() {
   const { profile } = await getCurrentCandidate();
-  const readinessScore = calculateReadinessScore(profile);
+  const readinessScore = profile.readinessScore ?? 0;
   const userSkillIds = profile.skills?.map((s) => s.skillId) ?? [];
-  const initialSearch = await searchJobs({
+  const { ranked } = await rankCandidateJobs(profile, {
     top: HOME_RECOMMENDATION_LIMIT,
-    profileVector: profile.profileVector,
-    skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
-    includeClosed: false,
+    fallbackOnEmpty: true,
+    filterPositiveScore: true,
   });
-  const search =
-    initialSearch.jobs.length === 0 && userSkillIds.length > 0
-      ? await searchJobs({
-          top: HOME_RECOMMENDATION_LIMIT,
-          profileVector: profile.profileVector,
-          includeClosed: false,
-        })
-      : initialSearch;
-  const ranked = search.jobs
-    .map((job: Job) => ({ job, ...calcMatch(profile, job) }))
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score);
   const top3 = ranked.slice(0, 3);
   const bestMatchScore = ranked[0]?.score ?? 0;
   const recommendationCount = top3.length;

@@ -1,7 +1,6 @@
 import { after } from "next/server";
-import { calcMatch } from "./match";
 import { getGeneratedPracticeTask } from "./practice-generation";
-import { searchJobs } from "./search-store";
+import { rankCandidateJobs } from "./recommendations";
 import { skillById } from "./skills";
 import type { Candidate } from "./types";
 
@@ -12,18 +11,7 @@ function uniqueSkillIds(skillIds: string[]): string[] {
 }
 
 async function priorityGapSkillIds(profile: Candidate): Promise<string[]> {
-  const profileSkillIds = uniqueSkillIds(
-    profile.skills?.map((skill) => skill.skillId) ?? [],
-  );
-  const search = await searchJobs({
-    top: 20,
-    profileVector: profile.profileVector,
-    skillIds: profileSkillIds.length > 0 ? profileSkillIds : undefined,
-    includeClosed: false,
-  });
-  const ranked = search.jobs
-    .map((job) => ({ job, ...calcMatch(profile, job) }))
-    .sort((a, b) => b.score - a.score);
+  const { ranked } = await rankCandidateJobs(profile, { top: 20 });
   const top = ranked[0];
   if (!top) return [];
   return uniqueSkillIds(

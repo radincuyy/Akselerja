@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { auth } from "@/auth";
 import { getProfileAsync } from "@/lib/profile-store";
-import { searchJobs } from "@/lib/search-store";
+import { rankCandidateJobs } from "@/lib/recommendations";
 import { calcMatch } from "@/lib/match";
 import { skillById } from "@/lib/skills";
 import { findCoursesForGapsAsync } from "@/lib/courses-store";
@@ -262,14 +262,8 @@ export async function POST(req: Request) {
 
   let ranked: { job: Job; score: number }[] = [];
   try {
-    const search = await searchJobs({
-      top: 10,
-      profileVector: profile.profileVector,
-      includeClosed: false,
-    });
-    ranked = search.jobs
-      .map((job) => ({ job, score: calcMatch(profile, job).score }))
-      .sort((a, b) => b.score - a.score);
+    const result = await rankCandidateJobs(profile, { top: 10 });
+    ranked = result.ranked.map((r) => ({ job: r.job, score: r.score }));
   } catch (err) {
     console.error("[coach] match search failed:", err);
   }

@@ -12,8 +12,6 @@ import { CONTAINERS, getContainer } from "./db";
 
 type CandidateSkill = Candidate["skills"][number];
 
-const ME_ID = "me";
-
 export function profileCacheTag(userId: string): string {
   return `profile:${userId}`;
 }
@@ -38,7 +36,7 @@ function stripCosmos(record: CandidateRecord): Candidate {
   return rest as Candidate;
 }
 
-export async function getProfileAsync(userId = ME_ID): Promise<Candidate | null> {
+export async function getProfileAsync(userId: string): Promise<Candidate | null> {
   const fetcher = unstable_cache(
     async (id: string) => {
       const container = getContainer(CONTAINERS.candidates);
@@ -60,16 +58,6 @@ export async function getProfileAsync(userId = ME_ID): Promise<Candidate | null>
     },
   );
   return fetcher(userId);
-}
-
-export async function getProfileOrSeedAsync(userId = ME_ID): Promise<Candidate> {
-  const profile = await getProfileAsync(userId);
-  if (!profile) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
-    );
-  }
-  return profile;
 }
 
 export type ProfileBasicInput = {
@@ -100,9 +88,25 @@ async function readRecord(
   }
 }
 
+async function patchExistingSection<K extends keyof CandidateRecord>(
+  userId: string,
+  patch: Pick<CandidateRecord, K>,
+): Promise<Candidate> {
+  const existing = await readRecord(userId);
+  if (!existing) {
+    throw new Error(
+      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
+    );
+  }
+  const next: CandidateRecord = { ...existing, ...patch };
+  const container = getContainer(CONTAINERS.candidates);
+  await container.items.upsert(next);
+  return stripCosmos(next);
+}
+
 export async function updateProfileBasicAsync(
   input: ProfileBasicInput,
-  userId = ME_ID,
+  userId: string,
 ): Promise<Candidate> {
   const container = getContainer(CONTAINERS.candidates);
   const current = await readRecord(userId);
@@ -139,82 +143,37 @@ export async function updateProfileBasicAsync(
 
 export async function setEducationListAsync(
   list: Education[],
-  userId = ME_ID,
+  userId: string,
 ): Promise<Candidate> {
-  const container = getContainer(CONTAINERS.candidates);
-  const existing = await readRecord(userId);
-  if (!existing) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
-    );
-  }
-  const next: CandidateRecord = { ...existing, education: list };
-  await container.items.upsert(next);
-  return stripCosmos(next);
+  return patchExistingSection(userId, { education: list });
 }
 
 export async function setExperienceListAsync(
   list: Experience[],
-  userId = ME_ID,
+  userId: string,
 ): Promise<Candidate> {
-  const container = getContainer(CONTAINERS.candidates);
-  const existing = await readRecord(userId);
-  if (!existing) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
-    );
-  }
-  const next: CandidateRecord = { ...existing, experience: list };
-  await container.items.upsert(next);
-  return stripCosmos(next);
+  return patchExistingSection(userId, { experience: list });
 }
 
 export async function setOrganizationListAsync(
   list: OrganizationExperience[],
-  userId = ME_ID,
+  userId: string,
 ): Promise<Candidate> {
-  const container = getContainer(CONTAINERS.candidates);
-  const existing = await readRecord(userId);
-  if (!existing) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
-    );
-  }
-  const next: CandidateRecord = { ...existing, organizations: list };
-  await container.items.upsert(next);
-  return stripCosmos(next);
+  return patchExistingSection(userId, { organizations: list });
 }
 
 export async function setProjectListAsync(
   list: ProjectExperience[],
-  userId = ME_ID,
+  userId: string,
 ): Promise<Candidate> {
-  const container = getContainer(CONTAINERS.candidates);
-  const existing = await readRecord(userId);
-  if (!existing) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
-    );
-  }
-  const next: CandidateRecord = { ...existing, projects: list };
-  await container.items.upsert(next);
-  return stripCosmos(next);
+  return patchExistingSection(userId, { projects: list });
 }
 
 export async function setAchievementListAsync(
   list: Achievement[],
-  userId = ME_ID,
+  userId: string,
 ): Promise<Candidate> {
-  const container = getContainer(CONTAINERS.candidates);
-  const existing = await readRecord(userId);
-  if (!existing) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
-    );
-  }
-  const next: CandidateRecord = { ...existing, achievements: list };
-  await container.items.upsert(next);
-  return stripCosmos(next);
+  return patchExistingSection(userId, { achievements: list });
 }
 
 export function newOrganizationId() {
@@ -231,23 +190,14 @@ export function newAchievementId() {
 
 export async function setSkillsAsync(
   skills: CandidateSkill[],
-  userId = ME_ID,
+  userId: string,
 ): Promise<Candidate> {
-  const container = getContainer(CONTAINERS.candidates);
-  const existing = await readRecord(userId);
-  if (!existing) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
-    );
-  }
-  const next: CandidateRecord = { ...existing, skills };
-  await container.items.upsert(next);
-  return stripCosmos(next);
+  return patchExistingSection(userId, { skills });
 }
 
 export async function mergeSkillsAsync(
   incoming: CandidateSkill[],
-  userId = ME_ID,
+  userId: string,
 ): Promise<Candidate> {
   const existing = await readRecord(userId);
   if (!existing) {
@@ -260,13 +210,7 @@ export async function mergeSkillsAsync(
   for (const s of incoming) {
     if (!byId.has(s.skillId)) byId.set(s.skillId, s);
   }
-  const container = getContainer(CONTAINERS.candidates);
-  const next: CandidateRecord = {
-    ...existing,
-    skills: Array.from(byId.values()),
-  };
-  await container.items.upsert(next);
-  return stripCosmos(next);
+  return patchExistingSection(userId, { skills: Array.from(byId.values()) });
 }
 
 export function calculateReadinessScore(profile: Candidate): number {
@@ -303,7 +247,7 @@ export function calculateReadinessScore(profile: Candidate): number {
 }
 
 export async function recomputeReadinessScoreAsync(
-  userId = ME_ID,
+  userId: string,
 ): Promise<{ previousScore: number; newScore: number; increasedBy: number }> {
   const existing = await readRecord(userId);
   if (!existing) {
@@ -382,24 +326,14 @@ export type ContactInput = {
 
 export async function setContactAsync(
   input: ContactInput,
-  userId = ME_ID,
+  userId: string,
 ): Promise<Candidate> {
-  const container = getContainer(CONTAINERS.candidates);
-  const existing = await readRecord(userId);
-  if (!existing) {
-    throw new Error(
-      `Candidate profile not found for userId="${userId}". The onboarding flow should have created it.`,
-    );
-  }
-  const next: CandidateRecord = {
-    ...existing,
+  return patchExistingSection(userId, {
     phone: input.phone,
     linkedin: input.linkedin,
     github: input.github,
     portfolio: input.portfolio,
-  };
-  await container.items.upsert(next);
-  return stripCosmos(next);
+  });
 }
 
 export function newEducationId() {

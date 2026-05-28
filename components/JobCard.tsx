@@ -40,7 +40,11 @@ export default function JobCard({
   reason,
   ctaPath,
 }: Props) {
-  const href = ctaPath ?? `/app/lowongan/${job.id}`;
+  const href =
+    ctaPath ??
+    (job.companyId
+      ? `/app/lowongan/${job.id}?c=${encodeURIComponent(job.companyId)}`
+      : `/app/lowongan/${job.id}`);
   const eduChip = eduChipLabel(job.minEducation);
   const skillNames = (job.requirements ?? [])
     .map((r) => r.name ?? r.skillId)

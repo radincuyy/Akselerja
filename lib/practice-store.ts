@@ -105,10 +105,16 @@ const listPracticeTasksCached = unstable_cache(
 export async function getPracticeTaskBySlugAsync(
   slug: string,
 ): Promise<PracticeTask | undefined> {
-  return getPracticeTaskBySlugCached(slug);
+  const curated = await findCuratedPracticeBySlug(slug);
+  if (curated) return curated;
+
+  const syntheticSkillId = syntheticSkillIdFromSlug(slug);
+  if (!syntheticSkillId) return undefined;
+  const generated = await getGeneratedPracticeTask(syntheticSkillId);
+  return generated ?? createSyntheticPracticeTask(syntheticSkillId);
 }
 
-const getPracticeTaskBySlugCached = unstable_cache(
+const findCuratedPracticeBySlug = unstable_cache(
   async (slug: string): Promise<PracticeTask | undefined> => {
     const container = getContainer(CONTAINERS.practiceTasks);
     const { resources } = await container.items
@@ -117,14 +123,9 @@ const getPracticeTaskBySlugCached = unstable_cache(
         parameters: [{ name: "@slug", value: slug }],
       })
       .fetchAll();
-    if (resources[0]) return resources[0];
-
-    const syntheticSkillId = syntheticSkillIdFromSlug(slug);
-    if (!syntheticSkillId) return undefined;
-    const generated = await getGeneratedPracticeTask(syntheticSkillId);
-    return generated ?? createSyntheticPracticeTask(syntheticSkillId);
+    return resources[0];
   },
-  ["practice-task-by-slug"],
+  ["practice-task-curated-by-slug"],
   {
     tags: [PRACTICE_CACHE_TAG],
     revalidate: 3600,

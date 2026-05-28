@@ -6,7 +6,7 @@ import {
   type PracticeAttempt,
 } from "@/lib/attempts-store";
 import { calcMatch } from "@/lib/match";
-import { searchJobs } from "@/lib/search-store";
+import { rankCandidateJobs } from "@/lib/recommendations";
 import { findCoursesForGapsAsync } from "@/lib/courses-store";
 import { readCachedGapExplanations } from "@/lib/gap-explain";
 import { getCurrentCandidate } from "@/lib/current-candidate";
@@ -137,7 +137,7 @@ function buildRoadmap(
         body: "Semua skill yang diminta lowongan ini sudah ada di profilmu. Lanjutkan dengan menulis surat lamaran yang spesifik untuk perusahaan ini.",
         evidence:
           "Bisa menjelaskan dua pengalaman paling relevan dan satu hasil terukur.",
-        href: `/app/lowongan/${targetJob.id}`,
+        href: `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`,
         action: "Lihat lowongan",
         calendarHref: googleCalendarHref({
           title: `Siapkan lamaran ${targetJob.title}`,
@@ -230,7 +230,7 @@ function buildRoadmap(
     body: "Setelah gap prioritas selesai, hasil belajar jadi bukti kesiapan kerja. Update profil supaya match score-nya ikut naik, lalu lamar.",
     evidence:
       "Profil punya skill baru, dan kamu siap menjelaskan satu hal konkret untuk tiap skill.",
-    href: `/app/lowongan/${targetJob.id}`,
+    href: `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`,
     action: "Lihat lowongan",
     calendarHref: googleCalendarHref({
       title: `Update profil dan lamar ${targetJob.title}`,
@@ -263,30 +263,11 @@ export default async function BelajarPage({
   const { target, roadmapPage } = await searchParams;
   const { user, profile: me } = await getCurrentCandidate();
 
-  const userSkillIds = me.skills?.map((s) => s.skillId) ?? [];
-  // Same as dashboard: filter to jobs that share at least one skill with the
-  // user so the "target job" the roadmap is built for is actually relevant.
-  const [initialSearch, basePracticeTasks, practiceAttempts] = await Promise.all([
-    searchJobs({
-      top: 50,
-      profileVector: me.profileVector,
-      skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
-      includeClosed: false,
-    }),
+  const [{ ranked }, basePracticeTasks, practiceAttempts] = await Promise.all([
+    rankCandidateJobs(me, { top: 50, fallbackOnEmpty: true }),
     listPracticeTasksAsync(),
     listPracticeAttemptsForUser(user.id),
   ]);
-  let search = initialSearch;
-  if (search.jobs.length === 0 && userSkillIds.length > 0) {
-    search = await searchJobs({
-      top: 50,
-      profileVector: me.profileVector,
-      includeClosed: false,
-    });
-  }
-  const ranked = search.jobs
-    .map((job) => ({ job, ...calcMatch(me, job) }))
-    .sort((a, b) => b.score - a.score);
 
   if (ranked.length === 0) {
     return <NoJobsState />;
@@ -365,14 +346,14 @@ export default async function BelajarPage({
         action={
           <div className="flex flex-wrap gap-2">
             <Link
-              href={`/app/lowongan/${targetJob.id}`}
+              href={`/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`}
               className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2.5 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
             >
               Lihat lowongan
             </Link>
             {focusGap ? (
               <Link
-                href={`/app/lowongan/${targetJob.id}`}
+                href={`/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`}
                 className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
               >
                 Mulai dari {skillName(focusGap.skillId, focusGap.name)}
@@ -443,7 +424,7 @@ export default async function BelajarPage({
                   {focusCourse.description}
                 </p>
                 <Link
-                  href={`/app/lowongan/${targetJob.id}`}
+                  href={`/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`}
                   className="mt-6 inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
                 >
                   Cek dampak ke skor
@@ -473,7 +454,7 @@ export default async function BelajarPage({
                   Saatnya melamar dengan rasa percaya diri.
                 </p>
                 <Link
-                  href={`/app/lowongan/${targetJob.id}`}
+                  href={`/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`}
                   className="mt-6 inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
                 >
                   Lihat lowongan

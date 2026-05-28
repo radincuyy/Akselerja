@@ -247,7 +247,7 @@ export async function searchJobs(
     const response = await client.search(searchText, {
       filter,
       top: fetchSize,
-      includeTotalCount: false,
+      includeTotalCount: true,
       queryType: "simple",
       searchFields: ["title", "company", "description", "industry", "location"],
       vectorSearchOptions: hasVector
@@ -275,10 +275,8 @@ export async function searchJobs(
     const ordered = ids
       .map((id) => hydrated.get(id))
       .filter((j): j is Job => Boolean(j));
-    // All filters now run server-side via OData; the post-hydrate pass is
-    // kept narrow to drop jobs that lost their Cosmos row between index sync
-    // and this request (rare but possible).
-    const totalCount = ordered.length;
+    const totalCount =
+      typeof response.count === "number" ? response.count : ordered.length;
     const page = ordered.slice(skip, skip + top);
     return { jobs: page, relevance, fromSearch: true, totalCount };
   } catch (err) {

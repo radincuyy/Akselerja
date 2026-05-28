@@ -13,14 +13,18 @@ import { getCoursesForSkillsAsync } from "@/lib/courses-store";
 import { getCurrentCandidate } from "@/lib/current-candidate";
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<{ c?: string }>;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }): Promise<Metadata> {
   const { id } = await params;
-  const job = await getJobByIdAsync(id);
+  const { c } = await searchParams;
+  const job = await getJobByIdAsync(id, c);
   if (!job) {
     return { title: "Lowongan tidak ditemukan · Akselerja" };
   }
@@ -102,12 +106,15 @@ function experienceLabel(min?: number, max?: number): string | null {
 
 export default async function LowonganDetailPage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }) {
   const { id } = await params;
+  const { c } = await searchParams;
   const [job, { profile: me }] = await Promise.all([
-    getJobByIdAsync(id),
+    getJobByIdAsync(id, c),
     getCurrentCandidate(),
   ]);
   if (!job) notFound();
@@ -555,10 +562,9 @@ export default async function LowonganDetailPage({
               </div>
             </div>
             {job.companyOverview ? (
-              <div
-                className="mt-6 space-y-3 text-sm leading-relaxed text-(--color-ink) [&_p]:my-3 [&_ul]:my-3 [&_ul]:ml-5 [&_ul]:list-disc [&_li]:my-1 first:[&_p]:mt-0 last:[&_p]:mb-0"
-                dangerouslySetInnerHTML={{ __html: job.companyOverview }}
-              />
+              <p className="mt-6 whitespace-pre-line text-sm leading-relaxed text-(--color-ink)">
+                {job.companyOverview}
+              </p>
             ) : null}
             {job.officeAddress ? (
               <>

@@ -102,7 +102,17 @@ export async function refreshProfileVector(userId: string): Promise<void> {
   try {
     const { resource } = await container.item(userId, userId).read();
     if (!resource) return;
-    const profile = resource as Candidate;
+    await refreshProfileVectorFor(resource as Candidate);
+  } catch (err) {
+    console.error("[profile-summary] refresh failed for", userId, err);
+  }
+}
+
+export async function refreshProfileVectorFor(profile: Candidate): Promise<void> {
+  const userId = profile.id;
+  if (!userId) return;
+  const container = getContainer(CONTAINERS.candidates);
+  try {
     const text = buildProfileText(profile);
     if (!text) return;
 
