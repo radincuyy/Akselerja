@@ -38,8 +38,8 @@ const WEIGHT_NICE_TO_HAVE = 0.4;
 
 const BASE_WEIGHTS: Record<MatchDimensionId, number> = {
   skill: 45,
-  semantic: 30,
-  experience: 15,
+  semantic: 40,
+  experience: 5,
   education: 10,
 };
 
@@ -134,7 +134,11 @@ function semanticRatio(
   }
   if (normA === 0 || normB === 0) return { ratio: 0, applicable: false };
   const cosine = dot / (Math.sqrt(normA) * Math.sqrt(normB));
-  const ratio = Math.max(0, Math.min(1, (cosine + 1) / 2));
+  const SEMANTIC_ANCHOR = 0.55;
+  const SEMANTIC_STEEPNESS = 12;
+  const sigmoid =
+    1 / (1 + Math.exp(-SEMANTIC_STEEPNESS * (cosine - SEMANTIC_ANCHOR)));
+  const ratio = Math.max(0.05, Math.min(0.98, sigmoid));
   return { ratio, applicable: true };
 }
 
@@ -227,9 +231,18 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
   const experience = experienceRatio(candidate, job);
   const education = educationRatio(candidate, job);
 
+  const hasSkillList = job.requirements.length > 0;
+  const matchedSkillCount = skill.breakdown.filter(
+    (b) => b.state === "match",
+  ).length;
+  const skillDetail = hasSkillList
+    ? `${matchedSkillCount} dari ${skill.breakdown.length} skill cocok`
+    : "Skill belum dijelaskan di lowongan ini";
+  const skillRatioApplied = hasSkillList ? skill.ratio : 0.5;
+
   const dims: { id: MatchDimensionId; ratio: number; applicable: boolean; label: string; detail: string }[] = [
-    { id: "skill", ratio: skill.ratio, applicable: job.requirements.length > 0, label: "Skill", detail: `${skill.breakdown.filter((b) => b.state === "match").length} dari ${skill.breakdown.length} skill cocok` },
-    { id: "semantic", ratio: semantic.ratio, applicable: semantic.applicable, label: "Profil & deskripsi", detail: semantic.applicable ? "Berdasarkan isi CV vs deskripsi lowongan" : "Belum ada vektor profil" },
+    { id: "skill", ratio: skillRatioApplied, applicable: true, label: "Skill", detail: skillDetail },
+    { id: "semantic", ratio: semantic.ratio, applicable: semantic.applicable, label: "Profil & deskripsi", detail: !semantic.applicable ? "Belum ada vektor profil" : semantic.ratio < 0.2 ? "Profil kamu jauh dari deskripsi lowongan, isi pengalaman dan ringkasan profil" : "Berdasarkan isi CV vs deskripsi lowongan" },
     { id: "experience", ratio: experience.ratio, applicable: experience.applicable, label: "Pengalaman", detail: experience.detail },
     { id: "education", ratio: education.ratio, applicable: education.applicable, label: "Pendidikan", detail: education.detail },
   ];
