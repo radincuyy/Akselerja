@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ApplyButton from "@/components/ApplyButton";
 import CompanyLogo from "@/components/CompanyLogo";
+import LinkPendingIndicator from "@/components/LinkPendingIndicator";
 import ScoreDisplay from "@/components/ScoreDisplay";
 import { skillById } from "@/lib/skills";
 import { calcMatch } from "@/lib/match";
 import { buildMatchReason } from "@/lib/match-reason";
 import { formatIdr, formatRelativeId } from "@/lib/format";
 import { getJobByIdAsync } from "@/lib/jobs-store";
-import { getCoursesForSkillsAsync } from "@/lib/courses-store";
 import { getCurrentCandidate } from "@/lib/current-candidate";
 
 type Params = Promise<{ id: string }>;
@@ -124,25 +124,11 @@ export default async function LowonganDetailPage({
   const missing = breakdown.filter((b) => b.state === "missing");
   const matchReason = buildMatchReason(me, job, { score, breakdown });
 
-  const gapSkillIds = missing.map((b) => b.skillId);
-  // Cap learning path to one course per gap skill so the four steps cover
-  // the four most actionable gaps instead of repeating courses for the same
-  // skill. We over-fetch then de-dupe by skillId to stay deterministic.
-  const candidateCourses = await getCoursesForSkillsAsync(gapSkillIds);
-  const seenSkill = new Set<string>();
-  const learningPath: typeof candidateCourses = [];
-  for (const c of candidateCourses) {
-    if (seenSkill.has(c.skillId)) continue;
-    seenSkill.add(c.skillId);
-    learningPath.push(c);
-    if (learningPath.length >= 4) break;
-  }
-
   const explanation =
     score >= 75
       ? `Kamu sangat cocok untuk posisi ini. ${matched.length} skill utama sudah sesuai, dan tinggal ${missing.length} skill lagi yang bisa kamu pelajari untuk peluang lebih besar.`
       : score >= 50
-        ? `Kamu cukup cocok untuk posisi ini, tapi ada beberapa skill kunci yang belum kamu miliki. Lihat rencana belajar di bawah.`
+        ? `Kamu cukup cocok untuk posisi ini, tapi ada beberapa skill kunci yang belum kamu miliki. Buka roadmap belajar untuk peta langkahnya.`
         : `Posisi ini agak jauh dari profil kamu sekarang. Tetap bisa kamu kejar, tapi butuh waktu di skill prioritas dulu.`;
 
   const typeLabel = TYPE_LABEL[job.type] ?? job.type;
@@ -414,58 +400,6 @@ export default async function LowonganDetailPage({
             </div>
           </section>
 
-          <section className="mt-8" aria-labelledby="path-heading">
-            <h2
-              id="path-heading"
-              className="text-lg font-semibold tracking-tight text-(--color-ink)"
-            >
-              Rencana belajar untuk posisi ini
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-(--color-muted)">
-              Empat langkah konkret yang langsung menutup skill gap di atas.
-              Selesaikan satu per satu, match score-mu akan naik bersamaan.
-            </p>
-
-            {learningPath.length === 0 ? (
-              <p className="mt-6 rounded-md border border-(--color-line) bg-(--color-tint) p-4 text-sm text-(--color-ink)">
-                Profilmu sudah memenuhi semua skill yang diminta. Tidak ada
-                kursus tambahan yang dibutuhkan untuk posisi ini.
-              </p>
-            ) : (
-              <ol className="mt-6 space-y-3">
-                {learningPath.map((c, i) => {
-                  const targetSkill =
-                    skillById[c.skillId]?.name ?? c.skillId;
-                  return (
-                    <li
-                      key={c.id}
-                      className="flex gap-4 rounded-lg border border-(--color-line) bg-(--color-paper) p-5"
-                    >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-(--color-tint) text-sm font-semibold text-(--color-teal)">
-                        {i + 1}
-                      </span>
-                      <div className="flex-1">
-                        <p className="text-xs font-medium uppercase tracking-wider text-(--color-teal-deep)">
-                          Tutup gap {targetSkill}
-                        </p>
-                        <p className="mt-1 text-base font-semibold text-(--color-ink)">
-                          {c.title}
-                        </p>
-                        <p className="mt-1 text-sm text-(--color-muted)">
-                          {c.provider} · {c.durationHours} jam ·{" "}
-                          {c.free ? "Gratis" : formatIdr(c.priceIdr ?? 0)}
-                        </p>
-                        <p className="mt-3 text-sm leading-relaxed text-(--color-ink)">
-                          {c.description}
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-          </section>
-
           <section className="mt-8" aria-labelledby="desc-heading">
             <h2
               id="desc-heading"
@@ -623,6 +557,7 @@ export default async function LowonganDetailPage({
                 className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-md border border-(--color-teal) px-4 text-sm font-semibold text-(--color-teal) transition-colors hover:bg-(--color-teal) hover:text-(--color-paper-on-teal)"
               >
                 Buka roadmap belajar
+                <LinkPendingIndicator />
               </Link>
             </div>
           ) : null}

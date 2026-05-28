@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import Pagination from "@/components/Pagination";
+import LinkPendingIndicator from "@/components/LinkPendingIndicator";
 import {
   listPracticeAttemptsForUser,
   type PracticeAttempt,
@@ -12,6 +13,7 @@ import { readCachedGapExplanations } from "@/lib/gap-explain";
 import { getCurrentCandidate } from "@/lib/current-candidate";
 import { getGeneratedPracticeTask } from "@/lib/practice-generation";
 import { listPracticeTasksAsync } from "@/lib/practice-store";
+import { getJobByIdAsync } from "@/lib/jobs-store";
 import { skillById } from "@/lib/skills";
 import { scoreBandLabel } from "@/lib/format";
 import type { Course, Job, PracticeTask } from "@/lib/types";
@@ -257,20 +259,32 @@ export default async function BelajarPage({
   }
 
   const overrideJob = ranked.find((r) => r.job.id === target);
-  if (!overrideJob) {
-    return (
-      <TargetPicker
-        candidates={ranked.slice(0, 10).map((r) => ({
-          job: r.job,
-          score: r.score,
-          missingCount: r.breakdown.filter((b) => b.state !== "match").length,
-          totalSkills: r.breakdown.length,
-        }))}
-        notice="Lowongan target tidak ditemukan. Pilih lowongan lain di bawah."
-      />
-    );
+  let top: { job: typeof ranked[number]["job"]; score: number; breakdown: typeof ranked[number]["breakdown"]; dimensions: typeof ranked[number]["dimensions"] };
+  if (overrideJob) {
+    top = overrideJob;
+  } else {
+    const job = await getJobByIdAsync(target);
+    if (!job) {
+      return (
+        <TargetPicker
+          candidates={ranked.slice(0, 10).map((r) => ({
+            job: r.job,
+            score: r.score,
+            missingCount: r.breakdown.filter((b) => b.state !== "match").length,
+            totalSkills: r.breakdown.length,
+          }))}
+          notice="Lowongan target tidak ditemukan. Pilih lowongan lain di bawah."
+        />
+      );
+    }
+    const match = calcMatch(me, job);
+    top = {
+      job,
+      score: match.score,
+      breakdown: match.breakdown,
+      dimensions: match.dimensions,
+    };
   }
-  const top = overrideJob;
   const targetJob = top.job;
   const score = top.score;
   const breakdown = top.breakdown;
@@ -335,9 +349,7 @@ export default async function BelajarPage({
         : null;
   const targetJobHref = `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`;
 
-  const description = overrideJob
-    ? `Roadmap dari requirement spesifik ${targetJob.company}, disesuaikan dengan profilmu.`
-    : "Roadmap ini berbasis lowongan paling cocok denganmu sekarang. Kalau kamu update profil atau pilih target lain, roadmap-nya ikut berubah.";
+  const description = `Roadmap dari requirement spesifik ${targetJob.company}, disesuaikan dengan profilmu.`;
 
   return (
     <>
@@ -620,6 +632,7 @@ function TargetPicker({
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-(--color-teal) group-hover:text-(--color-teal-deep)">
                   Susun roadmap →
+                  <LinkPendingIndicator />
                 </span>
               </Link>
             </li>
