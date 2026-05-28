@@ -264,7 +264,11 @@ export default async function BelajarPage({
   const { user, profile: me } = await getCurrentCandidate();
 
   const [{ ranked }, basePracticeTasks, practiceAttempts] = await Promise.all([
-    rankCandidateJobs(me, { top: 50, fallbackOnEmpty: true }),
+    rankCandidateJobs(me, {
+      top: 12,
+      fallbackOnEmpty: true,
+      filterPositiveScore: true,
+    }),
     listPracticeTasksAsync(),
     listPracticeAttemptsForUser(user.id),
   ]);
