@@ -34,8 +34,6 @@ export const CONTAINERS = {
   users: "users",
   courses: "courses",
   practiceTasks: "practiceTasks",
-  assessments: "assessments",
-  assessmentQuestions: "assessmentQuestions",
   aiCache: "aiCache",
 } as const;
 

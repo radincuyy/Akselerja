@@ -64,7 +64,7 @@ export default async function PengaturanPage() {
               Hapus akun
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-(--color-muted)">
-              Menghapus akun akan menghilangkan profil dan hasil assessment
+              Menghapus akun akan menghilangkan profil dan riwayat latihan
               kamu. Tindakan ini tidak bisa dibatalkan.
             </p>
             <div className="mt-5">

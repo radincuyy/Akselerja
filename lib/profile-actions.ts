@@ -26,11 +26,7 @@ import {
   setSkillsAsync,
   updateProfileBasicAsync,
 } from "./profile-store";
-import {
-  recordAttempt as recordAttemptStore,
-  recordPracticeAttempt,
-} from "./attempts-store";
-import { getAssessmentBySlugAsync } from "./assessments-store";
+import { recordPracticeAttempt } from "./attempts-store";
 import { getPracticeTaskBySlugAsync } from "./practice-store";
 import { parseCv } from "./cv-parser";
 import {
@@ -40,17 +36,12 @@ import {
 import { requireUser } from "./session";
 import { deleteUserById } from "./user-store";
 import { refreshProfileVector } from "./profile-summary";
-import {
-  gatherFeedbackContext,
-  generateAssessmentFeedback,
-} from "./assessment-feedback";
 import { scheduleLearningPrewarmForProfile } from "./learning-prewarm";
 import {
   calculatePracticeScore,
   gradePracticeAnswer,
   levelFromPracticeScore,
 } from "./practice-grading";
-import { searchJobs } from "./search-store";
 import { skillById } from "./skills";
 import type {
   Education,
@@ -910,88 +901,6 @@ export async function completeOnboarding(input: OnboardingInput) {
   if (cv) {
     scheduleLearningPrewarmForProfile(updatedProfile);
   }
-}
-
-// ----- Assessments -----
-
-export async function submitAssessmentAttempt(input: {
-  slug: string;
-  correct: number;
-  total: number;
-}): Promise<
-  | {
-      ok: true;
-      score: number;
-      correct: number;
-      total: number;
-      passed: boolean;
-      feedback: string;
-      readinessScore: number;
-      previousReadinessScore: number;
-      readinessScoreIncrease: number;
-    }
-  | { ok: false; error: string }
-> {
-  const user = await requireUser();
-  const assessment = await getAssessmentBySlugAsync(input.slug);
-  if (!assessment) return { ok: false, error: "Assessment tidak ditemukan." };
-
-  const score = input.total > 0 ? Math.round((input.correct / input.total) * 100) : 0;
-  const passed = score >= 50;
-  await recordAttemptStore({
-    userId: user.id,
-    skillId: assessment.skillId,
-    assessmentId: assessment.id,
-    assessmentSlug: input.slug,
-    correct: input.correct,
-    total: input.total,
-  });
-  const readinessScoreChange = await recomputeReadinessScoreAsync(user.id);
-  revalidateTag(profileCacheTag(user.id));
-  revalidatePath("/app/assessment");
-  revalidatePath("/app/profil");
-  revalidatePath("/app");
-
-  const skillName = skillById[assessment.skillId]?.name ?? assessment.skillId;
-  let feedback = "";
-  try {
-    const profile = await getProfileOrSeedAsync(user.id);
-    const search = await searchJobs({
-      top: 20,
-      profileVector: profile.profileVector,
-      includeClosed: false,
-    });
-    const ctx = await gatherFeedbackContext(
-      profile,
-      assessment.skillId,
-      search.jobs,
-    );
-    feedback = await generateAssessmentFeedback({
-      profile,
-      skillId: assessment.skillId,
-      skillName,
-      score,
-      passed,
-      correct: input.correct,
-      total: input.total,
-      topJobsRequiringSkill: ctx.jobs,
-      recommendedCourses: ctx.courses,
-    });
-  } catch (err) {
-    console.warn("[assessment] feedback generation failed:", err);
-  }
-
-  return {
-    ok: true,
-    score,
-    correct: input.correct,
-    total: input.total,
-    passed,
-    feedback,
-    readinessScore: readinessScoreChange.newScore,
-    previousReadinessScore: readinessScoreChange.previousScore,
-    readinessScoreIncrease: readinessScoreChange.increasedBy,
-  };
 }
 
 // ----- Practice learning -----

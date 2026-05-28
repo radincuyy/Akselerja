@@ -23,7 +23,6 @@ export default function KebijakanDataPage() {
       <ul>
         <li>Data yang kamu masukkan langsung di profil dan onboarding.</li>
         <li>File CV yang kamu unggah, dikonversi ke teks untuk diparsing.</li>
-        <li>Hasil assessment yang kamu kerjakan.</li>
         <li>
           Aksi di aplikasi seperti melamar, menyimpan lowongan, dan menilai
           rekomendasi.
@@ -37,7 +36,6 @@ export default function KebijakanDataPage() {
       </p>
       <ul>
         <li>Skill match terhadap requirement lowongan.</li>
-        <li>Hasil assessment relevan.</li>
         <li>Relevansi pengalaman dan industri.</li>
         <li>Kesesuaian lokasi dan ekspektasi gaji.</li>
         <li>Potensi belajar berdasarkan kursus yang sudah diselesaikan.</li>

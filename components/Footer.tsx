@@ -5,7 +5,6 @@ const groups = [
     title: "Kandidat",
     links: [
       { label: "Cara kerja", href: "#" },
-      { label: "Skill assessment", href: "#" },
       { label: "Rencana belajar", href: "#" },
       { label: "Career coach", href: "#" },
     ],
@@ -36,8 +35,8 @@ export default function Footer() {
           <div>
             <Logo className="h-6 w-auto text-(--color-ink)" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-(--color-muted)">
-              Platform AI job matching, skill assessment, dan upskilling untuk
-              tenaga kerja Indonesia.
+              Platform AI job matching dan upskilling untuk tenaga kerja
+              Indonesia.
             </p>
             <p className="mt-6 text-xs text-(--color-muted)">
               Dibuat di Indonesia

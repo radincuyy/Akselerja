@@ -188,20 +188,3 @@ export type Candidate = {
   profileVector?: number[];
   profileVectorUpdatedAt?: string;
 };
-
-export type Assessment = {
-  id: string;
-  slug: string;
-  title: string;
-  durationMinutes: number;
-  questionCount: number;
-  skillId: string;
-  description: string;
-};
-
-export type AssessmentQuestion = {
-  id: string;
-  prompt: string;
-  options: { id: string; label: string }[];
-  correctOptionId: string;
-};

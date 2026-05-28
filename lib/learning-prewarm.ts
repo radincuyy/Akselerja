@@ -1,6 +1,4 @@
 import { after } from "next/server";
-import { getGeneratedAssessmentQuestions } from "./assessment-generation";
-import { listAssessmentsForSkillIdsAsync } from "./assessments-store";
 import { calcMatch } from "./match";
 import { getGeneratedPracticeTask } from "./practice-generation";
 import { searchJobs } from "./search-store";
@@ -38,31 +36,14 @@ async function priorityGapSkillIds(profile: Candidate): Promise<string[]> {
 export async function prewarmLearningArtifactsForProfile(
   profile: Candidate,
 ): Promise<void> {
-  const profileSkillIds = uniqueSkillIds(
-    profile.skills?.map((skill) => skill.skillId) ?? [],
-  );
   const gapSkillIds = await priorityGapSkillIds(profile);
   const practiceSkillIds = gapSkillIds.slice(0, PREWARM_SKILL_LIMIT);
-  const assessmentSkillIds = uniqueSkillIds([
-    ...profileSkillIds,
-    ...practiceSkillIds,
-  ]).slice(0, PREWARM_SKILL_LIMIT);
 
   for (const skillId of practiceSkillIds) {
     try {
       await getGeneratedPracticeTask(skillId);
     } catch (err) {
       console.warn("[learning-prewarm] practice prewarm failed:", err);
-    }
-  }
-
-  if (assessmentSkillIds.length === 0) return;
-  const assessments = await listAssessmentsForSkillIdsAsync(assessmentSkillIds);
-  for (const assessment of assessments.slice(0, PREWARM_SKILL_LIMIT)) {
-    try {
-      await getGeneratedAssessmentQuestions(assessment);
-    } catch (err) {
-      console.warn("[learning-prewarm] assessment prewarm failed:", err);
     }
   }
 }

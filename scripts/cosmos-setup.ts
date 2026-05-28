@@ -22,8 +22,6 @@ const containers = [
   { id: "users", partitionKey: "/email" },
   { id: "courses", partitionKey: "/id" },
   { id: "practiceTasks", partitionKey: "/id" },
-  { id: "assessments", partitionKey: "/id" },
-  { id: "assessmentQuestions", partitionKey: "/assessmentId" },
   { id: "aiCache", partitionKey: "/key" },
 ];
 

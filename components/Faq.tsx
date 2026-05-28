@@ -3,7 +3,7 @@ import Reveal from "./Reveal";
 const faqs = [
   {
     q: "Berapa biaya pakai Akselerja?",
-    a: "Untuk pencari kerja, gratis. Membuat profil, mengikuti assessment, melihat match score, dan mendapat rekomendasi pelatihan tidak dipungut biaya. Kursus pihak ketiga punya harganya sendiri, dan kami tampilkan biayanya sebelum kamu memilih.",
+    a: "Untuk pencari kerja, gratis. Membuat profil, melihat match score, dan mendapat rekomendasi pelatihan tidak dipungut biaya. Kursus pihak ketiga punya harganya sendiri, dan kami tampilkan biayanya sebelum kamu memilih.",
   },
   {
     q: "Siapa yang bisa lihat data dan CV saya?",
@@ -11,7 +11,7 @@ const faqs = [
   },
   {
     q: "Bagaimana cara kerja matching-nya, kenapa skornya bisa berbeda?",
-    a: "Skor dihitung dari kombinasi skill yang sesuai, hasil assessment, pengalaman, lokasi, ekspektasi gaji, soft skill, dan potensi belajar. Setiap skor selalu disertai penjelasan komponen mana yang paling memengaruhi, jadi kamu tidak perlu menebak.",
+    a: "Skor dihitung dari kombinasi skill yang sesuai, pengalaman, pendidikan, dan potensi belajar. Setiap skor selalu disertai penjelasan komponen mana yang paling memengaruhi, jadi kamu tidak perlu menebak.",
   },
   {
     q: "Saya belum punya CV, masih bisa daftar?",
@@ -19,7 +19,7 @@ const faqs = [
   },
   {
     q: "Kapan saya bisa mulai melamar pekerjaan setelah daftar?",
-    a: "Setelah profil lengkap dan kamu menyelesaikan satu skill assessment singkat, biasanya 10 sampai 15 menit, kamu sudah bisa melihat lowongan yang cocok dan melamar. Kamu juga bisa terus melengkapi profil untuk skor yang lebih akurat.",
+    a: "Setelah profil lengkap, kamu sudah bisa melihat lowongan yang cocok dan melamar via partner. Kamu juga bisa terus melengkapi profil untuk skor yang lebih akurat.",
   },
   {
     q: "Apakah saya akan dipaksa ikut kursus berbayar?",

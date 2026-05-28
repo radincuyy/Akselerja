@@ -11,7 +11,7 @@ export default function CoachPage() {
       <PageHeader
         eyebrow="Coach"
         title="Pendamping karier kamu"
-        description="Tanyakan apa pun soal skor, skill gap, atau langkah karier. Coach akan menjawab berdasarkan profil dan riwayat assessment kamu."
+        description="Tanyakan apa pun soal skor, skill gap, atau langkah karier. Coach akan menjawab berdasarkan profil dan latihan kamu."
       />
       <div className="mt-8">
         <CoachChat />

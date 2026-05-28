@@ -26,7 +26,7 @@ export default function PrivasiPage() {
         </li>
         <li>
           <strong>Riwayat dan kompetensi.</strong> Pendidikan, pengalaman
-          kerja, daftar skill, dan hasil assessment yang kamu ikuti.
+          kerja, daftar skill, dan latihan yang kamu kerjakan.
         </li>
         <li>
           <strong>CV.</strong> File CV yang kamu unggah dan teks yang kami

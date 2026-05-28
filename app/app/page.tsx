@@ -4,28 +4,22 @@ import JobCard from "@/components/JobCard";
 import { calcMatch } from "@/lib/match";
 import { buildMatchReason } from "@/lib/match-reason";
 import { searchJobs } from "@/lib/search-store";
-import { listAssessmentsForSkillIdsAsync } from "@/lib/assessments-store";
 import { getCurrentCandidate } from "@/lib/current-candidate";
 import { calculateReadinessScore } from "@/lib/profile-store";
-import { completedAssessmentIdsForUser } from "@/lib/attempts-store";
-import type { Assessment, Candidate } from "@/lib/types";
+import type { Candidate, Job } from "@/lib/types";
 
 const HOME_RECOMMENDATION_LIMIT = 12;
 
 export default async function CandidateHome() {
-  const { user, profile } = await getCurrentCandidate();
+  const { profile } = await getCurrentCandidate();
   const readinessScore = calculateReadinessScore(profile);
   const userSkillIds = profile.skills?.map((s) => s.skillId) ?? [];
-  const [initialSearch, assessments, completedIds] = await Promise.all([
-    searchJobs({
-      top: HOME_RECOMMENDATION_LIMIT,
-      profileVector: profile.profileVector,
-      skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
-      includeClosed: false,
-    }),
-    listAssessmentsForSkillIdsAsync(userSkillIds),
-    completedAssessmentIdsForUser(user.id),
-  ]);
+  const initialSearch = await searchJobs({
+    top: HOME_RECOMMENDATION_LIMIT,
+    profileVector: profile.profileVector,
+    skillIds: userSkillIds.length > 0 ? userSkillIds : undefined,
+    includeClosed: false,
+  });
   const search =
     initialSearch.jobs.length === 0 && userSkillIds.length > 0
       ? await searchJobs({
@@ -35,7 +29,7 @@ export default async function CandidateHome() {
         })
       : initialSearch;
   const ranked = search.jobs
-    .map((job) => ({ job, ...calcMatch(profile, job) }))
+    .map((job: Job) => ({ job, ...calcMatch(profile, job) }))
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score);
   const top3 = ranked.slice(0, 3);
@@ -67,7 +61,7 @@ export default async function CandidateHome() {
       ? "Lowongan ini diurutkan dari kecocokan skill, pengalaman, dan preferensi profilmu."
       : hasMediumMatch
         ? "Skill kamu sudah cocok sebagian. Tutup beberapa skill gap supaya peluangmu makin besar."
-        : "Lengkapi profil atau ikuti satu assessment supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk.";
+        : "Lengkapi profil supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk.";
 
   return (
     <>
@@ -92,8 +86,8 @@ export default async function CandidateHome() {
           label="Kelengkapan profil"
           explanation={
             bestMatchScore > 0
-              ? `Angka ini membaca kelengkapan profil, CV, skill, assessment, dan pengalaman. Ini berbeda dari match score lowongan; match score terbaikmu saat ini ${bestMatchScore}% dan dihitung per lowongan.`
-              : "Angka ini membaca kelengkapan profil, CV, skill, assessment, dan pengalaman. Match score lowongan akan muncul setelah ada lowongan yang cocok dengan profilmu."
+              ? `Angka ini membaca kelengkapan profil, CV, skill, dan pengalaman. Ini berbeda dari match score lowongan; match score terbaikmu saat ini ${bestMatchScore}% dan dihitung per lowongan.`
+              : "Angka ini membaca kelengkapan profil, CV, skill, dan pengalaman. Match score lowongan akan muncul setelah ada lowongan yang cocok dengan profilmu."
           }
           action={
             readinessScore >= 100
@@ -161,40 +155,19 @@ export default async function CandidateHome() {
         >
           Langkah berikutnya untukmu
         </h2>
-        <NextSteps
-          profile={profile}
-          assessments={assessments}
-          completedIds={completedIds}
-        />
+        <NextSteps profile={profile} />
       </section>
     </>
   );
 }
 
-function NextSteps({
-  profile,
-  assessments,
-  completedIds,
-}: {
-  profile: Candidate;
-  assessments: Assessment[];
-  completedIds: Set<string>;
-}) {
-  const nextAssessment = assessments.find((a) => !completedIds.has(a.id));
+function NextSteps({ profile }: { profile: Candidate }) {
   const hasExperience = (profile.experience?.length ?? 0) > 0;
   const hasEducation = (profile.education?.length ?? 0) > 0;
   const hasCv = Boolean(profile.cv);
 
   type Step = { eyebrow: string; title: string; body: string; href: string };
   const steps: Step[] = [];
-  if (nextAssessment) {
-    steps.push({
-      eyebrow: "Assessment",
-      title: `Ikuti tes ${nextAssessment.title}`,
-      body: `${nextAssessment.questionCount} soal, sekitar ${nextAssessment.durationMinutes} menit. Bukti skillmu bertambah begitu selesai.`,
-      href: `/app/assessment/${nextAssessment.slug}`,
-    });
-  }
   if (!hasCv) {
     steps.push({
       eyebrow: "Profil",
@@ -220,19 +193,17 @@ function NextSteps({
     steps.push({
       eyebrow: "Coach",
       title: "Tanya career coach untuk fokus berikutnya",
-      body: "Profil sudah lengkap, assessment sudah jalan. Coach bisa bantu pilih langkah berikutnya yang paling berdampak.",
+      body: "Profil sudah lengkap. Coach bisa bantu pilih langkah berikutnya yang paling berdampak.",
       href: "/app/coach",
     });
   }
 
-  if (steps.length === 1) {
-    steps.push({
-      eyebrow: "Belajar",
-      title: "Lihat kursus yang menutup skill gap kamu",
-      body: "Kursus singkat di area yang paling sering muncul di lowongan target.",
-      href: "/app/belajar",
-    });
-  }
+  steps.push({
+    eyebrow: "Belajar",
+    title: "Lihat kursus yang menutup skill gap kamu",
+    body: "Kursus singkat di area yang paling sering muncul di lowongan target.",
+    href: "/app/belajar",
+  });
 
   return (
     <div className="mt-6 grid gap-4 sm:grid-cols-2">
