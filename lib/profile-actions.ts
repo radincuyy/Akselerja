@@ -42,6 +42,7 @@ import {
   gradePracticeAnswer,
   levelFromPracticeScore,
 } from "./practice-grading";
+import { gradePracticeAnswerWithAi } from "./practice-ai-grading";
 import { skillById } from "./skills";
 import type {
   Education,
@@ -924,6 +925,14 @@ export async function submitPracticeAttempt(input: {
       readinessScore: number;
       previousReadinessScore: number;
       readinessScoreIncrease: number;
+      feedback: string;
+      perCriterion: {
+        id: string;
+        name: string;
+        score: number;
+        feedback: string;
+      }[];
+      gradedBy: "ai" | "keyword";
     }
   | { ok: false; error: string }
 > {
@@ -934,8 +943,44 @@ export async function submitPracticeAttempt(input: {
   const task = await getPracticeTaskBySlugAsync(input.slug);
   if (!task) return { ok: false, error: "Latihan tidak ditemukan." };
 
-  const results = gradePracticeAnswer(task, answer);
-  const score = calculatePracticeScore(results);
+  let score: number;
+  let overallFeedback = "";
+  let perCriterion: {
+    id: string;
+    name: string;
+    score: number;
+    feedback: string;
+  }[] = [];
+  let gradedBy: "ai" | "keyword" = "ai";
+
+  try {
+    const aiResult = await gradePracticeAnswerWithAi(task, answer);
+    score = aiResult.totalScore;
+    overallFeedback = aiResult.overallFeedback;
+    perCriterion = aiResult.perCriterion.map((r) => ({
+      id: r.criterion.id,
+      name: r.criterion.name,
+      score: r.score,
+      feedback: r.feedback,
+    }));
+  } catch (err) {
+    console.warn("[practice] AI grading failed, fallback to keyword:", err);
+    gradedBy = "keyword";
+    const results = gradePracticeAnswer(task, answer);
+    score = calculatePracticeScore(results);
+    perCriterion = results.map((r) => ({
+      id: r.criterion.id,
+      name: r.criterion.name,
+      score: r.score,
+      feedback:
+        r.hits === 0
+          ? `Belum terlihat sinyal kunci untuk ${r.criterion.name}.`
+          : `Terlihat ${r.hits} sinyal untuk ${r.criterion.name}.`,
+    }));
+    overallFeedback =
+      "Penilaian AI tidak tersedia, jadi skor pakai metode dasar berbasis kata kunci.";
+  }
+
   const attempt = await recordPracticeAttempt({
     userId: user.id,
     taskId: task.id,
@@ -964,5 +1009,8 @@ export async function submitPracticeAttempt(input: {
     readinessScore: readinessScoreChange.newScore,
     previousReadinessScore: readinessScoreChange.previousScore,
     readinessScoreIncrease: readinessScoreChange.increasedBy,
+    feedback: overallFeedback,
+    perCriterion,
+    gradedBy,
   };
 }

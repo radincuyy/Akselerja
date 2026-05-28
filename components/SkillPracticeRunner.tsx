@@ -43,17 +43,23 @@ export default function SkillPracticeRunner({
   const [timerRunning, setTimerRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [serverResult, setServerResult] = useState<{
+    score: number;
+    feedback: string;
+    gradedBy: "ai" | "keyword";
+    perCriterion: { id: string; name: string; score: number; feedback: string }[];
+  } | null>(null);
 
-  const results = useMemo(
+  const localResults = useMemo(
     () => (submitted ? gradePracticeAnswer(task, answer) : []),
     [answer, submitted, task],
   );
 
-  const totalScore = calculatePracticeScore(results);
-  const strongest = [...results].sort((a, b) => b.score - a.score)[0];
-  const weakest = [...results].sort((a, b) => a.score - b.score)[0];
+  const totalScore = serverResult?.score ?? calculatePracticeScore(localResults);
+  const strongest = [...localResults].sort((a, b) => b.score - a.score)[0];
+  const weakest = [...localResults].sort((a, b) => a.score - b.score)[0];
   const timerExpired = secondsLeft === 0;
-  const isPassed = totalScore >= 72;
+  const isPassed = totalScore >= 80;
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -96,6 +102,12 @@ export default function SkillPracticeRunner({
 
       setAnswer(nextAnswer);
       setCompletedAt(res.completedAt);
+      setServerResult({
+        score: res.score,
+        feedback: res.feedback,
+        gradedBy: res.gradedBy,
+        perCriterion: res.perCriterion,
+      });
       setSubmitted(true);
     });
   }
@@ -209,6 +221,19 @@ export default function SkillPracticeRunner({
                 : "Jawabanmu sudah tersimpan, tapi skor rubrik belum cukup untuk menambahkan skill ke profil. Edit jawaban untuk menaikkan bukti skill."}
             </p>
 
+            {serverResult?.feedback ? (
+              <div className="mt-4 rounded-md border border-(--color-line) bg-(--color-paper) p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-(--color-muted)">
+                  {serverResult.gradedBy === "ai"
+                    ? "Catatan dari AI evaluator"
+                    : "Catatan otomatis"}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-(--color-ink)">
+                  {serverResult.feedback}
+                </p>
+              </div>
+            ) : null}
+
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <FeedbackBlock
                 title="Yang sudah kuat"
@@ -244,7 +269,7 @@ export default function SkillPracticeRunner({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-(--color-line)">
-                  {results.map((result) => (
+                  {localResults.map((result) => (
                     <tr key={result.criterion.id}>
                       <td className="px-4 py-3">
                         <p className="font-medium text-(--color-ink)">

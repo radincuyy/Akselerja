@@ -19,7 +19,7 @@ export type PracticeAttempt = {
   completedAt: string;
 };
 
-const PRACTICE_PASS_THRESHOLD = 72;
+const PRACTICE_PASS_THRESHOLD = 80;
 
 function attemptsCacheTag(userId: string): string {
   return `attempts:${userId}`;

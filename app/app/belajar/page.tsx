@@ -44,37 +44,6 @@ function belajarHref({
   return qs ? `/app/belajar?${qs}` : "/app/belajar";
 }
 
-function formatGoogleDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}${month}${day}`;
-}
-
-function googleCalendarHref({
-  title,
-  details,
-  dayOffset,
-  daySpan = 1,
-}: {
-  title: string;
-  details: string;
-  dayOffset: number;
-  daySpan?: number;
-}) {
-  const start = new Date();
-  start.setDate(start.getDate() + dayOffset);
-  const end = new Date(start);
-  end.setDate(end.getDate() + daySpan);
-  const params = new URLSearchParams({
-    action: "TEMPLATE",
-    text: title,
-    details,
-    dates: `${formatGoogleDate(start)}/${formatGoogleDate(end)}`,
-  });
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
-}
-
 type RoadmapStep = {
   label: string;
   title: string;
@@ -85,7 +54,6 @@ type RoadmapStep = {
   completed?: boolean;
   score?: number;
   disabledReason?: string;
-  calendarHref: string;
 };
 
 function skillName(skillId: string, fallback?: string): string {
@@ -139,17 +107,10 @@ function buildRoadmap(
           "Bisa menjelaskan dua pengalaman paling relevan dan satu hasil terukur.",
         href: `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`,
         action: "Lihat lowongan",
-        calendarHref: googleCalendarHref({
-          title: `Siapkan lamaran ${targetJob.title}`,
-          details: `Roadmap Akselerja: tulis lamaran spesifik untuk ${targetJob.company}.`,
-          dayOffset: 0,
-        }),
       },
     ];
   }
 
-  const dayOffsets = [0, 2, 5, 9];
-  const daySpans = [1, 2, 3, 3];
   const labels = ["Hari 1", "Hari 3-4", "Minggu 1", "Minggu 2"];
 
   const completedSteps: RoadmapStep[] = completedTasks
@@ -170,12 +131,6 @@ function buildRoadmap(
       href: `/app/belajar/${task.slug}`,
       completed: true,
       score: attempt?.score,
-      calendarHref: googleCalendarHref({
-        title: `Review latihan ${name}`,
-        details: `Roadmap Akselerja: review jawaban dan feedback untuk ${task.title}.`,
-        dayOffset: dayOffsets[idx] ?? idx * 3,
-        daySpan: 1,
-      }),
     };
   });
 
@@ -213,12 +168,6 @@ function buildRoadmap(
           : course
             ? `/app/belajar/kursus/${course.id}`
             : `/app/belajar/latihan-praktik-${gap.skillId}`,
-        calendarHref: googleCalendarHref({
-          title: `Belajar ${name}`,
-          details: `Roadmap Akselerja: tutup gap ${name} untuk ${targetJob.title} di ${targetJob.company}.`,
-          dayOffset: dayOffsets[idx] ?? idx * 3,
-          daySpan: daySpans[idx] ?? 2,
-        }),
       };
     });
 
@@ -232,11 +181,6 @@ function buildRoadmap(
       "Profil punya skill baru, dan kamu siap menjelaskan satu hal konkret untuk tiap skill.",
     href: `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`,
     action: "Lihat lowongan",
-    calendarHref: googleCalendarHref({
-      title: `Update profil dan lamar ${targetJob.title}`,
-      details: `Roadmap Akselerja: tambah skill baru ke profil, lalu cek lowongan target.`,
-      dayOffset: 13,
-    }),
   });
 
   return steps;
@@ -277,8 +221,34 @@ export default async function BelajarPage({
     return <NoJobsState />;
   }
 
-  const overrideJob = target ? ranked.find((r) => r.job.id === target) : null;
-  const top = overrideJob ?? ranked[0];
+  if (!target) {
+    return (
+      <TargetPicker
+        candidates={ranked.slice(0, 10).map((r) => ({
+          job: r.job,
+          score: r.score,
+          missingCount: r.breakdown.filter((b) => b.state !== "match").length,
+          totalSkills: r.breakdown.length,
+        }))}
+      />
+    );
+  }
+
+  const overrideJob = ranked.find((r) => r.job.id === target);
+  if (!overrideJob) {
+    return (
+      <TargetPicker
+        candidates={ranked.slice(0, 10).map((r) => ({
+          job: r.job,
+          score: r.score,
+          missingCount: r.breakdown.filter((b) => b.state !== "match").length,
+          totalSkills: r.breakdown.length,
+        }))}
+        notice="Lowongan target tidak ditemukan. Pilih lowongan lain di bawah."
+      />
+    );
+  }
+  const top = overrideJob;
   const targetJob = top.job;
   const score = top.score;
   const breakdown = top.breakdown;
@@ -567,14 +537,6 @@ export default async function BelajarPage({
                     {step.disabledReason}
                   </p>
                 ) : null}
-                <a
-                  href={step.calendarHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
-                >
-                  Tambah ke Google Calendar
-                </a>
               </div>
             </li>
           ))}
@@ -593,6 +555,87 @@ export default async function BelajarPage({
             label="roadmap belajar"
           />
         ) : null}
+      </section>
+    </>
+  );
+}
+
+function TargetPicker({
+  candidates,
+  notice,
+}: {
+  candidates: {
+    job: Job;
+    score: number;
+    missingCount: number;
+    totalSkills: number;
+  }[];
+  notice?: string;
+}) {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Belajar"
+        title="Pilih lowongan yang ingin kamu kejar"
+        description="Roadmap belajar disusun khusus untuk satu lowongan target. Pilih dari rekomendasi di bawah, atau telusuri dulu di halaman lowongan."
+        action={
+          <Link
+            href="/app/lowongan"
+            className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2.5 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+          >
+            Telusuri semua lowongan
+          </Link>
+        }
+      />
+
+      {notice ? (
+        <div
+          role="status"
+          className="mt-6 max-w-2xl rounded-lg border border-(--color-signal-amber)/40 bg-(--color-tint) p-4 text-sm text-(--color-ink)"
+        >
+          {notice}
+        </div>
+      ) : null}
+
+      <section className="mt-10" aria-labelledby="picker-heading">
+        <h2
+          id="picker-heading"
+          className="text-sm font-medium uppercase tracking-wider text-(--color-muted)"
+        >
+          Lowongan rekomendasi
+        </h2>
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+          {candidates.map(({ job, score, missingCount, totalSkills }) => (
+            <li key={job.id}>
+              <Link
+                href={belajarHref({ target: job.id })}
+                className="group flex h-full flex-col rounded-lg border border-(--color-line) bg-(--color-paper) p-5 transition-colors hover:border-(--color-teal)"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-base font-semibold text-(--color-ink) group-hover:text-(--color-teal)">
+                      {job.title}
+                    </h3>
+                    <p className="mt-0.5 truncate text-sm text-(--color-muted)">
+                      {job.company} · {job.location}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-base font-semibold tabular-nums text-(--color-teal)">
+                    {score}%
+                  </span>
+                </div>
+                <p className="mt-4 text-sm leading-relaxed text-(--color-muted)">
+                  {missingCount === 0
+                    ? `Semua ${totalSkills} skill sudah ada di profilmu. Tinggal lamar.`
+                    : `${missingCount} dari ${totalSkills} skill perlu ditutup. Roadmap akan fokus ke gap itu.`}
+                </p>
+                <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-(--color-teal) group-hover:text-(--color-teal-deep)">
+                  Susun roadmap →
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
     </>
   );
