@@ -15,6 +15,13 @@ export type RankedEntry = {
   lexical: number;
 };
 
+type RankedListMeta = {
+  ranked: RankedEntry[];
+  totalCount: number;
+  fromSearch: boolean;
+  fromFallback: boolean;
+};
+
 export type RankedSlice = {
   jobs: Job[];
   scoresById: Record<string, number>;
@@ -52,12 +59,7 @@ function filtersHash(params: SearchJobsParams): string {
 async function buildRankedList(
   candidate: Candidate,
   params: SearchJobsParams,
-): Promise<{
-  ranked: RankedEntry[];
-  totalCount: number;
-  fromSearch: boolean;
-  fromFallback: boolean;
-}> {
+): Promise<RankedListMeta> {
   const hasQuery = Boolean(params.query && params.query.trim());
   const result = await searchJobs({
     ...params,
@@ -94,11 +96,12 @@ export async function rankedJobsSlice({
   const fHash = filtersHash(params);
 
   const fetcher = unstable_cache(
-    async (uid: string, hash: string) => {
+    async (uid: string, hash: string): Promise<RankedListMeta> => {
+      void uid;
       void hash;
       return buildRankedList(candidate, params);
     },
-    ["ranked-jobs", userId, fHash],
+    ["ranked-jobs-meta", userId, fHash],
     {
       tags: [rankCacheTag(userId)],
       revalidate: CACHE_TTL_SECONDS,

@@ -15,6 +15,7 @@ import { getGeneratedPracticeTask } from "@/lib/practice-generation";
 import { listPracticeTasksAsync } from "@/lib/practice-store";
 import { getJobByIdAsync } from "@/lib/jobs-store";
 import { skillById } from "@/lib/skills";
+import { classifySkillTrack, type LearningTrack } from "@/lib/skill-track";
 import { scoreBandLabel } from "@/lib/format";
 import type { Course, Job, PracticeTask } from "@/lib/types";
 
@@ -64,6 +65,7 @@ type RoadmapStep = {
   isFinal?: boolean;
   locked?: boolean;
   allClear?: boolean;
+  track?: LearningTrack;
 };
 
 function skillName(skillId: string, fallback?: string): string {
@@ -146,6 +148,7 @@ function buildRoadmap(
       score: attempt?.score,
       skillId: task.skillId,
       skillLabel: name,
+      track: classifySkillTrack(task.skillId, name),
     };
   });
 
@@ -153,35 +156,53 @@ function buildRoadmap(
     .slice(0, Math.max(0, MAX_GAP_STEPS - completedSteps.length))
     .map((gap, offset) => {
       const idx = completedSteps.length + offset;
+      const name = skillName(gap.skillId, gap.name);
+      const track = classifySkillTrack(gap.skillId, name);
       const course = courses.find((c) => c.skillId === gap.skillId);
       const practice = practiceTasks.find(
         (task) => task.skillId === gap.skillId,
       );
       const generatedPractice =
         practice?.sourceLabel === "Referensi SKKNI" ? practice : null;
-      const name = skillName(gap.skillId, gap.name);
       const ragBody = explanations.get(gap.skillId);
-      const fallbackBody = course
-        ? `${course.provider} sediakan ${course.title} dengan durasi ${course.durationHours} jam. Skill ini muncul sebagai syarat di lowongan target kamu.`
-        : `Latihan mandiri disiapkan untuk ${name}. Jawabanmu akan menjadi bukti awal bahwa skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
+
+      if (track === "tool") {
+        const body =
+          ragBody ??
+          (course
+            ? `${course.provider} sediakan ${course.title}. Pelajari materinya, lalu kerjakan checkpoint singkat untuk menambah ${name} ke profil.`
+            : `Pelajari ${name} dari sumber pilihanmu, lalu kerjakan checkpoint singkat untuk menambah skill ini ke profil.`);
+        return {
+          label: labels[idx] ?? `Step ${idx + 1}`,
+          title: `Pelajari ${name}`,
+          body,
+          evidence: course
+            ? `Pegang referensi ${course.title} dari ${course.provider} dan bisa jawab 2 dari 3 soal checkpoint.`
+            : `Bisa jawab 2 dari 3 soal checkpoint singkat soal ${name}.`,
+          action: "Buka materi + checkpoint",
+          href: `/app/belajar/tool/${encodeURIComponent(gap.skillId)}`,
+          skillId: gap.skillId,
+          skillLabel: name,
+          track,
+        };
+      }
+
+      const fallbackBody = `Latihan mandiri disiapkan untuk ${name}. Jawabanmu akan menjadi bukti awal bahwa skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
       return {
         label: labels[idx] ?? `Step ${idx + 1}`,
         title: generatedPractice?.title ?? `Tutup gap ${name}`,
         body: generatedPractice?.scenario ?? ragBody ?? fallbackBody,
         evidence:
           generatedPractice?.expectedEvidence?.[0] ??
-          (course
-            ? `${course.title} (${course.provider}, ${course.durationHours} jam${course.free ? ", gratis" : ""}).`
-            : `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`),
+          `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
         action: "Mulai latihan",
         href: practice
           ? `/app/belajar/${practice.slug}`
-          : course
-            ? `/app/belajar/kursus/${course.id}`
-            : `/app/belajar/latihan-praktik-${gap.skillId}`,
+          : `/app/belajar/latihan-praktik-${gap.skillId}`,
         skillId: gap.skillId,
         skillLabel: name,
         estimatedMinutes: practice?.estimatedMinutes,
+        track,
       };
     });
 
@@ -748,9 +769,16 @@ function RoadmapCard({
       ) : null}
 
       {step.skillLabel && !isFinal ? (
-        <p className="mt-3 text-xs font-medium uppercase tracking-wider text-(--color-teal-deep)">
-          Skill: {step.skillLabel}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-(--color-teal-deep)">
+            Skill: {step.skillLabel}
+          </p>
+          {step.track ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-(--color-line) bg-(--color-paper) px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-(--color-muted)">
+              {step.track === "tool" ? "Materi + checkpoint" : "Latihan kasus"}
+            </span>
+          ) : null}
+        </div>
       ) : null}
 
       <h3 className="mt-4 text-base font-semibold text-(--color-ink)">

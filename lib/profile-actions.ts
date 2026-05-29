@@ -26,7 +26,7 @@ import {
   setSkillsAsync,
   updateProfileBasicAsync,
 } from "./profile-store";
-import { recordPracticeAttempt } from "./attempts-store";
+import { recordPracticeAttempt, recordCheckpointAttempt } from "./attempts-store";
 import { getPracticeTaskBySlugAsync } from "./practice-store";
 import { parseCv } from "./cv-parser";
 import {
@@ -1013,5 +1013,73 @@ export async function submitPracticeAttempt(input: {
     feedback: overallFeedback,
     perCriterion,
     gradedBy,
+  };
+}
+
+export async function submitCheckpointAttempt(input: {
+  skillId: string;
+  answers: { questionId: string; selectedIndex: number }[];
+}): Promise<
+  | {
+      ok: true;
+      total: number;
+      correct: number;
+      passed: boolean;
+      perQuestion: {
+        questionId: string;
+        correct: boolean;
+        correctIndex: number;
+        explanation: string;
+      }[];
+      attemptId: string;
+      completedAt: string;
+    }
+  | { ok: false; error: string }
+> {
+  const user = await requireUser();
+  const { gradeCheckpoint, getCheckpointSet } = await import(
+    "./checkpoint-generator"
+  );
+
+  const grade = await gradeCheckpoint(input);
+  if (!grade) {
+    return {
+      ok: false,
+      error:
+        "Soal sudah kedaluwarsa atau tidak ditemukan. Silakan muat ulang halaman.",
+    };
+  }
+
+  const set = await getCheckpointSet(input.skillId);
+
+  const attempt = await recordCheckpointAttempt({
+    userId: user.id,
+    skillId: input.skillId,
+    skillName: set.skillName,
+    total: grade.total,
+    correct: grade.correct,
+    passed: grade.passed,
+    answers: input.answers.map((a, i) => ({
+      questionId: a.questionId,
+      selectedIndex: a.selectedIndex,
+      correct: grade.perQuestion[i]?.correct ?? false,
+    })),
+  });
+
+  revalidateTag(profileCacheTag(user.id));
+  revalidateTag(`ranked-jobs:${user.id}`);
+  revalidatePath("/app/belajar");
+  revalidatePath("/app/profil");
+  revalidatePath("/app/lowongan");
+  revalidatePath("/app");
+
+  return {
+    ok: true,
+    total: grade.total,
+    correct: grade.correct,
+    passed: grade.passed,
+    perQuestion: grade.perQuestion,
+    attemptId: attempt.id,
+    completedAt: attempt.completedAt,
   };
 }

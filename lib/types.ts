@@ -62,6 +62,7 @@ export type Course = {
   priceIdr?: number;
   skillId: string;
   description: string;
+  url?: string;
 };
 
 type PracticeType =

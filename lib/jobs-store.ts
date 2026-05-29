@@ -21,31 +21,40 @@ const listJobsCached = unstable_cache(
   },
 );
 
+async function fetchJobsByIdsFromCosmos(ids: readonly string[]): Promise<Job[]> {
+  if (ids.length === 0) return [];
+  const container = getContainer(CONTAINERS.jobs);
+  const CHUNK = 50;
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    chunks.push(ids.slice(i, i + CHUNK));
+  }
+  const results = await Promise.all(
+    chunks.map((chunk) => {
+      const placeholders = chunk.map((_, idx) => `@id${idx}`).join(", ");
+      return container.items
+        .query<Job>({
+          query: `SELECT * FROM c WHERE c.id IN (${placeholders})`,
+          parameters: chunk.map((id, idx) => ({
+            name: `@id${idx}`,
+            value: id,
+          })),
+        })
+        .fetchAll();
+    }),
+  );
+  const all: Job[] = [];
+  for (const r of results) all.push(...r.resources);
+  return all;
+}
+
+const SMALL_BATCH_LIMIT = 50;
+
 const getJobsByIdsCached = unstable_cache(
   async (idsKey: string): Promise<Job[]> => {
     const ids = idsKey.split("\n").filter(Boolean);
-    if (ids.length === 0) return [];
-    const container = getContainer(CONTAINERS.jobs);
-    const CHUNK = 50;
-    const chunks: string[][] = [];
-    for (let i = 0; i < ids.length; i += CHUNK) {
-      chunks.push(ids.slice(i, i + CHUNK));
-    }
-    const results = await Promise.all(
-      chunks.map((chunk) => {
-        const placeholders = chunk.map((_, idx) => `@id${idx}`).join(", ");
-        return container.items
-          .query<Job>({
-            query: `SELECT * FROM c WHERE c.id IN (${placeholders})`,
-            parameters: chunk.map((id, idx) => ({
-              name: `@id${idx}`,
-              value: id,
-            })),
-          })
-          .fetchAll();
-      }),
-    );
-    return results.flatMap((r) => r.resources.map(ensureCompanyId));
+    const all = await fetchJobsByIdsFromCosmos(ids);
+    return all.map(ensureCompanyId);
   },
   ["jobs-by-ids"],
   {
@@ -112,5 +121,9 @@ export async function getJobByIdAsync(
 
 export async function getJobsByIdsAsync(ids: readonly string[]): Promise<Job[]> {
   if (ids.length === 0) return [];
+  if (ids.length > SMALL_BATCH_LIMIT) {
+    const all = await fetchJobsByIdsFromCosmos(ids);
+    return all.map(ensureCompanyId);
+  }
   return getJobsByIdsCached(ids.join("\n"));
 }
