@@ -135,7 +135,7 @@ function buildFilter(params: SearchJobsParams): string | undefined {
   return clauses.length === 0 ? undefined : clauses.join(" and ");
 }
 
-async function hydrateJobs(ids: string[]): Promise<Map<string, Job>> {
+export async function hydrateJobs(ids: string[]): Promise<Map<string, Job>> {
   if (ids.length === 0) return new Map();
   const jobs = await getJobsByIdsAsync(ids);
   return new Map(jobs.map((j) => [j.id, j]));
@@ -220,11 +220,9 @@ export async function searchJobs(
   const client = getClient();
   const top = params.top ?? 50;
   const skip = params.skip ?? 0;
-  // All filters now run server-side via OData. Fetch a small headroom over
-  // top+skip in case some hits 404 during hydrate (rare but possible if a
-  // job was just removed from Cosmos).
   const hydrateHeadroom = Math.min(20, Math.max(3, Math.ceil(top * 0.25)));
-  const fetchSize = Math.min(200, top + skip + hydrateHeadroom);
+  const fetchSize = top + hydrateHeadroom;
+  const knnPool = Math.max(top * 2 + skip, 200);
   const filter = buildFilter({
     cities: params.cities,
     types: params.types,
@@ -247,6 +245,7 @@ export async function searchJobs(
     const response = await client.search(searchText, {
       filter,
       top: fetchSize,
+      skip,
       includeTotalCount: true,
       queryType: "simple",
       searchFields: ["title", "company", "description", "industry", "location"],
@@ -256,7 +255,7 @@ export async function searchJobs(
               {
                 kind: "vector",
                 vector: params.profileVector!,
-                kNearestNeighborsCount: Math.max(fetchSize * 2, 100),
+                kNearestNeighborsCount: knnPool,
                 fields: ["descriptionVector"],
               },
             ],
@@ -277,7 +276,7 @@ export async function searchJobs(
       .filter((j): j is Job => Boolean(j));
     const totalCount =
       typeof response.count === "number" ? response.count : ordered.length;
-    const page = ordered.slice(skip, skip + top);
+    const page = ordered.slice(0, top);
     return { jobs: page, relevance, fromSearch: true, totalCount };
   } catch (err) {
     console.error("[search] AI Search query failed, falling back:", err);

@@ -6,7 +6,8 @@ import JobFilterSheet from "@/components/JobFilterSheet";
 import Pagination from "@/components/Pagination";
 import { calcMatch } from "@/lib/match";
 import { buildMatchReason } from "@/lib/match-reason";
-import { listCityFacetsAsync, searchJobs } from "@/lib/search-store";
+import { listCityFacetsAsync } from "@/lib/search-store";
+import { rankedJobsSlice } from "@/lib/ranked-jobs";
 import { getCurrentCandidate } from "@/lib/current-candidate";
 import { expandIndustryGroups } from "@/lib/preferences-options";
 
@@ -91,39 +92,46 @@ export default async function LowonganListPage({
 
   const pageNum = Math.max(1, parseInt(page ?? "1", 10) || 1);
 
-  const [{ jobs, relevance, fromSearch, fromFallback, totalCount }, cityFacets] =
-    await Promise.all([
-      searchJobs({
-        query: q,
-        cities: lokasiList.length > 0 ? lokasiList : undefined,
-        types: tipeList.length > 0 ? tipeList : undefined,
-        industryIds:
-          industriList.length > 0
-            ? expandIndustryGroups(industriList)
-            : undefined,
-        workModes: modeList.length > 0 ? modeList : undefined,
-        education: pendidikan || undefined,
-        ...parseExperience(pengalaman),
-        ...parseSalary(gaji),
-        includeClosed: false,
-        top: PAGE_SIZE,
-        skip: (pageNum - 1) * PAGE_SIZE,
-        profileVector: me.profileVector,
-      }),
-      listCityFacetsAsync({ types: tipeList.length > 0 ? tipeList : undefined }),
-    ]);
+  const searchParamsForRank = {
+    query: q,
+    cities: lokasiList.length > 0 ? lokasiList : undefined,
+    types: tipeList.length > 0 ? tipeList : undefined,
+    industryIds:
+      industriList.length > 0
+        ? expandIndustryGroups(industriList)
+        : undefined,
+    workModes: modeList.length > 0 ? modeList : undefined,
+    education: pendidikan || undefined,
+    ...parseExperience(pengalaman),
+    ...parseSalary(gaji),
+    includeClosed: false,
+  };
+
+  const [
+    { jobs, scoresById, lexicalById, totalCount, fromSearch, fromFallback },
+    cityFacets,
+  ] = await Promise.all([
+    rankedJobsSlice({
+      candidate: me,
+      params: searchParamsForRank,
+      page: pageNum,
+      pageSize: PAGE_SIZE,
+    }),
+    listCityFacetsAsync({ types: tipeList.length > 0 ? tipeList : undefined }),
+  ]);
 
   const hasQuery = Boolean(q && q.trim());
-  const ranked = jobs
-    .map((job) => {
-      const m = calcMatch(me, job);
-      const lexical = relevance[job.id] ?? 0;
-      const composite = hasQuery
-        ? m.score * 0.6 + Math.min(lexical, 5) * 8
-        : m.score;
-      return { job, ...m, composite };
-    })
-    .sort((a, b) => b.composite - a.composite);
+  const ranked = jobs.map((job) => {
+    const m = calcMatch(me, job);
+    const cachedScore = scoresById[job.id];
+    const lexical = lexicalById[job.id] ?? 0;
+    return {
+      job,
+      ...m,
+      score: cachedScore ?? m.score,
+      lexical,
+    };
+  });
 
   const hasFilter = Boolean(
     lokasiList.length ||
@@ -135,7 +143,8 @@ export default async function LowonganListPage({
       pendidikan ||
       gaji,
   );
-  const total = totalCount ?? ranked.length;
+  const RANK_POOL_CAP = 500;
+  const total = Math.min(totalCount ?? ranked.length, RANK_POOL_CAP);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(pageNum, totalPages);
   const hasSkills = (me.skills?.length ?? 0) > 0;
@@ -165,17 +174,23 @@ export default async function LowonganListPage({
         title="Lowongan yang cocok denganmu"
         description={
           hasQuery
-            ? `Hasil pencarian untuk "${q}", diurutkan menggabungkan relevansi kata kunci dan match score skillmu.`
+            ? `Hasil pencarian untuk "${q}", diurutkan dari match score paling tinggi.`
             : "Diurutkan berdasarkan match score, dari yang paling cocok. Setiap lowongan menampilkan satu alasan kecocokan dan, kalau ada, satu skill yang masih perlu kamu tingkatkan."
         }
       />
 
       <div className="mt-8 max-w-2xl">
         <JobSearchInput defaultValue={q ?? ""} />
-        {fromSearch && hasSkills ? (
+        {fromSearch && hasSkills && !hasQuery ? (
           <p className="mt-2 text-xs text-(--color-muted)">
             Pencarian semantik berdasarkan profilmu, jadi urutan menyesuaikan
             kekuatan skill yang sudah kamu masukkan.
+          </p>
+        ) : null}
+        {hasQuery ? (
+          <p className="mt-2 text-xs text-(--color-muted)">
+            Hanya lowongan yang cocok dengan kata kunci, diurutkan dari match
+            score tertinggi.
           </p>
         ) : null}
       </div>

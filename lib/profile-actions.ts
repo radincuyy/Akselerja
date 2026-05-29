@@ -76,6 +76,7 @@ function revalidateProfileSurfaces(
     scheduleProfileEmbed(userId);
   }
   revalidateTag(profileCacheTag(userId));
+  revalidateTag(`ranked-jobs:${userId}`);
   revalidatePath("/app/profil");
   revalidatePath("/app");
   revalidatePath("/app/lowongan");
