@@ -24,7 +24,7 @@ type SearchParams = Promise<{
   roadmapPage?: string;
 }>;
 
-const MAX_GAP_STEPS = 2;
+const PRACTICE_PREGEN_LIMIT = 2;
 const ROADMAP_PAGE_SIZE = 3;
 
 function parsePage(value: string | undefined): number {
@@ -75,7 +75,10 @@ function skillName(skillId: string, fallback?: string): string {
 async function generatePriorityPracticeTasks(
   skillIds: string[],
 ): Promise<PracticeTask[]> {
-  const uniqueSkillIds = Array.from(new Set(skillIds)).slice(0, MAX_GAP_STEPS);
+  const uniqueSkillIds = Array.from(new Set(skillIds)).slice(
+    0,
+    PRACTICE_PREGEN_LIMIT,
+  );
   const tasks = await Promise.all(
     uniqueSkillIds.map((skillId) => getGeneratedPracticeTask(skillId)),
   );
@@ -125,10 +128,9 @@ function buildRoadmap(
     ];
   }
 
-  const labels = ["Step 1", "Step 2", "Step 3", "Step 4"];
+  const labels: string[] = [];
 
   const completedSteps: RoadmapStep[] = completedTasks
-    .slice(0, MAX_GAP_STEPS)
     .map((task, idx) => {
     const attempt = latestAttemptByTaskId.get(task.id);
     const name = skillName(task.skillId);
@@ -153,7 +155,6 @@ function buildRoadmap(
   });
 
   const gapSteps: RoadmapStep[] = openGaps
-    .slice(0, Math.max(0, MAX_GAP_STEPS - completedSteps.length))
     .map((gap, offset) => {
       const idx = completedSteps.length + offset;
       const name = skillName(gap.skillId, gap.name);
@@ -312,13 +313,11 @@ export default async function BelajarPage({
   const dimensions = top.dimensions;
   const gaps = breakdown.filter((b) => b.state !== "match");
   const matched = breakdown.filter((b) => b.state === "match");
-  const roadmapGapIds = new Set(
-    gaps.slice(0, MAX_GAP_STEPS).map((g) => g.skillId),
-  );
+  const roadmapGapIds = new Set(gaps.map((g) => g.skillId));
 
   const gapSkillIds = gaps.map((g) => g.skillId);
   const priorityPracticeSkillIds = gaps
-    .slice(0, MAX_GAP_STEPS)
+    .slice(0, PRACTICE_PREGEN_LIMIT)
     .map((gap) => gap.skillId);
   const [courses, explanations, generatedPracticeTasks] = await Promise.all([
     findCoursesForGapsAsync(gapSkillIds, 4),

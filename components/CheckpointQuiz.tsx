@@ -79,7 +79,7 @@ export default function CheckpointQuiz({
           Cek pemahaman
         </h2>
         <p className="text-xs text-(--color-muted)">
-          3 soal pilihan ganda. Lulus minimal 2 dari 3 untuk menambah skill ke profil.
+          10 soal pilihan ganda. Lulus minimal 7 dari 10 untuk menambah skill ke profil.
         </p>
       </div>
 
@@ -168,7 +168,7 @@ export default function CheckpointQuiz({
           <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
             {result.passed
               ? `Skill ${skillName} sudah ditambahkan ke profil. Match score di lowongan terkait akan ikut naik saat halaman dibuka ulang.`
-              : `Skor minimum untuk menambah skill ke profil adalah 2 dari 3. Buka materi sekali lagi atau coba lagi setelah memperdalam pemahaman.`}
+              : `Skor minimum untuk menambah skill ke profil adalah 7 dari 10. Buka materi sekali lagi atau coba lagi setelah memperdalam pemahaman.`}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {result.passed ? (

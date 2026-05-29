@@ -20,7 +20,9 @@ export type CheckpointSet = {
 };
 
 const CACHE_TTL_HOURS = 24;
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
+const QUESTION_COUNT = 10;
+export const CHECKPOINT_PASS_THRESHOLD = 7;
 
 function cacheKey(skillId: string): string {
   return `checkpoint:${CACHE_VERSION}:${skillId}`;
@@ -28,6 +30,7 @@ function cacheKey(skillId: string): string {
 
 type CachedCheckpoint = {
   id: string;
+  key: string;
   skillId: string;
   set: CheckpointSet;
   expiresAt: string;
@@ -55,12 +58,14 @@ async function writeCache(set: CheckpointSet): Promise<void> {
     const expiresAt = new Date(
       Date.now() + CACHE_TTL_HOURS * 3600 * 1000,
     ).toISOString();
-    await container.items.upsert<CachedCheckpoint>({
+    const doc: CachedCheckpoint = {
       id,
+      key: id,
       skillId: set.skillId,
       set,
       expiresAt,
-    });
+    };
+    await container.items.upsert<CachedCheckpoint>(doc);
   } catch (err) {
     console.warn(
       "[checkpoint-generator] cache write failed:",
@@ -110,6 +115,97 @@ function fallbackQuestions(skillName: string): CheckpointQuestion[] {
       explanation:
         "Bukti konkret berupa proyek atau hasil kerja menunjukkan penguasaan, bukan sekadar klaim.",
     },
+    {
+      id: "q4",
+      prompt: `Saat tim memintamu mengerjakan tugas ${skillName} yang asing, sikap profesional adalah?`,
+      options: [
+        "Menolak karena belum pernah mengerjakan",
+        "Menerima tugas dan minta waktu untuk pelajari konteksnya",
+        "Mengaku bisa lalu copy-paste solusi internet",
+        "Diam saja dan kerjakan asal-asalan",
+      ],
+      correctIndex: 1,
+      explanation:
+        "Mengakui konteks baru sambil siap belajar adalah perilaku profesional yang dihargai tim.",
+    },
+    {
+      id: "q5",
+      prompt: `Kamu menyelesaikan tugas ${skillName} tapi merasa hasilnya bisa lebih baik. Yang paling tepat dilakukan?`,
+      options: [
+        "Tetap submit tanpa catatan",
+        "Submit dengan catatan area yang masih bisa diperbaiki",
+        "Tunda submit sampai sempurna",
+        "Hapus pekerjaan dan mulai ulang",
+      ],
+      correctIndex: 1,
+      explanation:
+        "Self-awareness terhadap area yang bisa diperbaiki menunjukkan growth mindset, bukan kelemahan.",
+    },
+    {
+      id: "q6",
+      prompt: `Saat memandu rekan baru tentang ${skillName}, pendekatan yang paling efektif adalah?`,
+      options: [
+        "Menjelaskan semua sekaligus dalam satu sesi",
+        "Memberi tugas tanpa konteks",
+        "Mulai dari konsep dasar lalu bertahap ke kasus nyata",
+        "Mengarahkan ke dokumentasi tanpa diskusi",
+      ],
+      correctIndex: 2,
+      explanation:
+        "Membangun pemahaman bertahap dari dasar lebih efektif daripada infodump satu kali.",
+    },
+    {
+      id: "q7",
+      prompt: `Saat menerima feedback negatif tentang pekerjaan ${skillName}-mu, respons paling matang adalah?`,
+      options: [
+        "Membela diri dan menjelaskan kesalahan orang lain",
+        "Menerima feedback, tanya detail, perbaiki di iterasi berikutnya",
+        "Diam saja tanpa klarifikasi",
+        "Menghindari penilai feedback di masa depan",
+      ],
+      correctIndex: 1,
+      explanation:
+        "Menerima feedback dengan terbuka dan minta detail adalah indikator kuat seorang profesional.",
+    },
+    {
+      id: "q8",
+      prompt: `Untuk menjaga skill ${skillName}-mu tetap relevan, kebiasaan paling penting adalah?`,
+      options: [
+        "Mengulang yang sudah dikuasai saja",
+        "Sesekali ikut tren tanpa mendalami",
+        "Belajar konsisten dan menerapkan di proyek nyata",
+        "Menunggu perusahaan memberikan training",
+      ],
+      correctIndex: 2,
+      explanation:
+        "Praktik konsisten di konteks nyata membuat skill tidak ketinggalan dan benar-benar tertanam.",
+    },
+    {
+      id: "q9",
+      prompt: `Saat ada konflik dengan rekan tentang cara terbaik mengerjakan tugas ${skillName}, kamu sebaiknya?`,
+      options: [
+        "Memaksakan pendapatmu karena lebih senior",
+        "Mengalah saja tanpa diskusi",
+        "Diskusikan trade-off masing-masing pendekatan dan cari solusi terbaik",
+        "Lapor ke atasan tanpa diskusi langsung",
+      ],
+      correctIndex: 2,
+      explanation:
+        "Diskusi terbuka tentang trade-off membantu tim memilih solusi yang paling tepat untuk konteksnya.",
+    },
+    {
+      id: "q10",
+      prompt: `Saat mengerjakan tugas ${skillName} dengan deadline ketat, prioritas utamamu adalah?`,
+      options: [
+        "Menyelesaikan secepatnya tanpa cek kualitas",
+        "Memastikan output minimum yang berfungsi, lalu iterasi kalau ada waktu",
+        "Memperbaiki kualitas sampai sempurna meskipun terlambat",
+        "Minta deadline diperpanjang tanpa upaya dulu",
+      ],
+      correctIndex: 1,
+      explanation:
+        "Output minimum yang berfungsi memastikan deliverable terkirim, sambil ruang iterasi tetap terbuka.",
+    },
   ];
 }
 
@@ -151,16 +247,18 @@ export async function getCheckpointSet(
     const raw = await generateGeminiJson<RawCheckpoint>({
       systemInstruction:
         "Kamu adalah asisten pembuat soal pemahaman cepat untuk skill kerja. Jawab dalam JSON valid berbahasa Indonesia. Soal harus konseptual dan praktis, bukan trivia hafalan. Hindari soal yang ambigu.",
-      prompt: `Buat 3 soal pilihan ganda untuk menguji pemahaman dasar skill "${skillName}".
+      prompt: `Buat ${QUESTION_COUNT} soal pilihan ganda untuk menguji pemahaman dasar skill "${skillName}".
 
 ${jobHint}
 
 Aturan:
+- Buat tepat ${QUESTION_COUNT} soal.
 - Setiap soal punya 4 pilihan (A, B, C, D), tepat satu jawaban benar.
 - Pertanyaan menguji pemahaman konsep atau pengambilan keputusan, bukan menghafal sintaks atau angka.
 - Pakai bahasa Indonesia lugas, kalimat pendek.
 - Tambahkan penjelasan singkat (1-2 kalimat) kenapa jawaban benar.
 - Jangan sebut "kursus", "buka materi", atau "pelajari dulu" di pertanyaan; pertanyaan harus bisa berdiri sendiri.
+- Variasikan kesulitan dan sudut pertanyaan supaya tidak repetitif.
 
 Kembalikan JSON valid dengan struktur persis seperti ini:
 {
@@ -195,11 +293,11 @@ Kembalikan JSON valid dengan struktur persis seperti ini:
         },
         required: ["questions"],
       },
-      maxOutputTokens: 1500,
+      maxOutputTokens: 4000,
     });
 
     const questions: CheckpointQuestion[] = (raw.questions ?? [])
-      .slice(0, 3)
+      .slice(0, QUESTION_COUNT)
       .map((q, i) => ({
         id: `q${i + 1}`,
         prompt: String(q.prompt ?? "").trim(),
@@ -216,8 +314,10 @@ Kembalikan JSON valid dengan struktur persis seperti ini:
       }))
       .filter((q) => q.prompt && q.options.length === 4 && q.explanation);
 
-    if (questions.length < 3) {
-      throw new Error(`AI returned only ${questions.length} valid questions`);
+    if (questions.length < QUESTION_COUNT) {
+      throw new Error(
+        `AI returned ${questions.length} valid questions, expected ${QUESTION_COUNT}`,
+      );
     }
 
     const set: CheckpointSet = {
@@ -262,8 +362,6 @@ export type CheckpointGradeResult = {
     explanation: string;
   }[];
 };
-
-export const CHECKPOINT_PASS_THRESHOLD = 2;
 
 export async function gradeCheckpoint(
   input: CheckpointGradeInput,

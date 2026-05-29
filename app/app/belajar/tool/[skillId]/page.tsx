@@ -202,8 +202,8 @@ export default async function ToolBelajarPage({ params }: Props) {
                   3
                 </span>
                 <span>
-                  Kembali ke halaman ini, kerjakan checkpoint 3 soal. Lulus 2
-                  dari 3, skill ditambah ke profil.
+                  Kembali ke halaman ini, kerjakan checkpoint 10 soal. Lulus 7
+                  dari 10, skill ditambah ke profil.
                 </span>
               </li>
             </ol>
