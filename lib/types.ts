@@ -49,6 +49,8 @@ export type Job = {
   maxExperienceYears?: number;
   benefits?: string[];
   descriptionVector?: number[];
+  categoryHint?: string;
+  embedProvider?: "qwen" | "gemini";
 };
 
 export type Course = {
@@ -187,4 +189,6 @@ export type Candidate = {
   profileSummary?: string;
   profileVector?: number[];
   profileVectorUpdatedAt?: string;
+  profileCategoryHint?: string;
+  profileEmbedProvider?: "qwen" | "gemini";
 };

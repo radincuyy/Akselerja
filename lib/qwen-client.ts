@@ -132,3 +132,104 @@ export function shouldFallbackToQwen(error: unknown): boolean {
     /RESOURCE_EXHAUSTED|UNAVAILABLE|high demand|quota|exhausted/i.test(text)
   );
 }
+
+function getEmbedModel(): string {
+  return env("QWEN_EMBED_MODEL") || "text-embedding-v4";
+}
+
+type QwenEmbedResponse = {
+  data?: { embedding?: number[] }[];
+  error?: { message?: string };
+};
+
+export async function embedTextQwen(
+  text: string,
+  outputDim = 768,
+): Promise<number[]> {
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error("embedTextQwen: text kosong");
+  const res = await fetch(`${getBaseUrl()}/embeddings`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getApiKey()}`,
+    },
+    body: JSON.stringify({
+      model: getEmbedModel(),
+      input: trimmed,
+      dimensions: outputDim,
+      encoding_format: "float",
+    }),
+  });
+  const json = (await res.json()) as QwenEmbedResponse;
+  if (!res.ok) {
+    const message = json?.error?.message ?? `Qwen embed HTTP ${res.status}`;
+    const err = new Error(`Qwen embed failed: ${message}`);
+    (err as { status?: number }).status = res.status;
+    throw err;
+  }
+  const values = json.data?.[0]?.embedding;
+  if (!values || values.length !== outputDim) {
+    throw new Error(
+      `Qwen embed: unexpected length ${values?.length ?? 0}, expected ${outputDim}`,
+    );
+  }
+  let sumSq = 0;
+  for (const x of values) sumSq += x * x;
+  const norm = Math.sqrt(sumSq);
+  if (norm === 0) return values;
+  return values.map((x) => x / norm);
+}
+
+export async function embedTextsQwen(
+  texts: string[],
+  outputDim = 768,
+): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  if (texts.length > 10) {
+    throw new Error(`embedTextsQwen: batch max 10, got ${texts.length}`);
+  }
+  const cleaned = texts.map((t) => t.trim());
+  if (cleaned.some((t) => !t)) {
+    throw new Error("embedTextsQwen: salah satu text kosong");
+  }
+  const res = await fetch(`${getBaseUrl()}/embeddings`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getApiKey()}`,
+    },
+    body: JSON.stringify({
+      model: getEmbedModel(),
+      input: cleaned,
+      dimensions: outputDim,
+      encoding_format: "float",
+    }),
+  });
+  const json = (await res.json()) as QwenEmbedResponse;
+  if (!res.ok) {
+    const message = json?.error?.message ?? `Qwen embed HTTP ${res.status}`;
+    const err = new Error(`Qwen embed failed: ${message}`);
+    (err as { status?: number }).status = res.status;
+    throw err;
+  }
+  const data = json.data ?? [];
+  if (data.length !== cleaned.length) {
+    throw new Error(
+      `Qwen embed batch: expected ${cleaned.length} embeddings, got ${data.length}`,
+    );
+  }
+  return data.map((d, i) => {
+    const values = d.embedding;
+    if (!values || values.length !== outputDim) {
+      throw new Error(
+        `Qwen embed batch[${i}]: unexpected length ${values?.length ?? 0}`,
+      );
+    }
+    let sumSq = 0;
+    for (const x of values) sumSq += x * x;
+    const norm = Math.sqrt(sumSq);
+    if (norm === 0) return values;
+    return values.map((x) => x / norm);
+  });
+}

@@ -5,7 +5,7 @@ import { readFile, writeFile, access, mkdir } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { embedText } from "../lib/gemini-embed";
-import { skillById } from "../lib/skills";
+import { buildJobEmbedText, categoryHintFromJob } from "../lib/embed-text";
 import type { Job } from "../lib/types";
 
 config({ path: resolve(process.cwd(), ".env.local") });
@@ -39,22 +39,7 @@ type Cache = Record<string, CacheEntry>;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function buildEmbedText(job: Job): string {
-  const skillNames = (job.requirements ?? [])
-    .map((r) => skillById[r.skillId]?.name ?? r.skillId)
-    .filter(Boolean)
-    .join(", ");
-  const desc = (job.description ?? "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 1200);
-  const parts = [
-    job.title,
-    job.industry,
-    job.location,
-    skillNames ? `Skills: ${skillNames}` : "",
-    desc,
-  ].filter(Boolean);
-  return parts.join("\n");
+  return buildJobEmbedText(job);
 }
 
 function contentHash(text: string): string {
@@ -171,10 +156,14 @@ async function main() {
 
     pendingUploads.push({ id: job.id, descriptionVector: vector });
 
+    const categoryHint = categoryHintFromJob(job);
     try {
       await container
         .item(job.id, job.companyId ?? job.id)
-        .patch([{ op: "set", path: "/descriptionVector", value: vector }]);
+        .patch([
+          { op: "set", path: "/descriptionVector", value: vector },
+          { op: "set", path: "/categoryHint", value: categoryHint },
+        ]);
     } catch (err) {
       console.warn(
         `  cosmos vector patch failed for ${job.id}: ${String(err).slice(0, 120)}`,

@@ -83,34 +83,48 @@ async function main() {
     .database(COSMOS_DATABASE)
     .container("jobs");
 
-  const { resources } = await container.items
-    .query<CosmosJob>({ query: "SELECT * FROM c" })
-    .fetchAll();
-  console.log(`Pulled ${resources.length} jobs from Cosmos.`);
-
-  const docs: IndexedJob[] = resources.map((j) => ({
-    id: j.id,
-    title: j.title,
-    company: j.company,
-    description: j.description,
-    industry: j.industry,
-    industryId: j.industryId ?? null,
-    location: j.location,
-    city: shortCity(j.location),
-    skillIds: (j.requirements ?? []).map((r) => r.skillId),
-    salaryMin: j.salaryMin,
-    salaryMax: j.salaryMax,
-    type: j.type,
-    workMode: j.workMode ?? null,
-    status: j.status ?? "open",
-    postedAt: j.postedAt,
-    companyId: j.companyId ?? slugifyCompany(j.company),
-    minExperienceYears:
-      typeof j.minExperienceYears === "number" ? j.minExperienceYears : null,
-    maxExperienceYears:
-      typeof j.maxExperienceYears === "number" ? j.maxExperienceYears : null,
-    minEducation: j.minEducation ?? null,
-  }));
+  const PAGE_SIZE = 200;
+  const docs: IndexedJob[] = [];
+  let continuation: string | undefined;
+  let pulled = 0;
+  while (true) {
+    const iterator = container.items.query<CosmosJob>(
+      { query: "SELECT * FROM c" },
+      { maxItemCount: PAGE_SIZE, continuationToken: continuation },
+    );
+    const page = await iterator.fetchNext();
+    pulled += page.resources.length;
+    for (const j of page.resources) {
+      docs.push({
+        id: j.id,
+        title: j.title,
+        company: j.company,
+        description: (j.description ?? "").slice(0, 500),
+        industry: j.industry,
+        industryId: j.industryId ?? null,
+        location: j.location,
+        city: shortCity(j.location),
+        skillIds: (j.requirements ?? []).map((r) => r.skillId),
+        salaryMin: j.salaryMin,
+        salaryMax: j.salaryMax,
+        type: j.type,
+        workMode: j.workMode ?? null,
+        status: j.status ?? "open",
+        postedAt: j.postedAt,
+        companyId: j.companyId ?? slugifyCompany(j.company),
+        minExperienceYears:
+          typeof j.minExperienceYears === "number" ? j.minExperienceYears : null,
+        maxExperienceYears:
+          typeof j.maxExperienceYears === "number" ? j.maxExperienceYears : null,
+        minEducation: j.minEducation ?? null,
+      });
+    }
+    console.log(`  pulled ${pulled} jobs so far...`);
+    if (!page.hasMoreResults) break;
+    continuation = page.continuationToken;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  console.log(`Pulled ${docs.length} jobs from Cosmos.`);
 
   const searchClient = new SearchClient<IndexedJob>(
     SEARCH_ENDPOINT!,

@@ -124,6 +124,11 @@ function semanticRatio(
   if (!a || !b || a.length !== b.length) {
     return { ratio: 0, applicable: false };
   }
+  const profileProvider = candidate.profileEmbedProvider ?? "gemini";
+  const jobProvider = job.embedProvider ?? "gemini";
+  if (profileProvider !== jobProvider) {
+    return { ratio: 0, applicable: false };
+  }
   let dot = 0;
   let normA = 0;
   let normB = 0;
@@ -134,11 +139,24 @@ function semanticRatio(
   }
   if (normA === 0 || normB === 0) return { ratio: 0, applicable: false };
   const cosine = dot / (Math.sqrt(normA) * Math.sqrt(normB));
-  const SEMANTIC_ANCHOR = 0.55;
-  const SEMANTIC_STEEPNESS = 12;
+  const SEMANTIC_ANCHOR = profileProvider === "qwen" ? 0.55 : 0.78;
+  const SEMANTIC_STEEPNESS = 30;
   const sigmoid =
     1 / (1 + Math.exp(-SEMANTIC_STEEPNESS * (cosine - SEMANTIC_ANCHOR)));
-  const ratio = Math.max(0.05, Math.min(0.98, sigmoid));
+  let ratio = Math.max(0.05, Math.min(0.98, sigmoid));
+
+  const profileHint = candidate.profileCategoryHint;
+  const jobHint = job.categoryHint;
+  if (
+    profileHint &&
+    jobHint &&
+    profileHint !== "GENERAL" &&
+    jobHint !== "GENERAL" &&
+    profileHint !== jobHint
+  ) {
+    ratio = ratio * 0.5;
+  }
+
   return { ratio, applicable: true };
 }
 
@@ -240,9 +258,16 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
     : "Skill belum dijelaskan di lowongan ini";
   const skillRatioApplied = hasSkillList ? skill.ratio : 0.5;
 
+  const semanticDifferentDomain =
+    candidate.profileCategoryHint &&
+    job.categoryHint &&
+    candidate.profileCategoryHint !== "GENERAL" &&
+    job.categoryHint !== "GENERAL" &&
+    candidate.profileCategoryHint !== job.categoryHint;
+
   const dims: { id: MatchDimensionId; ratio: number; applicable: boolean; label: string; detail: string }[] = [
     { id: "skill", ratio: skillRatioApplied, applicable: true, label: "Skill", detail: skillDetail },
-    { id: "semantic", ratio: semantic.ratio, applicable: semantic.applicable, label: "Profil & deskripsi", detail: !semantic.applicable ? "Belum ada vektor profil" : semantic.ratio < 0.2 ? "Profil kamu jauh dari deskripsi lowongan, isi pengalaman dan ringkasan profil" : "Berdasarkan isi CV vs deskripsi lowongan" },
+    { id: "semantic", ratio: semantic.ratio, applicable: semantic.applicable, label: "Profil & deskripsi", detail: !semantic.applicable ? "Belum ada vektor profil" : semanticDifferentDomain ? "Profilmu berada di domain berbeda dari lowongan ini" : semantic.ratio < 0.2 ? "Profil kamu jauh dari deskripsi lowongan, isi pengalaman dan ringkasan profil" : "Berdasarkan isi CV vs deskripsi lowongan" },
     { id: "experience", ratio: experience.ratio, applicable: experience.applicable, label: "Pengalaman", detail: experience.detail },
     { id: "education", ratio: education.ratio, applicable: education.applicable, label: "Pendidikan", detail: education.detail },
   ];
