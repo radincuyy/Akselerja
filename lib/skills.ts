@@ -76,3 +76,29 @@ const skills: Skill[] = [
 export const skillById: Record<string, Skill> = Object.fromEntries(
   skills.map((s) => [s.id, s]),
 );
+
+const TECH_ACRONYM = /^[a-z]+(\.?js|\.?py|\.?net|sql|html|css|aws|gcp|api)$/i;
+
+export function humanizeSkillId(skillId: string): string {
+  return skillId
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((word) => {
+      if (TECH_ACRONYM.test(word)) {
+        return word
+          .replace(/^([a-z])/, (m) => m.toUpperCase())
+          .replace(/(js|py|net|sql|html|css|aws|gcp|api)$/i, (m) =>
+            m.toUpperCase(),
+          );
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
+}
+
+export function skillDisplayName(
+  skillId: string,
+  fallbackName?: string,
+): string {
+  return skillById[skillId]?.name ?? fallbackName ?? humanizeSkillId(skillId);
+}

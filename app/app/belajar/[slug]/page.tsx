@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import SkillPracticeRunner from "@/components/SkillPracticeRunner";
 import { getLatestPracticeAttemptForUser } from "@/lib/attempts-store";
-import { skillById } from "@/lib/skills";
+import { skillDisplayName } from "@/lib/skills";
 import {
   getPracticeTaskBySlugAsync,
   listPracticeTasksAsync,
 } from "@/lib/practice-store";
+import { getCheckpointSet } from "@/lib/checkpoint-generator";
+import { getYouTubeMaterial } from "@/lib/youtube-cache";
 import { requireUser } from "@/lib/session";
 
 type Params = Promise<{ slug: string }>;
@@ -36,8 +38,13 @@ export default async function SkillPracticePage({
   if (!task) notFound();
 
   const user = await requireUser();
-  const latestAttempt = await getLatestPracticeAttemptForUser(user.id, task.id);
-  const skillName = skillById[task.skillId]?.name ?? "Skill";
+  const skillName = skillDisplayName(task.skillId);
+  const [latestAttempt, checkpointSet, videos] = await Promise.all([
+    getLatestPracticeAttemptForUser(user.id, task.id),
+    getCheckpointSet(task.skillId),
+    getYouTubeMaterial(task.skillId, skillName),
+  ]);
+  const mcQuestions = checkpointSet.questions.slice(0, 5);
 
   return (
     <>
@@ -70,6 +77,8 @@ export default async function SkillPracticePage({
           task={task}
           skillName={skillName}
           initialAttempt={latestAttempt}
+          mcQuestions={mcQuestions}
+          videos={videos}
         />
       </div>
     </>

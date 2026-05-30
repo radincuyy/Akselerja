@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { submitPracticeAttempt } from "@/lib/profile-actions";
 import {
@@ -9,6 +10,8 @@ import {
   levelFromPracticeScore,
 } from "@/lib/practice-grading";
 import type { PracticeTask } from "@/lib/types";
+import type { CheckpointQuestion } from "@/lib/checkpoint-generator";
+import type { YouTubeVideo } from "@/lib/youtube-search";
 
 type Props = {
   task: PracticeTask;
@@ -19,6 +22,8 @@ type Props = {
     passed: boolean;
     completedAt: string;
   } | null;
+  mcQuestions?: CheckpointQuestion[];
+  videos?: YouTubeVideo[];
 };
 
 function typeLabel(type: PracticeTask["type"]): string {
@@ -28,10 +33,22 @@ function typeLabel(type: PracticeTask["type"]): string {
   return "Simulasi kasus";
 }
 
+function formatDuration(seconds: number | undefined): string {
+  if (!seconds || !Number.isFinite(seconds)) return "";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m < 60) return `${m}:${String(s).padStart(2, "0")}`;
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${h}:${String(mm).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 export default function SkillPracticeRunner({
   task,
   skillName,
   initialAttempt,
+  mcQuestions = [],
+  videos = [],
 }: Props) {
   const [answer, setAnswer] = useState(initialAttempt?.answer ?? "");
   const [submitted, setSubmitted] = useState(Boolean(initialAttempt));
@@ -43,11 +60,14 @@ export default function SkillPracticeRunner({
   const [timerRunning, setTimerRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [mcSelections, setMcSelections] = useState<Record<string, number>>({});
   const [serverResult, setServerResult] = useState<{
     score: number;
     feedback: string;
     gradedBy: "ai" | "keyword";
     perCriterion: { id: string; name: string; score: number; feedback: string }[];
+    mcCorrect?: number;
+    mcTotal?: number;
   } | null>(null);
 
   const localResults = useMemo(
@@ -90,10 +110,16 @@ export default function SkillPracticeRunner({
     setError(null);
     setTimerRunning(false);
 
+    const mcAnswers = mcQuestions.map((q) => ({
+      questionId: q.id,
+      selectedIndex: mcSelections[q.id] ?? -1,
+    }));
+
     startTransition(async () => {
       const res = await submitPracticeAttempt({
         slug: task.slug,
         answer: nextAnswer,
+        mcAnswers: mcAnswers.length > 0 ? mcAnswers : undefined,
       });
       if (!res.ok) {
         setError(res.error);
@@ -107,6 +133,8 @@ export default function SkillPracticeRunner({
         feedback: res.feedback,
         gradedBy: res.gradedBy,
         perCriterion: res.perCriterion,
+        mcCorrect: res.mcCorrect,
+        mcTotal: res.mcTotal,
       });
       setSubmitted(true);
     });
@@ -115,7 +143,108 @@ export default function SkillPracticeRunner({
   return (
     <div className="grid gap-8 lg:grid-cols-[1.35fr_0.85fr]">
       <div className="order-2 lg:order-1">
-        <section className="rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7">
+        {videos.length > 0 ? (
+          <section className="mb-6 rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-(--color-muted)">
+              Materi video
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
+              Tonton dulu untuk membangun konteks, lalu kerjakan latihan di bawah.
+            </p>
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+              {videos.map((video) => (
+                <li key={video.videoId}>
+                  <a
+                    href={`https://youtu.be/${video.videoId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Tonton ${video.title} dari ${video.channelTitle} di YouTube (tab baru)`}
+                    className="group block rounded-md border border-(--color-line) bg-(--color-paper) hover:border-(--color-teal)"
+                  >
+                    <div className="relative aspect-video w-full overflow-hidden rounded-t-md bg-(--color-tint)">
+                      <Image
+                        src={video.thumbnailUrl}
+                        alt=""
+                        fill
+                        sizes="(max-width: 640px) 100vw, 50vw"
+                        unoptimized
+                        className="object-cover"
+                      />
+                      {video.durationSeconds ? (
+                        <span className="absolute bottom-2 right-2 rounded bg-(--color-ink) px-1.5 py-0.5 text-[11px] font-medium text-(--color-paper) opacity-90">
+                          {formatDuration(video.durationSeconds)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="p-3">
+                      <p className="line-clamp-2 text-sm font-medium text-(--color-ink) group-hover:text-(--color-teal)">
+                        {video.title}
+                      </p>
+                      <p className="mt-1 truncate text-xs text-(--color-muted)">
+                        {video.channelTitle}
+                      </p>
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {mcQuestions.length > 0 && !submitted ? (
+          <section className="mt-6 rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-(--color-muted)">
+              Warmup pemahaman
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">
+              {mcQuestions.length} soal pilihan ganda untuk pemanasan. Skor warmup
+              menyumbang separuh dari nilai akhir.
+            </p>
+            <ol className="mt-5 space-y-5">
+              {mcQuestions.map((q, qi) => {
+                const selected = mcSelections[q.id];
+                return (
+                  <li key={q.id} className="space-y-2">
+                    <p className="text-sm font-medium text-(--color-ink)">
+                      {qi + 1}. {q.prompt}
+                    </p>
+                    <div className="grid gap-2">
+                      {q.options.map((option, oi) => {
+                        const isSelected = selected === oi;
+                        return (
+                          <button
+                            key={oi}
+                            type="button"
+                            onClick={() =>
+                              setMcSelections((prev) => ({ ...prev, [q.id]: oi }))
+                            }
+                            aria-pressed={isSelected}
+                            className={`flex items-start gap-3 rounded-md border px-4 py-2.5 text-left text-sm transition-colors ${
+                              isSelected
+                                ? "border-(--color-teal) bg-(--color-tint) text-(--color-ink)"
+                                : "border-(--color-line) bg-(--color-paper) text-(--color-ink) hover:border-(--color-teal)"
+                            }`}
+                          >
+                            <span className="font-semibold tabular-nums">
+                              {String.fromCharCode(65 + oi)}.
+                            </span>
+                            <span className="flex-1">{option}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+            <p className="mt-4 text-xs text-(--color-muted)">
+              {Object.keys(mcSelections).length}/{mcQuestions.length} jawaban
+              dipilih.
+            </p>
+          </section>
+        ) : null}
+
+        <section className="mt-6 rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-(--color-tint) px-3 py-1 text-xs font-medium text-(--color-teal)">
               {typeLabel(task.type)}
@@ -231,6 +360,14 @@ export default function SkillPracticeRunner({
                 <p className="mt-2 text-sm leading-relaxed text-(--color-ink)">
                   {serverResult.feedback}
                 </p>
+                {typeof serverResult.mcCorrect === "number" &&
+                typeof serverResult.mcTotal === "number" &&
+                serverResult.mcTotal > 0 ? (
+                  <p className="mt-3 text-xs text-(--color-muted)">
+                    Warmup pilihan ganda: {serverResult.mcCorrect}/
+                    {serverResult.mcTotal} benar.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

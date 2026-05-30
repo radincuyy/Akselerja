@@ -8,16 +8,14 @@ import {
 } from "@/lib/attempts-store";
 import { calcMatch } from "@/lib/match";
 import { rankCandidateJobs } from "@/lib/recommendations";
-import { findCoursesForGapsAsync } from "@/lib/courses-store";
 import { readCachedGapExplanations } from "@/lib/gap-explain";
 import { getCurrentCandidate } from "@/lib/current-candidate";
 import { getGeneratedPracticeTask } from "@/lib/practice-generation";
 import { listPracticeTasksAsync } from "@/lib/practice-store";
 import { getJobByIdAsync } from "@/lib/jobs-store";
 import { skillById } from "@/lib/skills";
-import { classifySkillTrack, type LearningTrack } from "@/lib/skill-track";
 import { scoreBandLabel } from "@/lib/format";
-import type { Course, Job, PracticeTask } from "@/lib/types";
+import type { Job, PracticeTask } from "@/lib/types";
 
 type SearchParams = Promise<{
   target?: string;
@@ -65,7 +63,6 @@ type RoadmapStep = {
   isFinal?: boolean;
   locked?: boolean;
   allClear?: boolean;
-  track?: LearningTrack;
 };
 
 function skillName(skillId: string, fallback?: string): string {
@@ -87,7 +84,6 @@ async function generatePriorityPracticeTasks(
 
 function buildRoadmap(
   gaps: { skillId: string; name: string }[],
-  courses: Course[],
   targetJob: Job,
   explanations: Map<string, string>,
   practiceTasks: PracticeTask[],
@@ -150,7 +146,6 @@ function buildRoadmap(
       score: attempt?.score,
       skillId: task.skillId,
       skillLabel: name,
-      track: classifySkillTrack(task.skillId, name),
     };
   });
 
@@ -158,8 +153,6 @@ function buildRoadmap(
     .map((gap, offset) => {
       const idx = completedSteps.length + offset;
       const name = skillName(gap.skillId, gap.name);
-      const track = classifySkillTrack(gap.skillId, name);
-      const course = courses.find((c) => c.skillId === gap.skillId);
       const practice = practiceTasks.find(
         (task) => task.skillId === gap.skillId,
       );
@@ -167,43 +160,21 @@ function buildRoadmap(
         practice?.sourceLabel === "Referensi SKKNI" ? practice : null;
       const ragBody = explanations.get(gap.skillId);
 
-      if (track === "tool") {
-        const body =
-          ragBody ??
-          (course
-            ? `${course.provider} sediakan ${course.title}. Pelajari materinya, lalu kerjakan checkpoint singkat untuk menambah ${name} ke profil.`
-            : `Pelajari ${name} dari sumber pilihanmu, lalu kerjakan checkpoint singkat untuk menambah skill ini ke profil.`);
-        return {
-          label: labels[idx] ?? `Step ${idx + 1}`,
-          title: `Pelajari ${name}`,
-          body,
-          evidence: course
-            ? `Pegang referensi ${course.title} dari ${course.provider} dan bisa jawab 2 dari 3 soal checkpoint.`
-            : `Bisa jawab 2 dari 3 soal checkpoint singkat soal ${name}.`,
-          action: "Buka materi + checkpoint",
-          href: `/app/belajar/tool/${encodeURIComponent(gap.skillId)}`,
-          skillId: gap.skillId,
-          skillLabel: name,
-          track,
-        };
-      }
-
-      const fallbackBody = `Latihan mandiri disiapkan untuk ${name}. Jawabanmu akan menjadi bukti awal bahwa skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
+      const fallbackBody = `Tonton materi video, kerjakan pilihan ganda, lalu tulis jawaban kasus untuk ${name}. Hasilnya jadi bukti skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
       return {
         label: labels[idx] ?? `Step ${idx + 1}`,
-        title: generatedPractice?.title ?? `Tutup gap ${name}`,
+        title: generatedPractice?.title ?? `Pelajari ${name}`,
         body: generatedPractice?.scenario ?? ragBody ?? fallbackBody,
         evidence:
           generatedPractice?.expectedEvidence?.[0] ??
           `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
-        action: "Mulai latihan",
+        action: "Mulai belajar",
         href: practice
           ? `/app/belajar/${practice.slug}`
           : `/app/belajar/latihan-praktik-${gap.skillId}`,
         skillId: gap.skillId,
         skillLabel: name,
         estimatedMinutes: practice?.estimatedMinutes,
-        track,
       };
     });
 
@@ -315,12 +286,10 @@ export default async function BelajarPage({
   const matched = breakdown.filter((b) => b.state === "match");
   const roadmapGapIds = new Set(gaps.map((g) => g.skillId));
 
-  const gapSkillIds = gaps.map((g) => g.skillId);
   const priorityPracticeSkillIds = gaps
     .slice(0, PRACTICE_PREGEN_LIMIT)
     .map((gap) => gap.skillId);
-  const [courses, explanations, generatedPracticeTasks] = await Promise.all([
-    findCoursesForGapsAsync(gapSkillIds, 4),
+  const [explanations, generatedPracticeTasks] = await Promise.all([
     readCachedGapExplanations({
         job: targetJob,
         gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
@@ -332,7 +301,6 @@ export default async function BelajarPage({
   const practiceTasks = [...generatedPracticeTasks, ...basePracticeTasks];
   const roadmap = buildRoadmap(
     gaps,
-    courses,
     targetJob,
     explanations,
     practiceTasks,
@@ -357,16 +325,11 @@ export default async function BelajarPage({
   const focusPractice = focusGap
     ? practiceTasks.find((task) => task.skillId === focusGap.skillId)
     : null;
-  const focusCourse = focusGap
-    ? courses.find((c) => c.skillId === focusGap.skillId)
-    : null;
   const focusHref = focusPractice
     ? `/app/belajar/${focusPractice.slug}`
-    : focusCourse
-      ? `/app/belajar/kursus/${focusCourse.id}`
-      : focusGap
-        ? `/app/belajar/latihan-praktik-${focusGap.skillId}`
-        : null;
+    : focusGap
+      ? `/app/belajar/latihan-praktik-${focusGap.skillId}`
+      : null;
   const targetJobHref = `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`;
 
   const description = `Roadmap dari requirement spesifik ${targetJob.company}, disesuaikan dengan profilmu.`;
@@ -515,8 +478,6 @@ export default async function BelajarPage({
                 (task) => task.skillId === skillId,
               );
               if (practice) return `/app/belajar/${practice.slug}`;
-              const course = courses.find((c) => c.skillId === skillId);
-              if (course) return `/app/belajar/kursus/${course.id}`;
               return `/app/belajar/latihan-praktik-${skillId}`;
             }}
           />
@@ -772,11 +733,6 @@ function RoadmapCard({
           <p className="text-xs font-medium uppercase tracking-wider text-(--color-teal-deep)">
             Skill: {step.skillLabel}
           </p>
-          {step.track ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-(--color-line) bg-(--color-paper) px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-(--color-muted)">
-              {step.track === "tool" ? "Materi + checkpoint" : "Latihan kasus"}
-            </span>
-          ) : null}
         </div>
       ) : null}
 

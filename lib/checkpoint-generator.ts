@@ -22,7 +22,6 @@ export type CheckpointSet = {
 const CACHE_TTL_HOURS = 24;
 const CACHE_VERSION = "v2";
 const QUESTION_COUNT = 10;
-export const CHECKPOINT_PASS_THRESHOLD = 7;
 
 function cacheKey(skillId: string): string {
   return `checkpoint:${CACHE_VERSION}:${skillId}`;
@@ -344,57 +343,4 @@ Kembalikan JSON valid dengan struktur persis seperti ini:
     await writeCache(set);
     return set;
   }
-}
-
-export type CheckpointGradeInput = {
-  skillId: string;
-  answers: { questionId: string; selectedIndex: number }[];
-};
-
-export type CheckpointGradeResult = {
-  total: number;
-  correct: number;
-  passed: boolean;
-  perQuestion: {
-    questionId: string;
-    correct: boolean;
-    correctIndex: number;
-    explanation: string;
-  }[];
-};
-
-export async function gradeCheckpoint(
-  input: CheckpointGradeInput,
-): Promise<CheckpointGradeResult | null> {
-  const set = await readCache(input.skillId);
-  if (!set) return null;
-
-  const byId = new Map(set.questions.map((q) => [q.id, q]));
-  let correctCount = 0;
-  const perQuestion = input.answers.map((a) => {
-    const q = byId.get(a.questionId);
-    if (!q) {
-      return {
-        questionId: a.questionId,
-        correct: false,
-        correctIndex: 0,
-        explanation: "",
-      };
-    }
-    const isCorrect = a.selectedIndex === q.correctIndex;
-    if (isCorrect) correctCount++;
-    return {
-      questionId: a.questionId,
-      correct: isCorrect,
-      correctIndex: q.correctIndex,
-      explanation: q.explanation,
-    };
-  });
-
-  return {
-    total: set.questions.length,
-    correct: correctCount,
-    passed: correctCount >= CHECKPOINT_PASS_THRESHOLD,
-    perQuestion,
-  };
 }

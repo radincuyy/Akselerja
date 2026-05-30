@@ -19,6 +19,8 @@ const nextConfig = {
         protocol: "https",
         hostname: "glints-dashboard.oss-ap-southeast-1.aliyuncs.com",
       },
+      // YouTube video thumbnails for tool track learning material.
+      { protocol: "https", hostname: "i.ytimg.com" },
     ],
   },
 };

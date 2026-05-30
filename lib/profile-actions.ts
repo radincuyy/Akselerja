@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { after } from "next/server";
@@ -26,7 +26,7 @@ import {
   setSkillsAsync,
   updateProfileBasicAsync,
 } from "./profile-store";
-import { recordPracticeAttempt, recordCheckpointAttempt } from "./attempts-store";
+import { recordPracticeAttempt } from "./attempts-store";
 import { getPracticeTaskBySlugAsync } from "./practice-store";
 import { parseCv } from "./cv-parser";
 import {
@@ -43,7 +43,7 @@ import {
   levelFromPracticeScore,
 } from "./practice-grading";
 import { gradePracticeAnswerWithAi } from "./practice-ai-grading";
-import { skillById } from "./skills";
+import { skillById, skillDisplayName } from "./skills";
 import type {
   Education,
   Experience,
@@ -915,6 +915,7 @@ export async function completeOnboarding(input: OnboardingInput) {
 export async function submitPracticeAttempt(input: {
   slug: string;
   answer: string;
+  mcAnswers?: { questionId: string; selectedIndex: number }[];
 }): Promise<
   | {
       ok: true;
@@ -934,6 +935,8 @@ export async function submitPracticeAttempt(input: {
         feedback: string;
       }[];
       gradedBy: "ai" | "keyword";
+      mcCorrect?: number;
+      mcTotal?: number;
     }
   | { ok: false; error: string }
 > {
@@ -982,12 +985,38 @@ export async function submitPracticeAttempt(input: {
       "Penilaian AI tidak tersedia, jadi skor pakai metode dasar berbasis kata kunci.";
   }
 
+  let mcCorrect: number | undefined;
+  let mcTotal: number | undefined;
+  if (input.mcAnswers && input.mcAnswers.length > 0) {
+    try {
+      const { getCheckpointSet } = await import("./checkpoint-generator");
+      const set = await getCheckpointSet(task.skillId);
+      const warmup = set.questions.slice(0, input.mcAnswers.length);
+      const byId = new Map(warmup.map((q) => [q.id, q]));
+      let correct = 0;
+      for (const a of input.mcAnswers) {
+        const q = byId.get(a.questionId);
+        if (q && a.selectedIndex === q.correctIndex) correct++;
+      }
+      mcCorrect = correct;
+      mcTotal = warmup.length;
+      const mcScore = warmup.length > 0 ? (correct / warmup.length) * 100 : 0;
+      score = Math.round(score * 0.5 + mcScore * 0.5);
+    } catch (err) {
+      console.warn(
+        "[practice] MC grading failed, falling back to essay only:",
+        String(err).slice(0, 120),
+      );
+    }
+  }
+
   const attempt = await recordPracticeAttempt({
     userId: user.id,
     taskId: task.id,
     taskSlug: task.slug,
     taskTitle: task.title,
     skillId: task.skillId,
+    skillName: skillDisplayName(task.skillId),
     score,
     answer,
   });
@@ -1013,73 +1042,7 @@ export async function submitPracticeAttempt(input: {
     feedback: overallFeedback,
     perCriterion,
     gradedBy,
-  };
-}
-
-export async function submitCheckpointAttempt(input: {
-  skillId: string;
-  answers: { questionId: string; selectedIndex: number }[];
-}): Promise<
-  | {
-      ok: true;
-      total: number;
-      correct: number;
-      passed: boolean;
-      perQuestion: {
-        questionId: string;
-        correct: boolean;
-        correctIndex: number;
-        explanation: string;
-      }[];
-      attemptId: string;
-      completedAt: string;
-    }
-  | { ok: false; error: string }
-> {
-  const user = await requireUser();
-  const { gradeCheckpoint, getCheckpointSet } = await import(
-    "./checkpoint-generator"
-  );
-
-  const grade = await gradeCheckpoint(input);
-  if (!grade) {
-    return {
-      ok: false,
-      error:
-        "Soal sudah kedaluwarsa atau tidak ditemukan. Silakan muat ulang halaman.",
-    };
-  }
-
-  const set = await getCheckpointSet(input.skillId);
-
-  const attempt = await recordCheckpointAttempt({
-    userId: user.id,
-    skillId: input.skillId,
-    skillName: set.skillName,
-    total: grade.total,
-    correct: grade.correct,
-    passed: grade.passed,
-    answers: input.answers.map((a, i) => ({
-      questionId: a.questionId,
-      selectedIndex: a.selectedIndex,
-      correct: grade.perQuestion[i]?.correct ?? false,
-    })),
-  });
-
-  revalidateTag(profileCacheTag(user.id));
-  revalidateTag(`ranked-jobs:${user.id}`);
-  revalidatePath("/app/belajar");
-  revalidatePath("/app/profil");
-  revalidatePath("/app/lowongan");
-  revalidatePath("/app");
-
-  return {
-    ok: true,
-    total: grade.total,
-    correct: grade.correct,
-    passed: grade.passed,
-    perQuestion: grade.perQuestion,
-    attemptId: attempt.id,
-    completedAt: attempt.completedAt,
+    mcCorrect,
+    mcTotal,
   };
 }
