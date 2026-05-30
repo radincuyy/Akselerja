@@ -20,11 +20,24 @@ export type CheckpointSet = {
 };
 
 const CACHE_TTL_HOURS = 24;
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const QUESTION_COUNT = 10;
 
-function cacheKey(skillId: string): string {
-  return `checkpoint:${CACHE_VERSION}:${skillId}`;
+function nameSlug(skillName: string): string {
+  return skillName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+function cacheKey(
+  skillId: string,
+  skillName: string,
+  jobId?: string,
+): string {
+  const jobPart = jobId ? `job-${jobId}` : "no-job";
+  return `checkpoint:${CACHE_VERSION}:${skillId}:${nameSlug(skillName)}:${jobPart}`;
 }
 
 type CachedCheckpoint = {
@@ -35,11 +48,15 @@ type CachedCheckpoint = {
   expiresAt: string;
 };
 
-async function readCache(skillId: string): Promise<CheckpointSet | null> {
+async function readCache(
+  skillId: string,
+  skillName: string,
+  jobId?: string,
+): Promise<CheckpointSet | null> {
   if (!isCosmosConfigured()) return null;
   try {
     const container = getContainer(CONTAINERS.aiCache);
-    const id = cacheKey(skillId);
+    const id = cacheKey(skillId, skillName, jobId);
     const { resource } = await container.item(id, id).read<CachedCheckpoint>();
     if (!resource) return null;
     if (new Date(resource.expiresAt).getTime() < Date.now()) return null;
@@ -49,11 +66,11 @@ async function readCache(skillId: string): Promise<CheckpointSet | null> {
   }
 }
 
-async function writeCache(set: CheckpointSet): Promise<void> {
+async function writeCache(set: CheckpointSet, jobId?: string): Promise<void> {
   if (!isCosmosConfigured()) return;
   try {
     const container = getContainer(CONTAINERS.aiCache);
-    const id = cacheKey(set.skillId);
+    const id = cacheKey(set.skillId, set.skillName, jobId);
     const expiresAt = new Date(
       Date.now() + CACHE_TTL_HOURS * 3600 * 1000,
     ).toISOString();
@@ -210,12 +227,13 @@ function fallbackQuestions(skillName: string): CheckpointQuestion[] {
 
 export async function getCheckpointSet(
   skillId: string,
-  options: { jobContext?: Job; candidate?: Candidate } = {},
+  options: { skillName?: string; jobContext?: Job; candidate?: Candidate } = {},
 ): Promise<CheckpointSet> {
-  const cached = await readCache(skillId);
-  if (cached) return cached;
+  const skillName = options.skillName ?? skillById[skillId]?.name ?? skillId;
+  const jobId = options.jobContext?.id;
 
-  const skillName = skillById[skillId]?.name ?? skillId;
+  const cached = await readCache(skillId, skillName, jobId);
+  if (cached) return cached;
 
   if (!isGeminiConfigured()) {
     const set: CheckpointSet = {
@@ -225,12 +243,12 @@ export async function getCheckpointSet(
       generatedAt: new Date().toISOString(),
       generatedBy: "fallback",
     };
-    await writeCache(set);
+    await writeCache(set, jobId);
     return set;
   }
 
   const jobHint = options.jobContext
-    ? `Konteks lowongan target: ${options.jobContext.title} di ${options.jobContext.company}.`
+    ? `Konteks lowongan target: posisi "${options.jobContext.title}" di ${options.jobContext.company}. Buat soal yang relevan dengan cara skill "${skillName}" dipakai pada pekerjaan itu, bukan profesi lain.`
     : "";
 
   type RawCheckpoint = {
@@ -326,7 +344,7 @@ Kembalikan JSON valid dengan struktur persis seperti ini:
       generatedAt: new Date().toISOString(),
       generatedBy: "ai",
     };
-    await writeCache(set);
+    await writeCache(set, jobId);
     return set;
   } catch (err) {
     console.warn(
@@ -340,7 +358,7 @@ Kembalikan JSON valid dengan struktur persis seperti ini:
       generatedAt: new Date().toISOString(),
       generatedBy: "fallback",
     };
-    await writeCache(set);
+    await writeCache(set, jobId);
     return set;
   }
 }

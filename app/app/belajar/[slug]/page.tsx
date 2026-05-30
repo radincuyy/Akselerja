@@ -4,20 +4,15 @@ import PageHeader from "@/components/PageHeader";
 import SkillPracticeRunner from "@/components/SkillPracticeRunner";
 import { getLatestPracticeAttemptForUser } from "@/lib/attempts-store";
 import { skillDisplayName } from "@/lib/skills";
-import {
-  getPracticeTaskBySlugAsync,
-  listPracticeTasksAsync,
-} from "@/lib/practice-store";
+import { getPracticeTaskBySlugAsync } from "@/lib/practice-store";
+import type { PracticeJobContext } from "@/lib/practice-generation";
+import { getJobByIdAsync } from "@/lib/jobs-store";
 import { getCheckpointSet } from "@/lib/checkpoint-generator";
 import { getYouTubeMaterial } from "@/lib/youtube-cache";
 import { requireUser } from "@/lib/session";
 
 type Params = Promise<{ slug: string }>;
-
-export async function generateStaticParams() {
-  const tasks = await listPracticeTasksAsync();
-  return tasks.map((task) => ({ slug: task.slug }));
-}
+type SearchParams = Promise<{ target?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }) {
   const { slug } = await params;
@@ -30,26 +25,48 @@ export async function generateMetadata({ params }: { params: Params }) {
 
 export default async function SkillPracticePage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }) {
   const { slug } = await params;
-  const task = await getPracticeTaskBySlugAsync(slug);
+  const { target } = await searchParams;
+
+  const targetJob = target ? await getJobByIdAsync(target) : null;
+  const jobContext: PracticeJobContext | undefined = targetJob
+    ? {
+        jobId: targetJob.id,
+        jobTitle: targetJob.title,
+        jobCompany: targetJob.company,
+      }
+    : undefined;
+
+  const task = await getPracticeTaskBySlugAsync(slug, jobContext);
   if (!task) notFound();
 
   const user = await requireUser();
-  const skillName = skillDisplayName(task.skillId);
+  const requirementName = targetJob?.requirements.find(
+    (r) => r.skillId === task.skillId,
+  )?.name;
+  const skillName = requirementName ?? skillDisplayName(task.skillId);
   const [latestAttempt, checkpointSet, videos] = await Promise.all([
     getLatestPracticeAttemptForUser(user.id, task.id),
-    getCheckpointSet(task.skillId),
+    getCheckpointSet(task.skillId, {
+      skillName,
+      jobContext: targetJob ?? undefined,
+    }),
     getYouTubeMaterial(task.skillId, skillName),
   ]);
   const mcQuestions = checkpointSet.questions.slice(0, 5);
+  const eyebrow = targetJob
+    ? `${targetJob.title} · ${skillName}`
+    : `${task.role} · ${skillName}`;
 
   return (
     <>
       <Link
-        href="/app/belajar"
+        href={target ? `/app/belajar?target=${encodeURIComponent(target)}` : "/app/belajar"}
         className="inline-flex items-center gap-1.5 text-sm text-(--color-muted) hover:text-(--color-ink)"
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
@@ -66,8 +83,8 @@ export default async function SkillPracticePage({
 
       <div className="mt-6">
         <PageHeader
-          eyebrow={`${task.role} · ${skillName}`}
-          title={task.title}
+          eyebrow={eyebrow}
+          title={`Pelajari ${skillName}`}
           description="Kerjakan simulasi seperti pekerjaan nyata. Jawabanmu dinilai memakai rubrik yang sama dengan bank pengetahuan Akselerja."
         />
       </div>
@@ -79,6 +96,7 @@ export default async function SkillPracticePage({
           initialAttempt={latestAttempt}
           mcQuestions={mcQuestions}
           videos={videos}
+          target={target}
         />
       </div>
     </>

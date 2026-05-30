@@ -1,6 +1,9 @@
 import type { PracticeTask } from "./types";
 import { CONTAINERS, getContainer } from "./db";
-import { getGeneratedPracticeTask } from "./practice-generation";
+import {
+  getGeneratedPracticeTask,
+  type PracticeJobContext,
+} from "./practice-generation";
 import { skillById } from "./skills";
 import { unstable_cache } from "next/cache";
 
@@ -104,13 +107,14 @@ const listPracticeTasksCached = unstable_cache(
 
 export async function getPracticeTaskBySlugAsync(
   slug: string,
+  jobContext?: PracticeJobContext,
 ): Promise<PracticeTask | undefined> {
   const curated = await findCuratedPracticeBySlug(slug);
   if (curated) return curated;
 
   const syntheticSkillId = syntheticSkillIdFromSlug(slug);
   if (!syntheticSkillId) return undefined;
-  const generated = await getGeneratedPracticeTask(syntheticSkillId);
+  const generated = await getGeneratedPracticeTask(syntheticSkillId, jobContext);
   return generated ?? createSyntheticPracticeTask(syntheticSkillId);
 }
 

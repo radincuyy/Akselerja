@@ -8,7 +8,7 @@ import {
 import { skillById } from "./skills";
 import type { PracticeRubricCriterion, PracticeTask } from "./types";
 
-const CACHE_VERSION = "v3-skkni-source";
+const CACHE_VERSION = "v4-job-aware";
 const DEFAULT_CACHE_TTL_HOURS = 168;
 const PRACTICE_TYPES = [
   "case-simulation",
@@ -17,6 +17,12 @@ const PRACTICE_TYPES = [
   "design-brief",
 ] as const satisfies readonly PracticeTask["type"][];
 const DYNAMIC_PRACTICE_PREFIX = "latihan-praktik-";
+
+export type PracticeJobContext = {
+  jobId: string;
+  jobTitle: string;
+  jobCompany?: string;
+};
 
 type CachedPracticeTask = {
   id: string;
@@ -53,9 +59,14 @@ function isEnabled(): boolean {
   return env("GEMINI_PRACTICE_ENABLED") !== "0";
 }
 
-function cacheKey(skillId: string, references: SkkniReference[]): string {
+function cacheKey(
+  skillId: string,
+  references: SkkniReference[],
+  jobContext?: PracticeJobContext,
+): string {
   const referenceIds = references.map((ref) => ref.id).join(",");
-  return `practice-generation:${CACHE_VERSION}:${skillId}:${referenceIds || "no-skkni"}`;
+  const jobPart = jobContext?.jobId ? `job:${jobContext.jobId}` : "no-job";
+  return `practice-generation:${CACHE_VERSION}:${skillId}:${jobPart}:${referenceIds || "no-skkni"}`;
 }
 
 async function readCachedTask(key: string): Promise<PracticeTask | null> {
@@ -207,6 +218,7 @@ function normalizeGeneratedTask(
   skillId: string,
   skillName: string,
   references: SkkniReference[],
+  jobContext?: PracticeJobContext,
 ): PracticeTask {
   const slug = `${DYNAMIC_PRACTICE_PREFIX}${skillId}`;
   const referenceNotes = references.slice(0, 3).map((ref) => {
@@ -216,7 +228,9 @@ function normalizeGeneratedTask(
   return {
     id: slug,
     slug,
-    role: cleanString(raw.role, "Latihan mandiri", 80),
+    role: jobContext?.jobTitle
+      ? jobContext.jobTitle
+      : cleanString(raw.role, "Latihan mandiri", 80),
     title: cleanString(raw.title, `Latihan praktik ${skillName}`, 120),
     skillId,
     type: normalizeType(raw.type),
@@ -259,13 +273,17 @@ function normalizeGeneratedTask(
 async function generateTask(
   skillId: string,
   references: SkkniReference[],
+  jobContext?: PracticeJobContext,
 ): Promise<PracticeTask | null> {
   const skillName = skillById[skillId]?.name ?? skillId;
+  const jobAnchor = jobContext?.jobTitle
+    ? `\nKonteks lowongan target: posisi "${jobContext.jobTitle}"${jobContext.jobCompany ? ` di ${jobContext.jobCompany}` : ""}. Skenario, instruksi, dan rubrik HARUS relevan dengan cara skill "${skillName}" dipakai pada pekerjaan "${jobContext.jobTitle}", bukan profesi lain. Contoh: untuk Fullstack developer, skill "Menggunakan AI" berarti memakai AI coding assistant atau mengintegrasikan API AI ke aplikasi, bukan analisis data penjualan.\n`
+    : "";
   const raw = await generateGeminiJson<GeneratedPracticeTask>({
     systemInstruction:
       "Kamu membuat latihan skill untuk pencari kerja Indonesia. Output harus JSON valid saja. Jangan sebut vendor AI atau cloud. Bahasa Indonesia jelas dan konkret.",
     prompt: `Buat satu latihan praktik untuk skill "${skillName}".
-
+${jobAnchor}
 Gunakan referensi SKKNI berikut sebagai landasan kompetensi. Jika referensi tersedia, skenario, instruksi, expectedEvidence, dan rubrik harus menilai perilaku kerja yang selaras dengan unit, elemen, dan KUK.
 
 REFERENSI SKKNI:
@@ -330,11 +348,12 @@ Rubrik harus 3-4 kriteria dan cocok untuk menilai jawaban teks pendek. Buat kasu
     maxOutputTokens: 1200,
   });
 
-  return normalizeGeneratedTask(raw, skillId, skillName, references);
+  return normalizeGeneratedTask(raw, skillId, skillName, references, jobContext);
 }
 
 export async function getGeneratedPracticeTask(
   skillId: string,
+  jobContext?: PracticeJobContext,
 ): Promise<PracticeTask | null> {
   if (!isEnabled() || !isGeminiConfigured()) return null;
   const references = await searchSkkniReferences({
@@ -342,12 +361,12 @@ export async function getGeneratedPracticeTask(
     query: skillById[skillId]?.name ?? skillId,
     top: 4,
   });
-  const key = cacheKey(skillId, references);
+  const key = cacheKey(skillId, references, jobContext);
   const cached = await readCachedTask(key);
   if (cached) return withDynamicPracticeIdentity(cached, skillId);
 
   try {
-    const task = await generateTask(skillId, references);
+    const task = await generateTask(skillId, references, jobContext);
     if (task) await writeCachedTask(key, task);
     return task;
   } catch (err) {

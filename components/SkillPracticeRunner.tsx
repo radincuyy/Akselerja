@@ -13,6 +13,15 @@ import type { PracticeTask } from "@/lib/types";
 import type { CheckpointQuestion } from "@/lib/checkpoint-generator";
 import type { YouTubeVideo } from "@/lib/youtube-search";
 
+type GradingResult = {
+  score: number;
+  feedback: string;
+  gradedBy: "ai" | "keyword";
+  perCriterion: { id: string; name: string; score: number; feedback: string }[];
+  mcCorrect?: number;
+  mcTotal?: number;
+};
+
 type Props = {
   task: PracticeTask;
   skillName: string;
@@ -21,9 +30,20 @@ type Props = {
     score: number;
     passed: boolean;
     completedAt: string;
+    feedback?: string;
+    gradedBy?: "ai" | "keyword";
+    perCriterion?: {
+      id: string;
+      name: string;
+      score: number;
+      feedback: string;
+    }[];
+    mcCorrect?: number;
+    mcTotal?: number;
   } | null;
   mcQuestions?: CheckpointQuestion[];
   videos?: YouTubeVideo[];
+  target?: string;
 };
 
 function typeLabel(type: PracticeTask["type"]): string {
@@ -49,6 +69,7 @@ export default function SkillPracticeRunner({
   initialAttempt,
   mcQuestions = [],
   videos = [],
+  target,
 }: Props) {
   const [answer, setAnswer] = useState(initialAttempt?.answer ?? "");
   const [submitted, setSubmitted] = useState(Boolean(initialAttempt));
@@ -61,25 +82,57 @@ export default function SkillPracticeRunner({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [mcSelections, setMcSelections] = useState<Record<string, number>>({});
-  const [serverResult, setServerResult] = useState<{
-    score: number;
-    feedback: string;
-    gradedBy: "ai" | "keyword";
-    perCriterion: { id: string; name: string; score: number; feedback: string }[];
-    mcCorrect?: number;
-    mcTotal?: number;
-  } | null>(null);
+  const [serverResult, setServerResult] = useState<GradingResult | null>(
+    initialAttempt
+      ? {
+          score: initialAttempt.score,
+          feedback: initialAttempt.feedback ?? "",
+          gradedBy: initialAttempt.gradedBy ?? "keyword",
+          perCriterion: initialAttempt.perCriterion ?? [],
+          mcCorrect: initialAttempt.mcCorrect,
+          mcTotal: initialAttempt.mcTotal,
+        }
+      : null,
+  );
 
   const localResults = useMemo(
     () => (submitted ? gradePracticeAnswer(task, answer) : []),
     [answer, submitted, task],
   );
 
-  const totalScore = serverResult?.score ?? calculatePracticeScore(localResults);
-  const strongest = [...localResults].sort((a, b) => b.score - a.score)[0];
-  const weakest = [...localResults].sort((a, b) => a.score - b.score)[0];
+  const criterionRows =
+    serverResult && serverResult.perCriterion.length > 0
+      ? serverResult.perCriterion.map((c) => {
+          const def = task.rubric.find((r) => r.id === c.id);
+          return {
+            id: c.id,
+            name: c.name || def?.name || c.id,
+            description: def?.description ?? "",
+            weight: def?.weight ?? 0,
+            score: c.score,
+            feedback: c.feedback,
+          };
+        })
+      : localResults.map((r) => ({
+          id: r.criterion.id,
+          name: r.criterion.name,
+          description: r.criterion.description,
+          weight: r.criterion.weight,
+          score: r.score,
+          feedback: "",
+        }));
+
+  const totalScore =
+    serverResult?.score ??
+    (submitted ? calculatePracticeScore(localResults) : 0);
+  const strongest = [...criterionRows].sort((a, b) => b.score - a.score)[0];
+  const weakest = [...criterionRows].sort((a, b) => a.score - b.score)[0];
   const timerExpired = secondsLeft === 0;
   const isPassed = totalScore >= 80;
+  const allMcAnswered = mcQuestions.every(
+    (q) => typeof mcSelections[q.id] === "number",
+  );
+  const mcRemaining = mcQuestions.length - Object.keys(mcSelections).length;
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -105,7 +158,11 @@ export default function SkillPracticeRunner({
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!answer.trim() || timerExpired) return;
+    if (!answer.trim()) return;
+    if (mcQuestions.length > 0 && !allMcAnswered) {
+      setError("Jawab semua soal pilihan ganda dulu sebelum mengirim.");
+      return;
+    }
     const nextAnswer = answer.trim();
     setError(null);
     setTimerRunning(false);
@@ -120,6 +177,7 @@ export default function SkillPracticeRunner({
         slug: task.slug,
         answer: nextAnswer,
         mcAnswers: mcAnswers.length > 0 ? mcAnswers : undefined,
+        target,
       });
       if (!res.ok) {
         setError(res.error);
@@ -254,16 +312,20 @@ export default function SkillPracticeRunner({
             </span>
           </div>
 
-          <h2 className="mt-6 text-sm font-medium text-(--color-muted)">
-            Skenario
+          <h2 className="mt-5 text-lg font-semibold tracking-tight text-(--color-ink)">
+            {task.title}
           </h2>
+
+          <h3 className="mt-6 text-sm font-medium text-(--color-muted)">
+            Skenario
+          </h3>
           <p className="mt-3 text-base leading-relaxed text-(--color-ink)">
             {task.scenario}
           </p>
 
-          <h2 className="mt-7 text-sm font-medium text-(--color-muted)">
+          <h3 className="mt-7 text-sm font-medium text-(--color-muted)">
             Tugas
-          </h2>
+          </h3>
           <ol className="mt-3 space-y-2">
             {task.instructions.map((instruction, i) => (
               <li
@@ -302,20 +364,20 @@ export default function SkillPracticeRunner({
           />
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-(--color-muted)">
-              {timerExpired
-                ? "Waktu habis. Reset timer untuk mengirim jawaban."
+              {mcQuestions.length > 0 && !allMcAnswered
+                ? `Masih ada ${mcRemaining} soal pilihan ganda yang belum dijawab.`
                 : `${answer.trim().length} karakter. Feedback membaca sinyal pada rubrik.`}
             </p>
             <button
               type="submit"
-              disabled={!answer.trim() || timerExpired || pending}
+              disabled={
+                !answer.trim() ||
+                pending ||
+                (mcQuestions.length > 0 && !allMcAnswered)
+              }
               className="inline-flex min-h-11 items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
             >
-              {pending
-                ? "Menyimpan..."
-                : timerExpired
-                  ? "Waktu habis"
-                  : "Nilai jawaban"}
+              {pending ? "Menyimpan..." : "Nilai jawaban"}
             </button>
           </div>
           {error ? (
@@ -376,7 +438,7 @@ export default function SkillPracticeRunner({
                 title="Yang sudah kuat"
                 body={
                   strongest
-                    ? `${strongest.criterion.name}: jawabanmu menangkap ${strongest.hits} sinyal penting dari rubrik.`
+                    ? `${strongest.name}: ${strongest.feedback || `skor ${strongest.score}/100 pada kriteria ini.`}`
                     : "Jawaban sudah masuk dan siap dinilai."
                 }
               />
@@ -384,7 +446,7 @@ export default function SkillPracticeRunner({
                 title="Perlu ditajamkan"
                 body={
                   weakest
-                    ? `${weakest.criterion.name}: tambahkan bukti yang lebih eksplisit soal ${weakest.criterion.description.toLowerCase()}`
+                    ? `${weakest.name}: ${weakest.feedback || (weakest.description ? `tambahkan bukti yang lebih eksplisit soal ${weakest.description.toLowerCase()}` : "tambahkan bukti yang lebih konkret.")}`
                     : "Tambahkan langkah kerja yang lebih spesifik."
                 }
               />
@@ -406,21 +468,28 @@ export default function SkillPracticeRunner({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-(--color-line)">
-                  {localResults.map((result) => (
-                    <tr key={result.criterion.id}>
+                  {criterionRows.map((row) => (
+                    <tr key={row.id}>
                       <td className="px-4 py-3">
                         <p className="font-medium text-(--color-ink)">
-                          {result.criterion.name}
+                          {row.name}
                         </p>
-                        <p className="mt-0.5 text-xs leading-relaxed text-(--color-muted)">
-                          {result.criterion.description}
-                        </p>
+                        {row.description ? (
+                          <p className="mt-0.5 text-xs leading-relaxed text-(--color-muted)">
+                            {row.description}
+                          </p>
+                        ) : null}
+                        {row.feedback ? (
+                          <p className="mt-1.5 text-xs leading-relaxed text-(--color-teal-deep)">
+                            {row.feedback}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-(--color-muted)">
-                        {result.criterion.weight}%
+                        {row.weight ? `${row.weight}%` : "-"}
                       </td>
                       <td className="px-4 py-3 font-semibold tabular-nums text-(--color-ink)">
-                        {result.score}
+                        {row.score}
                       </td>
                     </tr>
                   ))}
@@ -510,7 +579,6 @@ export default function SkillPracticeRunner({
             <button
               type="button"
               onClick={() => setTimerRunning((value) => !value)}
-              disabled={timerExpired}
               className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
             >
               {timerRunning ? "Pause" : "Mulai"}

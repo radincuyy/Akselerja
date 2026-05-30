@@ -28,6 +28,7 @@ import {
 } from "./profile-store";
 import { recordPracticeAttempt } from "./attempts-store";
 import { getPracticeTaskBySlugAsync } from "./practice-store";
+import { getJobByIdAsync } from "./jobs-store";
 import { parseCv } from "./cv-parser";
 import {
   analyzeParsedCvWithLanguage,
@@ -916,6 +917,7 @@ export async function submitPracticeAttempt(input: {
   slug: string;
   answer: string;
   mcAnswers?: { questionId: string; selectedIndex: number }[];
+  target?: string;
 }): Promise<
   | {
       ok: true;
@@ -944,8 +946,22 @@ export async function submitPracticeAttempt(input: {
   const answer = input.answer.trim();
   if (!answer) return { ok: false, error: "Jawaban tidak boleh kosong." };
 
-  const task = await getPracticeTaskBySlugAsync(input.slug);
+  const targetJob = input.target ? await getJobByIdAsync(input.target) : null;
+  const jobContext = targetJob
+    ? {
+        jobId: targetJob.id,
+        jobTitle: targetJob.title,
+        jobCompany: targetJob.company,
+      }
+    : undefined;
+
+  const task = await getPracticeTaskBySlugAsync(input.slug, jobContext);
   if (!task) return { ok: false, error: "Latihan tidak ditemukan." };
+
+  const requirementName = targetJob?.requirements.find(
+    (r) => r.skillId === task.skillId,
+  )?.name;
+  const resolvedSkillName = requirementName ?? skillDisplayName(task.skillId);
 
   let score: number;
   let overallFeedback = "";
@@ -988,9 +1004,18 @@ export async function submitPracticeAttempt(input: {
   let mcCorrect: number | undefined;
   let mcTotal: number | undefined;
   if (input.mcAnswers && input.mcAnswers.length > 0) {
+    if (input.mcAnswers.some((a) => a.selectedIndex < 0)) {
+      return {
+        ok: false,
+        error: "Jawab semua soal pilihan ganda dulu sebelum mengirim.",
+      };
+    }
     try {
       const { getCheckpointSet } = await import("./checkpoint-generator");
-      const set = await getCheckpointSet(task.skillId);
+      const set = await getCheckpointSet(task.skillId, {
+        skillName: resolvedSkillName,
+        jobContext: targetJob ?? undefined,
+      });
       const warmup = set.questions.slice(0, input.mcAnswers.length);
       const byId = new Map(warmup.map((q) => [q.id, q]));
       let correct = 0;
@@ -1016,9 +1041,14 @@ export async function submitPracticeAttempt(input: {
     taskSlug: task.slug,
     taskTitle: task.title,
     skillId: task.skillId,
-    skillName: skillDisplayName(task.skillId),
+    skillName: resolvedSkillName,
     score,
     answer,
+    feedback: overallFeedback,
+    gradedBy,
+    perCriterion,
+    mcCorrect,
+    mcTotal,
   });
 
   const readinessScoreChange = await recomputeReadinessScoreAsync(user.id);

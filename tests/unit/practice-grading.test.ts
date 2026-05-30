@@ -41,11 +41,19 @@ const task: PracticeTask = {
 };
 
 describe("scoreCriterion", () => {
-  it("returns base score with zero hits", () => {
-    const { score, hits } = scoreCriterion("nothing relevant", criterion);
+  it("returns base score with zero hits on a full-length answer", () => {
+    const { score, hits } = scoreCriterion(
+      "saya menulis jawaban yang cukup panjang tetapi tidak menyebut hal yang dicari",
+      criterion,
+    );
     expect(hits).toBe(0);
     expect(score).toBeGreaterThanOrEqual(30);
     expect(score).toBeLessThan(70);
+  });
+
+  it("scores a near-empty answer low", () => {
+    const { score } = scoreCriterion("ok", criterion);
+    expect(score).toBeLessThan(30);
   });
 
   it("rewards multiple signal matches", () => {

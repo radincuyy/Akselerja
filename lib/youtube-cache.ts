@@ -1,7 +1,7 @@
 import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
 import { searchYouTubeVideos, type YouTubeVideo } from "./youtube-search";
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE_TTL_HOURS = 24 * 7;
 
 type CachedYouTube = {

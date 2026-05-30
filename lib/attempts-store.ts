@@ -5,6 +5,13 @@ import { skillById } from "./skills";
 import { mergeSkillsAsync } from "./profile-store";
 import { revalidateTag, unstable_cache } from "next/cache";
 
+export type PracticeCriterionResult = {
+  id: string;
+  name: string;
+  score: number;
+  feedback: string;
+};
+
 export type PracticeAttempt = {
   id: string;
   userId: string;
@@ -17,6 +24,11 @@ export type PracticeAttempt = {
   passed: boolean;
   answer: string;
   completedAt: string;
+  feedback?: string;
+  gradedBy?: "ai" | "keyword";
+  perCriterion?: PracticeCriterionResult[];
+  mcCorrect?: number;
+  mcTotal?: number;
 };
 
 const PRACTICE_PASS_THRESHOLD = 80;
@@ -38,6 +50,11 @@ export type RecordPracticeAttemptInput = {
   skillName?: string;
   score: number;
   answer: string;
+  feedback?: string;
+  gradedBy?: "ai" | "keyword";
+  perCriterion?: PracticeCriterionResult[];
+  mcCorrect?: number;
+  mcTotal?: number;
 };
 
 export async function recordPracticeAttempt(
@@ -60,6 +77,11 @@ export async function recordPracticeAttempt(
     passed,
     answer: input.answer,
     completedAt: new Date().toISOString(),
+    feedback: input.feedback,
+    gradedBy: input.gradedBy,
+    perCriterion: input.perCriterion,
+    mcCorrect: input.mcCorrect,
+    mcTotal: input.mcTotal,
   };
 
   const container = getContainer(CONTAINERS.practiceAttempts);

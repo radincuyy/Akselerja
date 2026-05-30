@@ -10,7 +10,10 @@ import { calcMatch } from "@/lib/match";
 import { rankCandidateJobs } from "@/lib/recommendations";
 import { readCachedGapExplanations } from "@/lib/gap-explain";
 import { getCurrentCandidate } from "@/lib/current-candidate";
-import { getGeneratedPracticeTask } from "@/lib/practice-generation";
+import {
+  getGeneratedPracticeTask,
+  type PracticeJobContext,
+} from "@/lib/practice-generation";
 import { listPracticeTasksAsync } from "@/lib/practice-store";
 import { getJobByIdAsync } from "@/lib/jobs-store";
 import { skillById } from "@/lib/skills";
@@ -71,13 +74,16 @@ function skillName(skillId: string, fallback?: string): string {
 
 async function generatePriorityPracticeTasks(
   skillIds: string[],
+  jobContext?: PracticeJobContext,
 ): Promise<PracticeTask[]> {
   const uniqueSkillIds = Array.from(new Set(skillIds)).slice(
     0,
     PRACTICE_PREGEN_LIMIT,
   );
   const tasks = await Promise.all(
-    uniqueSkillIds.map((skillId) => getGeneratedPracticeTask(skillId)),
+    uniqueSkillIds.map((skillId) =>
+      getGeneratedPracticeTask(skillId, jobContext),
+    ),
   );
   return tasks.filter((task): task is PracticeTask => Boolean(task));
 }
@@ -99,6 +105,7 @@ function buildRoadmap(
   const targetSkillIds = new Set(
     targetJob.requirements.map((requirement) => requirement.skillId),
   );
+  const targetSuffix = `?target=${encodeURIComponent(targetJob.id)}`;
   const completedTasks = practiceTasks.filter(
     (task) =>
       targetSkillIds.has(task.skillId) && latestAttemptByTaskId.has(task.id),
@@ -140,7 +147,7 @@ function buildRoadmap(
         ? `${task.title} · skor ${attempt.score}/100.`
         : task.title,
       action: "Selesai",
-      href: `/app/belajar/${task.slug}`,
+      href: `/app/belajar/${task.slug}${targetSuffix}`,
       completed: true,
       passed: attempt?.passed,
       score: attempt?.score,
@@ -156,22 +163,20 @@ function buildRoadmap(
       const practice = practiceTasks.find(
         (task) => task.skillId === gap.skillId,
       );
-      const generatedPractice =
-        practice?.sourceLabel === "Referensi SKKNI" ? practice : null;
       const ragBody = explanations.get(gap.skillId);
 
       const fallbackBody = `Tonton materi video, kerjakan pilihan ganda, lalu tulis jawaban kasus untuk ${name}. Hasilnya jadi bukti skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
       return {
         label: labels[idx] ?? `Step ${idx + 1}`,
-        title: generatedPractice?.title ?? `Pelajari ${name}`,
-        body: generatedPractice?.scenario ?? ragBody ?? fallbackBody,
+        title: `Pelajari ${name}`,
+        body: practice?.scenario ?? ragBody ?? fallbackBody,
         evidence:
-          generatedPractice?.expectedEvidence?.[0] ??
+          practice?.expectedEvidence?.[0] ??
           `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
         action: "Mulai belajar",
         href: practice
-          ? `/app/belajar/${practice.slug}`
-          : `/app/belajar/latihan-praktik-${gap.skillId}`,
+          ? `/app/belajar/${practice.slug}${targetSuffix}`
+          : `/app/belajar/latihan-praktik-${gap.skillId}${targetSuffix}`,
         skillId: gap.skillId,
         skillLabel: name,
         estimatedMinutes: practice?.estimatedMinutes,
@@ -289,6 +294,11 @@ export default async function BelajarPage({
   const priorityPracticeSkillIds = gaps
     .slice(0, PRACTICE_PREGEN_LIMIT)
     .map((gap) => gap.skillId);
+  const practiceJobContext: PracticeJobContext = {
+    jobId: targetJob.id,
+    jobTitle: targetJob.title,
+    jobCompany: targetJob.company,
+  };
   const [explanations, generatedPracticeTasks] = await Promise.all([
     readCachedGapExplanations({
         job: targetJob,
@@ -296,7 +306,7 @@ export default async function BelajarPage({
         candidateSkillIds: me.skills.map((s) => s.skillId),
         limit: 4,
       }),
-    generatePriorityPracticeTasks(priorityPracticeSkillIds),
+    generatePriorityPracticeTasks(priorityPracticeSkillIds, practiceJobContext),
   ]);
   const practiceTasks = [...generatedPracticeTasks, ...basePracticeTasks];
   const roadmap = buildRoadmap(
@@ -326,9 +336,9 @@ export default async function BelajarPage({
     ? practiceTasks.find((task) => task.skillId === focusGap.skillId)
     : null;
   const focusHref = focusPractice
-    ? `/app/belajar/${focusPractice.slug}`
+    ? `/app/belajar/${focusPractice.slug}?target=${encodeURIComponent(targetJob.id)}`
     : focusGap
-      ? `/app/belajar/latihan-praktik-${focusGap.skillId}`
+      ? `/app/belajar/latihan-praktik-${focusGap.skillId}?target=${encodeURIComponent(targetJob.id)}`
       : null;
   const targetJobHref = `/app/lowongan/${targetJob.id}${targetJob.companyId ? `?c=${encodeURIComponent(targetJob.companyId)}` : ""}`;
 
@@ -477,8 +487,9 @@ export default async function BelajarPage({
               const practice = practiceTasks.find(
                 (task) => task.skillId === skillId,
               );
-              if (practice) return `/app/belajar/${practice.slug}`;
-              return `/app/belajar/latihan-praktik-${skillId}`;
+              const suffix = `?target=${encodeURIComponent(targetJob.id)}`;
+              if (practice) return `/app/belajar/${practice.slug}${suffix}`;
+              return `/app/belajar/latihan-praktik-${skillId}${suffix}`;
             }}
           />
         </div>
