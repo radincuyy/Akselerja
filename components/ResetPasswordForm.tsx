@@ -5,11 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PasswordField from "@/components/PasswordField";
 import { isPasswordValid, PASSWORD_RULE_ERROR } from "@/lib/password-rules";
+import { confirmPasswordReset } from "@/lib/password-reset-actions";
 
 export default function ResetPasswordForm() {
   const router = useRouter();
   const sp = useSearchParams();
-  const tokenPresent = Boolean(sp.get("token"));
+  const token = sp.get("token") ?? "";
+  const email = sp.get("email") ?? "";
+  const tokenPresent = Boolean(token && email);
   const pwId = useId();
   const pw2Id = useId();
   const [submitting, setSubmitting] = useState(false);
@@ -34,8 +37,22 @@ export default function ResetPasswordForm() {
       return;
     }
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
-    router.push("/masuk?reset=1");
+    try {
+      const result = await confirmPasswordReset({
+        email,
+        token,
+        password: pw,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.push("/masuk?reset=1");
+    } catch {
+      setError("Password belum bisa disimpan. Coba lagi sebentar lagi.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (!tokenPresent) {
