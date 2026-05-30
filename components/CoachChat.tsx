@@ -195,12 +195,12 @@ export default function CoachChat() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-[calc(100vh-13rem)] min-h-[480px] flex-col gap-4">
       <div
         role="log"
         aria-live="polite"
         aria-label="Percakapan dengan coach"
-        className="flex min-h-[420px] flex-col gap-4 rounded-2xl border border-(--color-line) bg-(--color-paper) p-5 sm:p-7"
+        className="flex flex-1 flex-col gap-4 overflow-y-auto rounded-2xl border border-(--color-line) bg-(--color-paper) p-5 sm:p-7"
       >
         {messages.map((msg) => (
           <MessageBubble key={msg.id} role={msg.role} text={msg.text} />
@@ -218,7 +218,7 @@ export default function CoachChat() {
       </div>
 
       {messages.length <= 1 && (
-        <div>
+        <div className="shrink-0">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-(--color-muted)">
             Saran pertanyaan
           </p>
@@ -242,7 +242,7 @@ export default function CoachChat() {
           e.preventDefault();
           send(input);
         }}
-        className="flex items-end gap-3 rounded-2xl border border-(--color-line) bg-(--color-paper) p-3"
+        className="flex shrink-0 items-end gap-3 rounded-2xl border border-(--color-line) bg-(--color-paper) p-3"
       >
         <label htmlFor="coach-input" className="sr-only">
           Tulis pertanyaan untuk coach
