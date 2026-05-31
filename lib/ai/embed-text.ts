@@ -26,7 +26,7 @@ export function stripBoilerplate(text: string): string {
 export function categoryHintFromText(haystack: string): CategoryHint {
   const h = haystack.toLowerCase();
   if (
-    /\b(software|computer|developer|engineering|programmer|coding|backend|frontend|fullstack|devops|data\s+(analyst|engineer|science)|machine\s+learning|ai|cyber)\b|\bit\b/.test(
+    /\b(software|computer|developer|development|engineering|programmer|programming|pemrograman|pengembangan\s+(web|aplikasi|perangkat\s+lunak|software)|sistem\s+informasi|teknik\s+informatika|informatika|coding|backend|back-end|frontend|front-end|fullstack|full-stack|web\s+development|mobile\s+development|devops|database|data\s+(analyst|engineer|science)|machine\s+learning|cyber|api|sysadmin|system\s+administrator)\b|\bit\b|\b(java|javascript|typescript|python|php|laravel|react|vue|angular|node\.?js|next\.?js|kotlin|golang|mysql|postgresql|mongodb|docker|kubernetes|linux)\b/.test(
       h,
     )
   )
