@@ -18,10 +18,7 @@ export async function register() {
   require("COSMOS_KEY");
   require("COSMOS_DATABASE");
   require("GEMINI_API_KEY");
-  require("RESEND_API_KEY");
-  require("RESEND_FROM");
 
-  // At least one public base-URL var must be set (reset links + OAuth callback).
   const hasAppUrl =
     has("NEXT_PUBLIC_APP_URL") ||
     has("APP_URL") ||
@@ -31,7 +28,15 @@ export async function register() {
     missing.push("NEXT_PUBLIC_APP_URL (or APP_URL/AUTH_URL/NEXTAUTH_URL)");
   }
 
-  // The test sign-in backdoor must never be enabled in production.
+  const emailMissing = ["RESEND_API_KEY", "RESEND_FROM"].filter((n) => !has(n));
+  if (emailMissing.length > 0) {
+    console.warn(
+      "[instrumentation] Email not configured (" +
+        emailMissing.join(", ") +
+        "): password reset will be unavailable. All other features work.",
+    );
+  }
+
   if (process.env.E2E_MODE === "true") {
     throw new Error(
       "[instrumentation] E2E_MODE=true is set in production. This enables the " +

@@ -30,7 +30,11 @@ function getResendFrom(): string {
 }
 
 export function isResendConfigured(): boolean {
-  return Boolean(getResendApiKey());
+  if (!getResendApiKey()) return false;
+  if (process.env.NODE_ENV === "production") {
+    return Boolean(process.env.RESEND_FROM?.trim());
+  }
+  return true;
 }
 
 export function buildPasswordResetEmailHtml({
