@@ -57,11 +57,20 @@ type Props = {
 
 const EMPTY_MC_QUESTIONS: ClientCheckpointQuestion[] = [];
 const PRACTICE_ANSWER_DRAFT_VERSION = 1;
+const PRACTICE_TIMER_DRAFT_VERSION = 1;
 
 type PracticeAnswerDraft = {
   version: typeof PRACTICE_ANSWER_DRAFT_VERSION;
   answer: string;
   mcSelections: Record<string, number>;
+  savedAt: number;
+};
+
+type PracticeTimerDraft = {
+  version: typeof PRACTICE_TIMER_DRAFT_VERSION;
+  durationMinutes: number;
+  secondsLeft: number;
+  timerRunning: boolean;
   savedAt: number;
 };
 
@@ -128,6 +137,68 @@ function removePracticeAnswerDraft(key: string) {
   }
 }
 
+function practiceTimerDraftKey(taskSlug: string, target?: string): string {
+  return `akselerja:practice-timer-draft:${taskSlug}:${target ?? "default"}`;
+}
+
+function clampDurationMinutes(value: number, fallback: number): number {
+  const safeFallback = Number.isFinite(fallback) ? fallback : 30;
+  const safeValue = Number.isFinite(value) ? value : safeFallback;
+  return Math.min(120, Math.max(1, Math.round(safeValue)));
+}
+
+function clampSecondsLeft(value: number, durationMinutes: number): number {
+  const maxSeconds = clampDurationMinutes(durationMinutes, 30) * 60;
+  const safeValue = Number.isFinite(value) ? value : maxSeconds;
+  return Math.min(maxSeconds, Math.max(0, Math.floor(safeValue)));
+}
+
+function readPracticeTimerDraft(key: string): PracticeTimerDraft | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PracticeTimerDraft>;
+    if (parsed.version !== PRACTICE_TIMER_DRAFT_VERSION) return null;
+    if (
+      typeof parsed.durationMinutes !== "number" ||
+      typeof parsed.secondsLeft !== "number" ||
+      typeof parsed.timerRunning !== "boolean" ||
+      typeof parsed.savedAt !== "number"
+    ) {
+      return null;
+    }
+    return {
+      version: PRACTICE_TIMER_DRAFT_VERSION,
+      durationMinutes: parsed.durationMinutes,
+      secondsLeft: parsed.secondsLeft,
+      timerRunning: parsed.timerRunning,
+      savedAt: parsed.savedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePracticeTimerDraft(key: string, draft: PracticeTimerDraft) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(draft));
+  } catch {
+    // localStorage can be unavailable or full; losing timer state should not block practice.
+  }
+}
+
+function removePracticeTimerDraft(key: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
 export default function SkillPracticeRunner({
   task,
   skillName,
@@ -142,8 +213,12 @@ export default function SkillPracticeRunner({
   const [completedAt, setCompletedAt] = useState(
     initialAttempt?.completedAt ?? "",
   );
-  const [durationMinutes, setDurationMinutes] = useState(task.estimatedMinutes);
-  const [secondsLeft, setSecondsLeft] = useState(task.estimatedMinutes * 60);
+  const [durationMinutes, setDurationMinutes] = useState(
+    clampDurationMinutes(task.estimatedMinutes, 30),
+  );
+  const [secondsLeft, setSecondsLeft] = useState(
+    clampDurationMinutes(task.estimatedMinutes, 30) * 60,
+  );
   const [timerRunning, setTimerRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -155,6 +230,10 @@ export default function SkillPracticeRunner({
     string | null
   >(null);
   const [answerDraftRestored, setAnswerDraftRestored] = useState(false);
+  const [loadedTimerDraftKey, setLoadedTimerDraftKey] = useState<string | null>(
+    null,
+  );
+  const [timerDraftRestored, setTimerDraftRestored] = useState(false);
   const [serverResult, setServerResult] = useState<GradingResult | null>(
     initialAttempt
       ? {
@@ -172,6 +251,10 @@ export default function SkillPracticeRunner({
   const requiresExcelFile = isExcelPracticeSubmission(submission);
   const answerDraftKey = useMemo(
     () => practiceAnswerDraftKey(task.slug, target),
+    [target, task.slug],
+  );
+  const timerDraftKey = useMemo(
+    () => practiceTimerDraftKey(task.slug, target),
     [target, task.slug],
   );
 
@@ -302,6 +385,90 @@ export default function SkillPracticeRunner({
   ]);
 
   useEffect(() => {
+    setLoadedTimerDraftKey(null);
+    setTimerDraftRestored(false);
+
+    function finishDraftLoad() {
+      setLoadedTimerDraftKey(timerDraftKey);
+    }
+
+    const draft = readPracticeTimerDraft(timerDraftKey);
+    if (!draft) {
+      finishDraftLoad();
+      return;
+    }
+
+    const completedAtMs = initialAttempt?.completedAt
+      ? Date.parse(initialAttempt.completedAt)
+      : Number.NaN;
+    if (Number.isFinite(completedAtMs) && draft.savedAt <= completedAtMs) {
+      removePracticeTimerDraft(timerDraftKey);
+      finishDraftLoad();
+      return;
+    }
+
+    const defaultDuration = clampDurationMinutes(task.estimatedMinutes, 30);
+    const nextDuration = clampDurationMinutes(
+      draft.durationMinutes,
+      defaultDuration,
+    );
+    const elapsedSeconds = draft.timerRunning
+      ? Math.max(0, Math.floor((Date.now() - draft.savedAt) / 1000))
+      : 0;
+    const nextSecondsLeft = clampSecondsLeft(
+      draft.secondsLeft - elapsedSeconds,
+      nextDuration,
+    );
+    const nextTimerRunning = draft.timerRunning && nextSecondsLeft > 0;
+    const hasUsefulDraft =
+      nextDuration !== defaultDuration ||
+      nextSecondsLeft !== defaultDuration * 60 ||
+      nextTimerRunning;
+
+    setDurationMinutes(nextDuration);
+    setSecondsLeft(nextSecondsLeft);
+    setTimerRunning(nextTimerRunning);
+    if (hasUsefulDraft) {
+      setTimerDraftRestored(true);
+    }
+    finishDraftLoad();
+  }, [initialAttempt?.completedAt, task.estimatedMinutes, timerDraftKey]);
+
+  useEffect(() => {
+    if (loadedTimerDraftKey !== timerDraftKey) return;
+    if (submitted) {
+      removePracticeTimerDraft(timerDraftKey);
+      return;
+    }
+
+    const defaultDuration = clampDurationMinutes(task.estimatedMinutes, 30);
+    const isDefaultDraft =
+      durationMinutes === defaultDuration &&
+      secondsLeft === defaultDuration * 60 &&
+      !timerRunning;
+    if (isDefaultDraft) {
+      removePracticeTimerDraft(timerDraftKey);
+      return;
+    }
+
+    writePracticeTimerDraft(timerDraftKey, {
+      version: PRACTICE_TIMER_DRAFT_VERSION,
+      durationMinutes,
+      secondsLeft,
+      timerRunning,
+      savedAt: Date.now(),
+    });
+  }, [
+    durationMinutes,
+    loadedTimerDraftKey,
+    secondsLeft,
+    submitted,
+    task.estimatedMinutes,
+    timerDraftKey,
+    timerRunning,
+  ]);
+
+  useEffect(() => {
     if (!timerRunning) return;
     const timer = window.setInterval(() => {
       setSecondsLeft((current) => {
@@ -318,9 +485,10 @@ export default function SkillPracticeRunner({
   }, [timerRunning]);
 
   function resetTimer(nextMinutes = durationMinutes) {
+    const safeMinutes = clampDurationMinutes(nextMinutes, durationMinutes);
     setTimerRunning(false);
-    setDurationMinutes(nextMinutes);
-    setSecondsLeft(nextMinutes * 60);
+    setDurationMinutes(safeMinutes);
+    setSecondsLeft(safeMinutes * 60);
   }
 
   function validateEvidenceFile(file: File): string | null {
@@ -833,6 +1001,11 @@ export default function SkillPracticeRunner({
                     ? "Sedang berjalan"
                     : "Belum dimulai"}
               </p>
+              {timerDraftRestored ? (
+                <p role="status" className="mt-2 text-xs text-(--color-teal)">
+                  Timer terakhir dipulihkan dari perangkat ini.
+                </p>
+              ) : null}
             </div>
             <label className="w-24 text-xs font-medium text-(--color-muted)">
               Menit
@@ -843,10 +1016,11 @@ export default function SkillPracticeRunner({
                 step={1}
                 value={durationMinutes}
                 onChange={(e) => {
-                  const next = Math.min(
-                    120,
-                    Math.max(1, Number(e.target.value) || 1),
+                  const next = clampDurationMinutes(
+                    Number(e.target.value),
+                    durationMinutes,
                   );
+                  setTimerDraftRestored(false);
                   resetTimer(next);
                 }}
                 className="mt-1 w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3 py-2 text-sm text-(--color-ink)"
@@ -856,14 +1030,20 @@ export default function SkillPracticeRunner({
           <div className="mt-5 grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setTimerRunning((value) => !value)}
+              onClick={() => {
+                setTimerRunning((value) => !value);
+                setTimerDraftRestored(false);
+              }}
               className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
             >
               {timerRunning ? "Pause" : "Mulai"}
             </button>
             <button
               type="button"
-              onClick={() => resetTimer()}
+              onClick={() => {
+                setTimerDraftRestored(false);
+                resetTimer();
+              }}
               className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)"
             >
               Reset
