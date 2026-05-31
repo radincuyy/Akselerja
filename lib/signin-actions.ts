@@ -2,6 +2,7 @@
 
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
+import { checkRateLimit, retryAfterMessage } from "./rate-limit";
 
 export type LoginResult =
   | { ok: true; url: string }
@@ -32,6 +33,17 @@ export async function loginWithEmailPassword(input: {
 
   if (!email || !password) {
     return { ok: false, error: "Isi email dan password terlebih dahulu." };
+  }
+
+  const limit = checkRateLimit("login", email, {
+    max: 8,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return {
+      ok: false,
+      error: `Terlalu banyak percobaan masuk. ${retryAfterMessage(limit.retryAfterSec)}`,
+    };
   }
 
   try {

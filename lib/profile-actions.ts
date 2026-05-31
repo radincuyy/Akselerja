@@ -312,9 +312,10 @@ export async function uploadCvForReview(
 
 export async function discardCvPreview(blobName: string) {
   if (!blobName) return;
-  await requireUser();
+  const user = await requireUser();
   if (!isBlobConfigured()) return;
   if (!blobName.includes("/")) return;
+  if (!blobName.startsWith(`${user.id}/`)) return;
   try {
     await deleteBlob(blobName);
   } catch (err) {

@@ -1,11 +1,13 @@
 "use server";
 
+import { after } from "next/server";
 import { isPasswordValid, PASSWORD_RULE_ERROR } from "./password-rules";
 import {
   createPasswordResetToken,
   resetUserPasswordWithToken,
 } from "./user-store";
 import { isResendConfigured, sendPasswordResetEmail } from "./resend-email";
+import { checkRateLimit } from "./rate-limit";
 
 const RESET_TOKEN_TTL_MINUTES = 30;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -53,6 +55,14 @@ export async function requestPasswordReset(input: {
     return { ok: false, error: "Format email belum benar." };
   }
 
+  const limit = checkRateLimit("password-reset", email, {
+    max: 3,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return { ok: true, email };
+  }
+
   if (!isResendConfigured()) {
     console.error("[password-reset] resend not configured");
     return {
@@ -78,7 +88,10 @@ export async function requestPasswordReset(input: {
   );
 
   if (!tokenResult.ok) {
-    if (tokenResult.reason === "not-found" || tokenResult.reason === "throttled") {
+    if (
+      tokenResult.reason === "not-found" ||
+      tokenResult.reason === "throttled"
+    ) {
       return { ok: true, email };
     }
 
@@ -99,20 +112,19 @@ export async function requestPasswordReset(input: {
     baseUrl,
   );
 
-  try {
-    await sendPasswordResetEmail({
-      to: tokenResult.user.email,
-      name: tokenResult.user.name,
-      resetUrl,
-      expiresInMinutes: RESET_TOKEN_TTL_MINUTES,
-    });
-  } catch (err) {
-    console.error("[password-reset] resend failed", err);
-    return {
-      ok: false,
-      error: "Email reset belum bisa dikirim. Coba lagi sebentar lagi.",
-    };
-  }
+  const emailInput = {
+    to: tokenResult.user.email,
+    name: tokenResult.user.name,
+    resetUrl,
+    expiresInMinutes: RESET_TOKEN_TTL_MINUTES,
+  };
+  after(async () => {
+    try {
+      await sendPasswordResetEmail(emailInput);
+    } catch (err) {
+      console.error("[password-reset] resend failed", err);
+    }
+  });
 
   return { ok: true, email };
 }
@@ -128,7 +140,8 @@ export async function confirmPasswordReset(input: {
   if (!EMAIL_PATTERN.test(email) || !token) {
     return {
       ok: false,
-      error: "Tautan reset tidak valid. Minta tautan baru dari halaman lupa password.",
+      error:
+        "Tautan reset tidak valid. Minta tautan baru dari halaman lupa password.",
     };
   }
 

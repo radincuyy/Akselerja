@@ -2,6 +2,7 @@
 
 import { createUserWithPassword } from "./user-store";
 import { isPasswordValid, PASSWORD_RULE_ERROR } from "./password-rules";
+import { checkRateLimit, retryAfterMessage } from "./rate-limit";
 
 export type SignupResult =
   | { ok: true; email: string }
@@ -22,6 +23,18 @@ export async function signupWithEmailPassword(input: {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { ok: false, error: "Email tidak valid." };
   }
+
+  const limit = checkRateLimit("signup", email, {
+    max: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return {
+      ok: false,
+      error: `Terlalu banyak percobaan daftar. ${retryAfterMessage(limit.retryAfterSec)}`,
+    };
+  }
+
   if (email.endsWith(DEMO_DOMAIN)) {
     return {
       ok: false,
