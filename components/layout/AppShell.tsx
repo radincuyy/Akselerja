@@ -295,7 +295,7 @@ export default function AppShell({ currentUser, profile, children }: Props) {
   );
 
   return (
-    <div className="min-h-svh bg-(--color-paper) md:flex">
+    <div className="min-h-svh w-full overflow-x-clip bg-(--color-paper) md:flex">
       <aside className="sticky top-0 hidden h-svh w-72 shrink-0 flex-col border-r border-(--color-line) bg-(--color-paper) p-5 md:flex">
         <div className="mb-4 flex items-center border-b border-(--color-line) pb-5">
           <Link
@@ -309,7 +309,7 @@ export default function AppShell({ currentUser, profile, children }: Props) {
         {navList}
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-x-clip">
         <header className="sticky top-0 z-20 hidden border-b border-(--color-line) bg-(--color-paper) md:block">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-end px-8">
             <div className="flex items-center justify-end gap-4">
@@ -431,7 +431,7 @@ export default function AppShell({ currentUser, profile, children }: Props) {
 
         <main
           id="main"
-          className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-12"
+          className="mx-auto w-full min-w-0 max-w-7xl px-4 py-10 sm:px-8 sm:py-12"
         >
           {children}
         </main>
