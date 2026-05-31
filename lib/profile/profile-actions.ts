@@ -442,7 +442,17 @@ export async function confirmCvUpdate(input: ConfirmCvInput) {
     }
   }
 
-  await refreshProfileScore(user.id, { embedding: true });
+  try {
+    await recomputeReadinessScoreAsync(user.id);
+  } catch (err) {
+    console.error("[cv] readiness recompute failed (non-fatal):", err);
+  }
+  try {
+    await refreshProfileVector(user.id);
+  } catch (err) {
+    console.error("[cv] profile vector refresh failed (non-fatal):", err);
+  }
+  revalidateProfileSurfaces(user.id);
   scheduleLearningPrewarmForProfile(updatedProfile);
   redirect("/app/profil?cv=1");
 }
