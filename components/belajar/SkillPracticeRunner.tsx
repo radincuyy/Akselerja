@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { submitPracticeAttempt } from "@/lib/profile/profile-actions";
 import {
   calculatePracticeScore,
   gradePracticeAnswer,
   levelFromPracticeScore,
 } from "@/lib/learning/practice-grading";
-import type { PracticeTask } from "@/lib/shared/types";
+import {
+  EXCEL_PRACTICE_MAX_BYTES,
+  formatPracticeFileSize,
+  isExcelPracticeSubmission,
+  resolvePracticeSubmission,
+} from "@/lib/learning/practice-submission";
+import type { PracticeEvidenceFile, PracticeTask } from "@/lib/shared/types";
 import type { ClientCheckpointQuestion } from "@/lib/learning/checkpoint-generator";
 import type { YouTubeVideo } from "@/lib/learning/youtube-search";
 
@@ -20,6 +26,7 @@ type GradingResult = {
   perCriterion: { id: string; name: string; score: number; feedback: string }[];
   mcCorrect?: number;
   mcTotal?: number;
+  evidenceFile?: PracticeEvidenceFile;
 };
 
 type Props = {
@@ -40,6 +47,7 @@ type Props = {
     }[];
     mcCorrect?: number;
     mcTotal?: number;
+    evidenceFile?: PracticeEvidenceFile;
   } | null;
   mcQuestions?: ClientCheckpointQuestion[];
   mcGeneratedBy?: "ai" | "fallback";
@@ -83,7 +91,10 @@ export default function SkillPracticeRunner({
   const [timerRunning, setTimerRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [mcSelections, setMcSelections] = useState<Record<string, number>>({});
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [serverResult, setServerResult] = useState<GradingResult | null>(
     initialAttempt
       ? {
@@ -93,9 +104,12 @@ export default function SkillPracticeRunner({
           perCriterion: initialAttempt.perCriterion ?? [],
           mcCorrect: initialAttempt.mcCorrect,
           mcTotal: initialAttempt.mcTotal,
+          evidenceFile: initialAttempt.evidenceFile,
         }
       : null,
   );
+  const submission = useMemo(() => resolvePracticeSubmission(task), [task]);
+  const requiresExcelFile = isExcelPracticeSubmission(submission);
 
   const localResults = useMemo(
     () => (submitted ? gradePracticeAnswer(task, answer) : []),
@@ -135,6 +149,14 @@ export default function SkillPracticeRunner({
     (q) => typeof mcSelections[q.id] === "number",
   );
   const mcRemaining = mcQuestions.length - Object.keys(mcSelections).length;
+  const maxEvidenceBytes = requiresExcelFile
+    ? (submission.maxFileSizeBytes ?? EXCEL_PRACTICE_MAX_BYTES)
+    : EXCEL_PRACTICE_MAX_BYTES;
+  const canSubmit =
+    Boolean(answer.trim()) &&
+    !pending &&
+    (mcQuestions.length === 0 || allMcAnswered) &&
+    (!requiresExcelFile || Boolean(evidenceFile));
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -158,9 +180,38 @@ export default function SkillPracticeRunner({
     setSecondsLeft(nextMinutes * 60);
   }
 
+  function validateEvidenceFile(file: File): string | null {
+    if (!file.name.match(/\.xlsx$/i)) {
+      return "Upload file spreadsheet dengan ekstensi .xlsx.";
+    }
+    if (file.size === 0) return "File spreadsheet kosong, coba pilih file lain.";
+    if (file.size > maxEvidenceBytes) {
+      return `File melebihi batas ${formatPracticeFileSize(maxEvidenceBytes)}.`;
+    }
+    return null;
+  }
+
+  function handleEvidenceFile(file: File | undefined) {
+    if (!file) return;
+    const validationError = validateEvidenceFile(file);
+    if (validationError) {
+      setEvidenceFile(null);
+      setFileError(validationError);
+      return;
+    }
+    setEvidenceFile(file);
+    setFileError(null);
+    setError(null);
+    if (submitted) setSubmitted(false);
+  }
+
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!answer.trim()) return;
+    if (requiresExcelFile && !evidenceFile) {
+      setError("Upload file spreadsheet (.xlsx) dulu sebelum mengirim jawaban.");
+      return;
+    }
     if (mcQuestions.length > 0 && !allMcAnswered) {
       setError("Jawab semua soal pilihan ganda dulu sebelum mengirim.");
       return;
@@ -175,12 +226,18 @@ export default function SkillPracticeRunner({
     }));
 
     startTransition(async () => {
-      const res = await submitPracticeAttempt({
-        slug: task.slug,
-        answer: nextAnswer,
-        mcAnswers: mcAnswers.length > 0 ? mcAnswers : undefined,
-        target,
-      });
+      const payload = new FormData();
+      payload.set("slug", task.slug);
+      payload.set("answer", nextAnswer);
+      if (target) payload.set("target", target);
+      if (requiresExcelFile && evidenceFile) {
+        payload.set("evidenceFile", evidenceFile);
+      }
+      if (mcAnswers.length > 0) {
+        payload.set("mcAnswers", JSON.stringify(mcAnswers));
+      }
+
+      const res = await submitPracticeAttempt(payload);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -195,7 +252,10 @@ export default function SkillPracticeRunner({
         perCriterion: res.perCriterion,
         mcCorrect: res.mcCorrect,
         mcTotal: res.mcTotal,
+        evidenceFile: res.evidenceFile,
       });
+      setEvidenceFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setSubmitted(true);
     });
   }
@@ -354,11 +414,54 @@ export default function SkillPracticeRunner({
           onSubmit={submit}
           className="mt-6 rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7"
         >
+          {requiresExcelFile ? (
+            <div className="mb-5">
+              <label
+                htmlFor="practice-evidence-file"
+                className="text-sm font-medium text-(--color-muted)"
+              >
+                File spreadsheet
+              </label>
+              <div className="mt-3 rounded-md border border-dashed border-(--color-line) bg-(--color-tint) px-4 py-4">
+                <input
+                  ref={fileInputRef}
+                  id="practice-evidence-file"
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  onChange={(e) => handleEvidenceFile(e.target.files?.[0])}
+                  className="block w-full text-sm text-(--color-muted) file:mr-3 file:rounded file:border-0 file:bg-(--color-paper) file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-(--color-ink)"
+                />
+                <div className="mt-3 flex flex-col gap-1 text-xs text-(--color-muted) sm:flex-row sm:items-center sm:justify-between">
+                  <span>
+                    {evidenceFile
+                      ? `${evidenceFile.name} (${formatPracticeFileSize(evidenceFile.size)})`
+                      : serverResult?.evidenceFile
+                        ? `Bukti terakhir: ${serverResult.evidenceFile.filename}`
+                        : `Format .xlsx, maksimal ${formatPracticeFileSize(maxEvidenceBytes)}.`}
+                  </span>
+                  {serverResult?.evidenceFile && !evidenceFile ? (
+                    <span>Upload file baru untuk menilai ulang.</span>
+                  ) : !evidenceFile ? (
+                    <span>Spreadsheet online bisa diunduh sebagai .xlsx.</span>
+                  ) : null}
+                </div>
+                {fileError ? (
+                  <p
+                    role="alert"
+                    className="mt-2 text-sm text-(--color-signal-clay)"
+                  >
+                    {fileError}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           <label
             htmlFor="practice-answer"
             className="text-sm font-medium text-(--color-muted)"
           >
-            Jawaban kandidat
+            {requiresExcelFile ? "Ringkasan pekerjaan" : "Jawaban kandidat"}
           </label>
           <textarea
             id="practice-answer"
@@ -368,22 +471,24 @@ export default function SkillPracticeRunner({
               if (submitted) setSubmitted(false);
             }}
             rows={9}
-            placeholder="Tulis langkah kerja, keputusan, dan alasanmu di sini."
+            placeholder={
+              requiresExcelFile
+                ? "Ringkas isi workbook, keputusan format, dan pengecekan yang kamu lakukan."
+                : "Tulis langkah kerja, keputusan, dan alasanmu di sini."
+            }
             className="mt-3 w-full resize-none rounded-md border border-(--color-line) bg-(--color-paper) px-4 py-3 text-base leading-relaxed text-(--color-ink) outline-none placeholder:text-(--color-muted) focus:border-(--color-teal)"
           />
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-(--color-muted)">
               {mcQuestions.length > 0 && !allMcAnswered
                 ? `Masih ada ${mcRemaining} soal pilihan ganda yang belum dijawab.`
+                : requiresExcelFile && !evidenceFile
+                  ? "Upload file .xlsx agar evaluator bisa membaca bukti pekerjaan."
                 : `${answer.trim().length} karakter. Feedback membaca sinyal pada rubrik.`}
             </p>
             <button
               type="submit"
-              disabled={
-                !answer.trim() ||
-                pending ||
-                (mcQuestions.length > 0 && !allMcAnswered)
-              }
+              disabled={!canSubmit}
               className="inline-flex min-h-11 items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
             >
               {pending ? "Menyimpan..." : "Nilai jawaban"}
@@ -446,6 +551,11 @@ export default function SkillPracticeRunner({
                   <p className="mt-3 text-xs text-(--color-muted)">
                     Warmup pilihan ganda: {serverResult.mcCorrect}/
                     {serverResult.mcTotal} benar.
+                  </p>
+                ) : null}
+                {serverResult.evidenceFile ? (
+                  <p className="mt-3 text-xs text-(--color-muted)">
+                    File bukti: {serverResult.evidenceFile.filename}
                   </p>
                 ) : null}
               </div>
