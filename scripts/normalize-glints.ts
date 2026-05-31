@@ -209,7 +209,22 @@ const TAXONOMY_ALIASES: Record<string, string> = {
   sketchup: "sketchup",
 };
 
+const SLUG_ALIASES: Record<string, string> = {
+  ".net": "dotnet",
+  "c#": "csharp",
+  "c++": "cpp",
+  c: "c-lang",
+  "f#": "fsharp",
+  "objective-c": "objective-c",
+  "node.js": "node-js",
+  "next.js": "next-js",
+  "vue.js": "vue-js",
+  "asp.net": "asp-dotnet",
+};
+
 function slugify(s: string): string {
+  const alias = SLUG_ALIASES[s.trim().toLowerCase()];
+  if (alias) return alias;
   return s
     .normalize("NFKD")
     .toLowerCase()
@@ -231,8 +246,10 @@ function slugifyCompany(name: string): string {
 
 function mapJobType(raw: string | null): JobType {
   const v = (raw ?? "").toUpperCase();
-  if (v === "PART_TIME" || v === "PART-TIME" || v === "PARTTIME") return "Part-time";
-  if (v === "CONTRACT" || v === "CONTRACTOR" || v === "TEMPORARY") return "Kontrak";
+  if (v === "PART_TIME" || v === "PART-TIME" || v === "PARTTIME")
+    return "Part-time";
+  if (v === "CONTRACT" || v === "CONTRACTOR" || v === "TEMPORARY")
+    return "Kontrak";
   if (v === "INTERNSHIP" || v === "INTERN") return "Magang";
   return "Full-time";
 }
@@ -272,9 +289,16 @@ const HTML_ENTITIES: Record<string, string> = {
 };
 
 function decodeEntities(s: string): string {
-  let out = s.replace(/&(amp|lt|gt|quot|apos|nbsp|hellip|mdash|ndash|#39);/g, (m) => HTML_ENTITIES[m] ?? m);
-  out = out.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)));
-  out = out.replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
+  let out = s.replace(
+    /&(amp|lt|gt|quot|apos|nbsp|hellip|mdash|ndash|#39);/g,
+    (m) => HTML_ENTITIES[m] ?? m,
+  );
+  out = out.replace(/&#(\d+);/g, (_, n) =>
+    String.fromCodePoint(parseInt(n, 10)),
+  );
+  out = out.replace(/&#x([0-9a-f]+);/gi, (_, n) =>
+    String.fromCodePoint(parseInt(n, 16)),
+  );
   return out;
 }
 
@@ -366,7 +390,9 @@ function normalize(raw: RawJob): Job | null {
   const company = raw.companyName;
   const companyId = slugifyCompany(company);
   const now = Date.now();
-  const validUntil = raw.validThrough ? new Date(raw.validThrough).getTime() : null;
+  const validUntil = raw.validThrough
+    ? new Date(raw.validThrough).getTime()
+    : null;
   const status: "open" | "closed" =
     validUntil && validUntil < now ? "closed" : "open";
   const { min, max } = pickSalary(raw);
@@ -405,7 +431,8 @@ function normalize(raw: RawJob): Job | null {
     requirements: buildRequirements(raw.skills),
     postedAt: raw.datePosted ?? raw.scrapedAt,
     status,
-    closedAt: status === "closed" && raw.validThrough ? raw.validThrough : undefined,
+    closedAt:
+      status === "closed" && raw.validThrough ? raw.validThrough : undefined,
     applyUrl: raw.url,
     minEducation: raw.educationLevel ?? raw.educationCategory ?? undefined,
     minExperienceYears: raw.minYearsOfExperience ?? undefined,
@@ -447,11 +474,21 @@ async function main() {
       taxonomyHits.set(r.skillId, (taxonomyHits.get(r.skillId) ?? 0) + 1);
     }
   }
-  console.log(`[normalize] wrote ${jobs.length} jobs (skipped ${skipped}) -> ${OUT}`);
-  console.log(`[normalize] ${withMatchedSkills}/${jobs.length} jobs have at least 1 taxonomy-matched skill`);
-  console.log(`[normalize] ${withSalary}/${jobs.length} jobs have disclosed salary`);
-  const topHits = [...taxonomyHits.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
-  console.log(`[normalize] top skill ids: ${topHits.map(([k, v]) => `${k}=${v}`).join(", ")}`);
+  console.log(
+    `[normalize] wrote ${jobs.length} jobs (skipped ${skipped}) -> ${OUT}`,
+  );
+  console.log(
+    `[normalize] ${withMatchedSkills}/${jobs.length} jobs have at least 1 taxonomy-matched skill`,
+  );
+  console.log(
+    `[normalize] ${withSalary}/${jobs.length} jobs have disclosed salary`,
+  );
+  const topHits = [...taxonomyHits.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12);
+  console.log(
+    `[normalize] top skill ids: ${topHits.map(([k, v]) => `${k}=${v}`).join(", ")}`,
+  );
   const allSkillNames = new Map<string, number>();
   for (const j of jobs) {
     for (const r of j.requirements) {
@@ -460,11 +497,16 @@ async function main() {
     }
   }
   console.log(`[normalize] unique skill names: ${allSkillNames.size}`);
-  const topNames = [...allSkillNames.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
+  const topNames = [...allSkillNames.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
   console.log(`[normalize] top 15 skill names:`);
-  for (const [k, v] of topNames) console.log(`   ${v.toString().padStart(4)} ${k}`);
+  for (const [k, v] of topNames)
+    console.log(`   ${v.toString().padStart(4)} ${k}`);
   const openCount = jobs.filter((j) => j.status === "open").length;
-  console.log(`[normalize] status: open=${openCount} closed=${jobs.length - openCount}`);
+  console.log(
+    `[normalize] status: open=${openCount} closed=${jobs.length - openCount}`,
+  );
 }
 
 main().catch((err) => {

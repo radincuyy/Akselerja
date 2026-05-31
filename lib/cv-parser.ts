@@ -80,53 +80,68 @@ type CvParserEngine = (input: CvParseInput) => Promise<ParsedCv>;
 const TAXONOMY_ALIASES: Record<string, string> = {
   "microsoft-excel": "excel",
   "ms-excel": "excel",
-  "excel": "excel",
+  excel: "excel",
   "warehouse-management-system": "wms",
-  "wms": "wms",
+  wms: "wms",
   "inventory-management": "inventory",
-  "inventory": "inventory",
+  inventory: "inventory",
   "manajemen-inventaris": "inventory",
   "manajemen-stok": "inventory",
   "customer-service": "customer-service",
   "layanan-pelanggan": "customer-service",
-  "komunikasi": "komunikasi",
-  "communication": "komunikasi",
-  "sql": "sql",
+  komunikasi: "komunikasi",
+  communication: "komunikasi",
+  sql: "sql",
   "power-bi": "powerbi",
-  "powerbi": "powerbi",
+  powerbi: "powerbi",
   "data-literacy": "data-literacy",
   "literasi-data": "data-literacy",
-  "sales": "sales",
-  "penjualan": "sales",
-  "manufacturing": "manufacturing-basics",
-  "manufaktur": "manufacturing-basics",
+  sales: "sales",
+  penjualan: "sales",
+  manufacturing: "manufacturing-basics",
+  manufaktur: "manufacturing-basics",
   "problem-solving": "problem-solving",
   "pemecahan-masalah": "problem-solving",
-  "ketelitian": "ketelitian",
+  ketelitian: "ketelitian",
   "attention-to-detail": "ketelitian",
   "email-management": "email-management",
   "manajemen-email": "email-management",
-  "bookkeeping": "bookkeeping",
-  "pembukuan": "bookkeeping",
+  bookkeeping: "bookkeeping",
+  pembukuan: "bookkeeping",
   "visual-hierarchy": "visual-hierarchy",
   "laporan-stok": "laporan-stok",
   "stock-report": "laporan-stok",
   "sap-inventory": "sap-inventory",
-  "sap": "sap-inventory",
+  sap: "sap-inventory",
 };
 
-// Slug stabil supaya re-upload CV tidak bikin skill duplikat.
 function slugifySkillName(name: string): string {
-  return name
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80) || "skill";
+  return (
+    name
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "skill"
+  );
 }
 
+const PUNCT_SKILL_ALIASES: Record<string, string> = {
+  ".net": "dotnet",
+  "c#": "csharp",
+  "c++": "cpp",
+  c: "c-lang",
+  "f#": "fsharp",
+  "node.js": "node-js",
+  "next.js": "next-js",
+  "vue.js": "vue-js",
+  "asp.net": "asp-dotnet",
+};
+
 function resolveSkillId(name: string): string {
+  const punct = PUNCT_SKILL_ALIASES[name.trim().toLowerCase()];
+  if (punct) return punct;
   const slug = slugifySkillName(name);
   return TAXONOMY_ALIASES[slug] ?? slug;
 }
@@ -444,9 +459,7 @@ Output JSON sesuai schema.`;
     linkedin: rawPersonal?.linkedin
       ? String(rawPersonal.linkedin).trim()
       : undefined,
-    github: rawPersonal?.github
-      ? String(rawPersonal.github).trim()
-      : undefined,
+    github: rawPersonal?.github ? String(rawPersonal.github).trim() : undefined,
     portfolio: rawPersonal?.portfolio
       ? String(rawPersonal.portfolio).trim()
       : undefined,
