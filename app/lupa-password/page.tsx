@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import Link from "next/link";
+import { requestPasswordReset } from "@/lib/auth/password-reset-actions";
 
 export default function LupaPasswordPage() {
   const emailId = useId();
@@ -19,9 +20,18 @@ export default function LupaPasswordPage() {
       return;
     }
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSubmitting(false);
-    setSent(email);
+    try {
+      const result = await requestPasswordReset({ email });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setSent(result.email);
+    } catch {
+      setError("Permintaan reset belum bisa diproses. Coba lagi sebentar lagi.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

@@ -1,4 +1,4 @@
-import LegalLayout from "@/components/LegalLayout";
+import LegalLayout from "@/components/layout/LegalLayout";
 
 export const metadata = {
   title: "Syarat Layanan · Akselerja",
@@ -21,10 +21,9 @@ export default function SyaratPage() {
 
       <h2>1. Tentang Akselerja</h2>
       <p>
-        Akselerja adalah platform AI job matching, skill assessment, dan
-        rekomendasi pelatihan untuk tenaga kerja Indonesia. Layanan ini
-        ditujukan untuk pencari kerja dan perusahaan yang sedang mencari
-        kandidat.
+        Akselerja adalah platform AI job matching dan rekomendasi pelatihan
+        untuk tenaga kerja Indonesia. Layanan ini ditujukan untuk pencari
+        kerja.
       </p>
 
       <h2>2. Akun dan kelayakan pengguna</h2>
@@ -36,9 +35,9 @@ export default function SyaratPage() {
 
       <h2>3. Cara kami menggunakan datamu</h2>
       <p>
-        Profil, hasil assessment, dan riwayat lamaranmu kami gunakan untuk
-        menghitung match score dan menampilkan rekomendasi. Detail bagaimana
-        data dikelola ada di Kebijakan Privasi dan Kebijakan Data.
+        Profil, latihan, dan riwayat lamaranmu kami gunakan untuk menghitung
+        match score dan menampilkan rekomendasi. Detail bagaimana data
+        dikelola ada di Kebijakan Privasi dan Kebijakan Data.
       </p>
 
       <h2>4. Kewajiban pengguna</h2>

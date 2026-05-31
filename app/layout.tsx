@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import Providers from "@/components/layout/Providers";
 
 const generalSans = localFont({
   src: [
@@ -52,12 +53,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className={generalSans.variable}>
-      <body>
+    <html
+      lang="id"
+      className={generalSans.variable}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
+      <body suppressHydrationWarning>
         <a href="#main" className="skip-link">
           Lewat ke konten utama
         </a>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -1,13 +1,12 @@
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
-import CvUploader from "@/components/CvUploader";
-import { getProfile } from "@/lib/profile-store";
+import CvUploader from "@/components/profile/CvUploader";
+import { getCurrentCandidate } from "@/lib/profile/current-candidate";
 
-export default function UpdateCvPage() {
-  const profile = getProfile();
+export default async function UpdateCvPage() {
+  const { profile } = await getCurrentCandidate();
 
   return (
-    <AppShell variant="candidate" active="/app/profil">
+    <>
       <Link
         href="/app/profil"
         className="inline-flex items-center gap-1.5 text-sm text-(--color-muted) hover:text-(--color-ink)"
@@ -40,6 +39,6 @@ export default function UpdateCvPage() {
       <div className="mt-10 max-w-2xl">
         <CvUploader currentCv={profile.cv} />
       </div>
-    </AppShell>
+    </>
   );
 }

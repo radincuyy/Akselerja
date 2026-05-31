@@ -1,85 +1,58 @@
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
-import ScoreDisplay from "@/components/ScoreDisplay";
-import JobCard from "@/components/JobCard";
-import StatusBadge from "@/components/StatusBadge";
-import {
-  jobs,
-  me,
-  assessments,
-  calcMatch,
-  formatRelativeId,
-  skillById,
-} from "@/lib/mock-data";
-import {
-  isUpdatedSinceSeen,
-  listApplicationsForCandidate,
-} from "@/lib/applications-store";
-import { getProfile } from "@/lib/profile-store";
-import { completedAssessmentIds } from "@/lib/format";
+import ScoreDisplay from "@/components/jobs/ScoreDisplay";
+import JobCard from "@/components/jobs/JobCard";
+import { buildMatchReason } from "@/lib/jobs/match-reason";
+import { rankCandidateJobs } from "@/lib/jobs/recommendations";
+import { getCurrentCandidate } from "@/lib/profile/current-candidate";
+import type { Candidate } from "@/lib/shared/types";
 
-export default function CandidateHome() {
-  const profile = getProfile();
-  const openJobs = jobs.filter((j) => j.status !== "closed");
-  const ranked = openJobs
-    .map((job) => ({ job, ...calcMatch(me, job) }))
-    .sort((a, b) => b.score - a.score);
+const HOME_RECOMMENDATION_LIMIT = 12;
+
+export default async function CandidateHome() {
+  const { profile } = await getCurrentCandidate();
+  const readinessScore = profile.readinessScore ?? 0;
+  const userSkillIds = profile.skills?.map((s) => s.skillId) ?? [];
+  const { ranked } = await rankCandidateJobs(profile, {
+    top: HOME_RECOMMENDATION_LIMIT,
+    fallbackOnEmpty: true,
+    filterPositiveScore: true,
+  });
   const top3 = ranked.slice(0, 3);
-  const matchingCount = ranked.filter((r) => r.score >= 60).length;
+  const bestMatchScore = ranked[0]?.score ?? 0;
+  const recommendationCount = top3.length;
+  const hasStrongMatch = ranked.some((r) => r.score >= 60);
+  const mediumMatchCount = ranked.filter((r) => r.score >= 50).length;
+  const hasMediumMatch = mediumMatchCount > 0;
+  const hasSkills = userSkillIds.length > 0;
+  const hasJobs = top3.length > 0;
+  const canShowRecommendations = hasSkills && hasJobs;
 
-  const myApplications = listApplicationsForCandidate(me.id);
-  const recentApplications = myApplications.slice(0, 3);
-  const newCount = myApplications.filter((a) => isUpdatedSinceSeen(a)).length;
-  const invitedFresh = myApplications.find(
-    (a) => a.status === "invited" && isUpdatedSinceSeen(a),
-  );
-  const acceptedFresh = myApplications.find(
-    (a) => a.status === "accepted" && isUpdatedSinceSeen(a),
-  );
-  const featuredBanner = acceptedFresh ?? invitedFresh;
-  const featuredBannerJob = featuredBanner
-    ? jobs.find((j) => j.id === featuredBanner.jobId)
-    : null;
+  const firstName = profile.name.split(" ")[0] || "kamu";
+  const heading = !hasSkills
+    ? `Halo ${firstName}, profilmu masih perlu diisi.`
+    : hasStrongMatch
+      ? recommendationCount === 1
+        ? "Ini lowongan terbaik untukmu hari ini."
+        : `Ini ${recommendationCount} lowongan terbaik untukmu hari ini.`
+      : hasMediumMatch
+        ? mediumMatchCount === 1
+          ? `Ada 1 lowongan yang bisa kamu kejar, ${firstName}.`
+          : `Ada ${mediumMatchCount} lowongan yang bisa kamu kejar, ${firstName}.`
+        : `Belum ada lowongan yang cocok hari ini, ${firstName}.`;
 
-  const heading =
-    matchingCount === 0
-      ? `Belum ada lowongan yang cocok hari ini, ${me.name.split(" ")[0]}.`
-      : matchingCount === 1
-        ? `Hari ini ada 1 lowongan yang cocok denganmu.`
-        : `Hari ini ada ${matchingCount} lowongan yang cocok denganmu.`;
-
-  const subhead =
-    matchingCount === 0
-      ? "Lengkapi profil atau ikuti satu assessment supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk."
-      : `Lowongan dihitung cocok kalau match score-nya 60% ke atas. Skor naik begitu kamu menambah skill, mengikuti assessment, atau melengkapi pengalaman.`;
+  const subhead = !hasSkills
+    ? "Lengkapi skill dan pengalaman supaya kami bisa memilihkan lowongan yang benar-benar cocok untukmu, bukan asal urut."
+    : hasStrongMatch
+      ? "Lowongan ini diurutkan dari kecocokan skill, pengalaman, dan preferensi profilmu."
+      : hasMediumMatch
+        ? "Skill kamu sudah cocok sebagian. Tutup beberapa skill gap supaya peluangmu makin besar."
+        : "Lengkapi profil supaya kami bisa mencocokkan kamu lebih akurat saat lowongan baru masuk.";
 
   return (
-    <AppShell variant="candidate" active="/app">
-      {featuredBanner && featuredBannerJob ? (
-        <Link
-          href={`/app/lamaran/${featuredBanner.id}`}
-          className="block rounded-lg border border-(--color-teal) bg-(--color-teal-soft) p-5 transition-colors hover:bg-(--color-tint) sm:p-6"
-        >
-          <p className="text-sm font-medium text-(--color-teal-deep)">
-            Kabar baik
-          </p>
-          <p className="mt-2 text-base font-semibold leading-snug text-(--color-ink) sm:text-lg">
-            {featuredBanner.status === "accepted"
-              ? `Selamat, kamu diterima di ${featuredBannerJob.company} untuk ${featuredBannerJob.title}.`
-              : `Lamaranmu di ${featuredBannerJob.company} masuk tahap interview.`}
-          </p>
-          <p className="mt-2 text-sm text-(--color-muted)">
-            Lihat detail untuk langkah berikutnya. <span aria-hidden>→</span>
-          </p>
-        </Link>
-      ) : null}
-
-      <section
-        aria-labelledby="dashboard-heading"
-        className={featuredBanner ? "mt-10" : undefined}
-      >
+    <>
+      <section aria-labelledby="dashboard-heading">
         <p className="text-base text-(--color-muted)">
-          Selamat datang kembali, {me.name.split(" ")[0]}.
+          Selamat datang kembali, {firstName}.
         </p>
         <h1
           id="dashboard-heading"
@@ -94,83 +67,22 @@ export default function CandidateHome() {
 
       <section className="mt-10 rounded-lg border border-(--color-line) bg-(--color-paper) p-6">
         <ScoreDisplay
-          score={me.readinessScore}
-          label="Skor kesiapan kerja"
-          explanation="Skor ini menggabungkan kelengkapan profil, hasil assessment, dan pengalaman yang kamu tulis. Naikkan dengan satu langkah konkret di bawah."
-          action={{ label: "Tingkatkan skor", href: "/app/assessment" }}
+          score={readinessScore}
+          label="Kelengkapan profil"
+          explanation={
+            bestMatchScore > 0
+              ? `Angka ini membaca kelengkapan profil, CV, skill, dan pengalaman. Ini berbeda dari match score lowongan; match score terbaikmu saat ini ${bestMatchScore}% dan dihitung per lowongan.`
+              : "Angka ini membaca kelengkapan profil, CV, skill, dan pengalaman. Match score lowongan akan muncul setelah ada lowongan yang cocok dengan profilmu."
+          }
+          action={
+            readinessScore >= 100
+              ? { label: "Lihat lowongan", href: "/app/lowongan" }
+              : { label: "Lengkapi profil", href: "/app/profil" }
+          }
           size="lg"
+          showBand={false}
         />
       </section>
-
-      {myApplications.length > 0 ? (
-        <section className="mt-14" aria-labelledby="my-applications-heading">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <h2
-                id="my-applications-heading"
-                className="text-xl font-semibold tracking-tight text-(--color-ink)"
-              >
-                Lamaranmu
-              </h2>
-              {newCount > 0 ? (
-                <p className="mt-1 text-sm text-(--color-muted)">
-                  {newCount} lamaran punya status baru sejak terakhir kamu lihat.
-                </p>
-              ) : (
-                <p className="mt-1 text-sm text-(--color-muted)">
-                  Pantau perjalanan tiap lamaranmu.
-                </p>
-              )}
-            </div>
-            {myApplications.length > 3 ? (
-              <Link
-                href="/app/lamaran"
-                className="text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
-              >
-                Lihat semua →
-              </Link>
-            ) : null}
-          </div>
-          <ol className="mt-6 divide-y divide-(--color-line) overflow-hidden rounded-lg border border-(--color-line) bg-(--color-paper)">
-            {recentApplications.map((app) => {
-              const job = jobs.find((j) => j.id === app.jobId);
-              if (!job) return null;
-              const isNew = isUpdatedSinceSeen(app);
-              return (
-                <li key={app.id}>
-                  <Link
-                    href={`/app/lamaran/${app.id}`}
-                    className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 p-4 transition-colors hover:bg-(--color-tint) sm:p-5"
-                  >
-                    <span aria-hidden className="block">
-                      {isNew ? (
-                        <span className="relative flex h-2.5 w-2.5">
-                          <span className="absolute inline-flex h-full w-full pulse-once rounded-full bg-(--color-teal) opacity-50" />
-                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-(--color-teal)" />
-                        </span>
-                      ) : (
-                        <span className="block h-2.5 w-2.5 rounded-full border border-(--color-line) bg-(--color-paper)" />
-                      )}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-(--color-ink) sm:text-base">
-                        {job.title}
-                      </p>
-                      <p className="truncate text-xs text-(--color-muted)">
-                        {job.company} <span aria-hidden>·</span>{" "}
-                        {formatRelativeId(
-                          app.history[app.history.length - 1]?.at ?? app.createdAt,
-                        )}
-                      </p>
-                    </div>
-                    <StatusBadge status={app.status} size="sm" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
-      ) : null}
 
       <section className="mt-14" aria-labelledby="recs-heading">
         <div className="flex items-end justify-between gap-4">
@@ -187,22 +99,38 @@ export default function CandidateHome() {
             Lihat semua →
           </Link>
         </div>
-        <div className="mt-6 grid gap-4">
-          {top3.map(({ job, score, breakdown }) => {
-            const top = breakdown.find((b) => b.state === "match");
-            const reason = top
-              ? `Cocok karena ${skillById[top.skillId]?.name ?? top.name}.`
-              : "Lihat detail untuk rincian skor.";
-            return (
-              <JobCard
-                key={job.id}
-                job={job}
-                matchScore={score}
-                topReason={reason}
-              />
-            );
-          })}
-        </div>
+        {canShowRecommendations ? (
+          <div className="mt-6 grid gap-4">
+            {top3.map(({ job, score, breakdown }) => {
+              const reason = buildMatchReason(profile, job, { score, breakdown });
+              return (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  matchScore={score}
+                  reason={reason}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-6 rounded-lg border border-(--color-line) bg-(--color-tint) p-6">
+            <p className="text-sm font-semibold text-(--color-ink)">
+              Rekomendasi belum personal
+            </p>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-(--color-muted)">
+              Kami butuh skill dan pengalamanmu untuk memilih lowongan yang
+              spesifik. Setelah profil lengkap, kotak ini berisi tiga lowongan
+              paling cocok denganmu, bukan acak.
+            </p>
+            <Link
+              href={profile.cv ? "/app/profil" : "/app/profil/cv"}
+              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-(--color-teal) hover:text-(--color-teal-deep)"
+            >
+              {profile.cv ? "Lengkapi profil" : "Upload CV"} →
+            </Link>
+          </div>
+        )}
       </section>
 
       <section className="mt-14" aria-labelledby="next-heading">
@@ -214,32 +142,17 @@ export default function CandidateHome() {
         </h2>
         <NextSteps profile={profile} />
       </section>
-    </AppShell>
+    </>
   );
 }
 
-function NextSteps({
-  profile,
-}: {
-  profile: ReturnType<typeof getProfile>;
-}) {
-  const nextAssessment = assessments.find(
-    (a) => !completedAssessmentIds.has(a.id),
-  );
+function NextSteps({ profile }: { profile: Candidate }) {
   const hasExperience = (profile.experience?.length ?? 0) > 0;
   const hasEducation = (profile.education?.length ?? 0) > 0;
   const hasCv = Boolean(profile.cv);
 
   type Step = { eyebrow: string; title: string; body: string; href: string };
   const steps: Step[] = [];
-  if (nextAssessment) {
-    steps.push({
-      eyebrow: "Assessment",
-      title: `Ikuti tes ${nextAssessment.title}`,
-      body: `${nextAssessment.questionCount} soal, sekitar ${nextAssessment.durationMinutes} menit. Skor kesiapanmu naik begitu selesai.`,
-      href: `/app/assessment/${nextAssessment.slug}`,
-    });
-  }
   if (!hasCv) {
     steps.push({
       eyebrow: "Profil",
@@ -252,33 +165,30 @@ function NextSteps({
       eyebrow: "Profil",
       title: "Tambah pengalaman organisasi atau magang",
       body: "Pengalaman organisasi memperkuat profil kandidat fresh graduate.",
-      href: "/app/profil/edit#pengalaman",
+      href: "/app/profil#pengalaman",
     });
   } else if (!hasEducation) {
     steps.push({
       eyebrow: "Profil",
       title: "Lengkapi riwayat pendidikan",
-      body: "HR sering memfilter berdasarkan pendidikan. Isi sebentar saja.",
-      href: "/app/profil/edit#pendidikan",
+      body: "Pendidikan sering jadi filter awal. Isi sebentar saja.",
+      href: "/app/profil#pendidikan",
     });
   } else {
     steps.push({
       eyebrow: "Coach",
       title: "Tanya career coach untuk fokus berikutnya",
-      body: "Profil sudah lengkap, assessment sudah jalan. Coach bisa bantu pilih langkah berikutnya yang paling berdampak.",
+      body: "Profil sudah lengkap. Coach bisa bantu pilih langkah berikutnya yang paling berdampak.",
       href: "/app/coach",
     });
   }
 
-  if (steps.length === 1) {
-    // Add a low-pressure secondary if only one step is available.
-    steps.push({
-      eyebrow: "Belajar",
-      title: "Lihat kursus yang menutup skill gap kamu",
-      body: "Kursus singkat di area yang paling sering muncul di lowongan target.",
-      href: "/app/belajar",
-    });
-  }
+  steps.push({
+    eyebrow: "Belajar",
+    title: "Lihat kursus yang menutup skill gap kamu",
+    body: "Kursus singkat di area yang paling sering muncul di lowongan target.",
+    href: "/app/belajar",
+  });
 
   return (
     <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -311,9 +221,7 @@ function NextStep({
       href={href}
       className="group flex flex-col rounded-lg border border-(--color-line) bg-(--color-paper) p-5 transition-colors hover:border-(--color-teal)"
     >
-      <p className="text-sm font-medium text-(--color-teal)">
-        {eyebrow}
-      </p>
+      <p className="text-sm font-medium text-(--color-teal)">{eyebrow}</p>
       <h3 className="mt-2 text-base font-semibold text-(--color-ink) group-hover:text-(--color-teal)">
         {title}
       </h3>

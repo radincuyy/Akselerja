@@ -1,6 +1,6 @@
 # Akselerja
 
-Platform AI job matching, skill assessment, dan upskilling untuk tenaga kerja Indonesia.
+Platform AI job matching dan upskilling untuk tenaga kerja Indonesia.
 
 ## Tech stack
 
@@ -18,6 +18,9 @@ npm run dev
 
 Buka [http://localhost:3000](http://localhost:3000).
 
+Konfigurasi Azure dan env ada di [`azure.md`](azure.md). Mulai dari
+[`.env.example`](.env.example), lalu isi secret di `.env.local`.
+
 ## Build
 
 ```bash
@@ -27,8 +30,10 @@ npm start
 
 ## Design context
 
-- `PRODUCT.md`: strategic context (register, users, brand personality, anti-references, design principles)
-- `DESIGN.md`: visual system (color tokens, typography, components, do's/don'ts)
-- `PRD_Akselerja.md`: product requirements
+- [`docs/PRODUCT.md`](docs/PRODUCT.md): strategic context (register, users, brand personality, anti-references, design principles)
+- [`docs/DESIGN.md`](docs/DESIGN.md): visual system (color tokens, typography, components, do's/don'ts)
+- [`docs/PLAN.md`](docs/PLAN.md): roadmap pengembangan
+- [`docs/AZURE.md`](docs/AZURE.md): arsitektur Azure dan provisioning
+- [`docs/AI_SKILL_GAP_FLOW.md`](docs/AI_SKILL_GAP_FLOW.md): alur AI skill gap
 
-Setiap perubahan UI harus konsisten dengan kedua file di atas.
+Setiap perubahan UI harus konsisten dengan dua file design context pertama.
