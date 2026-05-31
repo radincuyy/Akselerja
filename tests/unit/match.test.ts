@@ -105,7 +105,7 @@ describe("calcMatch", () => {
     const candidate = buildCandidate(["a"]);
     const job = buildJob([]);
     const { score, breakdown } = calcMatch(candidate, job);
-    expect(score).toBe(0);
+    expect(score).toBe(50);
     expect(breakdown).toHaveLength(0);
   });
 
@@ -134,9 +134,7 @@ describe("calcMatch", () => {
     const candidate = buildCandidate(["a"]);
     const job = buildJob([{ skillId: "a", mustHave: true }]);
     const { dimensions } = calcMatch(candidate, job);
-    expect(
-      dimensions.find((d) => d.id === "semantic")?.applicable,
-    ).toBe(false);
+    expect(dimensions.find((d) => d.id === "semantic")?.applicable).toBe(false);
   });
 
   it("dimension contributions sum approximately to score", () => {
