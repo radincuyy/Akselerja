@@ -900,9 +900,12 @@ export async function completeOnboarding(input: OnboardingInput) {
     visibility: base.visibility ?? "applied-only",
   }));
 
-  // Block on the embedding so the dashboard render right after onboarding has
-  // a real profileVector. Without this the first /app render falls back to
-  // BM25 + score-only ranking, which makes top recommendations look generic
+  try {
+    await recomputeReadinessScoreAsync(user.id);
+  } catch (err) {
+    console.error("[onboarding] readiness recompute failed (non-fatal):", err);
+  }
+
   // for the most important moment of the funnel. Failures are non-fatal: the
   // next mutation will retry, and search degrades gracefully.
   try {
@@ -1023,7 +1026,8 @@ export async function submitPracticeAttempt(input: {
     }
     let set;
     try {
-      const { getCheckpointSet } = await import("../learning/checkpoint-generator");
+      const { getCheckpointSet } =
+        await import("../learning/checkpoint-generator");
       set = await getCheckpointSet(task.skillId, {
         skillName: resolvedSkillName,
         jobContext: targetJob ?? undefined,
