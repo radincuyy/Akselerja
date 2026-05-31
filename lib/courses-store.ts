@@ -122,9 +122,3 @@ function stripVector(record: CourseRecord): Course {
   };
   return rest;
 }
-
-export async function getCoursesForSkillsAsync(
-  skillIds: string[],
-): Promise<Course[]> {
-  return findCoursesForGapsAsync(skillIds, skillIds.length || 4);
-}

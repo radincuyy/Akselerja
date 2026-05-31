@@ -41,11 +41,3 @@ export function reserveGeminiCall(): void {
   }
   count += 1;
 }
-
-export function geminiBudgetStatus(): {
-  used: number;
-  limit: number;
-  day: string;
-} {
-  return { used: count, limit: dailyLimit(), day: dayKey || currentDay() };
-}
