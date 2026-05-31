@@ -27,7 +27,8 @@ function parseArgs(): { dryRun: boolean; batch: number; skipDelete: boolean } {
   for (const a of args) {
     if (a === "--dry-run") dryRun = true;
     else if (a === "--skip-delete") skipDelete = true;
-    else if (a.startsWith("--batch=")) batch = Math.max(1, parseInt(a.slice(8), 10));
+    else if (a.startsWith("--batch="))
+      batch = Math.max(1, parseInt(a.slice(8), 10));
   }
   return { dryRun, batch, skipDelete };
 }
@@ -48,6 +49,16 @@ async function main() {
     console.log("DRY RUN — no Cosmos calls. Sample record:");
     console.log(JSON.stringify(jobs[0], null, 2));
     return;
+  }
+
+  if (!skipDelete && process.env.COSMOS_ALLOW_DESTRUCTIVE !== "1") {
+    console.error(
+      "Refusing to wipe the jobs container. This deletes ALL jobs in " +
+        `"${DATABASE}" at ${ENDPOINT}.\n` +
+        "If that is intended, re-run with COSMOS_ALLOW_DESTRUCTIVE=1, or pass " +
+        "--skip-delete to only upsert, or --dry-run to preview.",
+    );
+    process.exit(1);
   }
 
   const client = new CosmosClient({ endpoint: ENDPOINT!, key: KEY! });
@@ -78,13 +89,18 @@ async function main() {
               deleted++;
             } else {
               delFailed++;
-              console.error(`  delete failed ${j.id}:`, String(err).slice(0, 150));
+              console.error(
+                `  delete failed ${j.id}:`,
+                String(err).slice(0, 150),
+              );
             }
           }
         }),
       );
       if (deleted % 100 === 0 || i + batch >= existing.length) {
-        console.log(`  deleted ${deleted}/${existing.length} (${delFailed} failed)`);
+        console.log(
+          `  deleted ${deleted}/${existing.length} (${delFailed} failed)`,
+        );
       }
     }
     console.log(`Delete done. ${deleted} removed, ${delFailed} failed.`);
