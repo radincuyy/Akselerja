@@ -71,6 +71,17 @@ type PracticeType =
   | "document-review"
   | "design-brief";
 
+export type PracticeSubmission =
+  | {
+      mode: "text";
+    }
+  | {
+      mode: "excel-file";
+      acceptedFileTypes: ["xlsx"];
+      maxFileSizeBytes?: number;
+      summaryRequired?: boolean;
+    };
+
 export type PracticeRubricCriterion = {
   id: string;
   name: string;
@@ -93,6 +104,16 @@ export type PracticeTask = {
   instructions: string[];
   expectedEvidence: string[];
   rubric: PracticeRubricCriterion[];
+  submission?: PracticeSubmission;
+};
+
+export type PracticeEvidenceFile = {
+  kind: "excel";
+  filename: string;
+  uploadedAt: string;
+  sizeBytes: number;
+  contentType: string;
+  blobName?: string;
 };
 
 export type Education = {
