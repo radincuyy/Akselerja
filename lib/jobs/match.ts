@@ -37,10 +37,10 @@ const WEIGHT_MUST_HAVE = 1.0;
 const WEIGHT_NICE_TO_HAVE = 0.4;
 
 const BASE_WEIGHTS: Record<MatchDimensionId, number> = {
-  skill: 45,
-  semantic: 40,
+  skill: 40,
+  semantic: 50,
   experience: 5,
-  education: 10,
+  education: 5,
 };
 
 const EDUCATION_RANK: Record<string, number> = {
@@ -85,9 +85,10 @@ function skillRatio(
   const rawContribs = rawItems.map((it) =>
     it.has ? (it.weight / (totalWeight || 1)) * 100 : 0,
   );
-  const ratio = rawItems.length === 0
-    ? 0
-    : Math.min(1, rawContribs.reduce((sum, v) => sum + v, 0) / 100);
+  const ratio =
+    rawItems.length === 0
+      ? 0
+      : Math.min(1, rawContribs.reduce((sum, v) => sum + v, 0) / 100);
 
   const baseScore = Math.round(rawContribs.reduce((sum, v) => sum + v, 0));
   const floors = rawContribs.map((v) => Math.floor(v));
@@ -173,12 +174,20 @@ function experienceRatio(
   if (min != null && years < min) {
     const gap = min - years;
     const ratio = Math.max(0, 1 - gap / Math.max(min, 1));
-    return { ratio, applicable: true, detail: `Kamu ${years} thn, posisi minta ${min}+ thn` };
+    return {
+      ratio,
+      applicable: true,
+      detail: `Kamu ${years} thn, posisi minta ${min}+ thn`,
+    };
   }
   if (max != null && years > max + 2) {
     const over = years - max;
     const ratio = Math.max(0.5, 1 - over / 10);
-    return { ratio, applicable: true, detail: `Kamu ${years} thn, posisi targetkan ${max} thn` };
+    return {
+      ratio,
+      applicable: true,
+      detail: `Kamu ${years} thn, posisi targetkan ${max} thn`,
+    };
   }
   return { ratio: 1, applicable: true, detail: `Kamu ${years} thn, sesuai` };
 }
@@ -201,7 +210,9 @@ function highestCandidateEducation(candidate: Candidate): number {
     if (/\b(doktor|doctorate|phd|ph\.?d|s[\s.\-]?3)\b/i.test(raw)) {
       best = Math.max(best, 7);
     } else if (
-      /\b(magister|master|s[\s.\-]?2|m\.?(kom|m|ba|t|si|pd|hum|sn))\b/i.test(raw)
+      /\b(magister|master|s[\s.\-]?2|m\.?(kom|m|ba|t|si|pd|hum|sn))\b/i.test(
+        raw,
+      )
     ) {
       best = Math.max(best, 6);
     } else if (
@@ -233,14 +244,23 @@ function educationRatio(
   job: Job,
 ): { ratio: number; applicable: boolean; detail: string } {
   const required = job.minEducation;
-  if (!required) return { ratio: 1, applicable: false, detail: "Tidak disebut" };
-  const reqRank = EDUCATION_RANK[required] ?? EDUCATION_RANK[required.toLowerCase()];
-  if (reqRank == null) return { ratio: 1, applicable: false, detail: "Tidak disebut" };
+  if (!required)
+    return { ratio: 1, applicable: false, detail: "Tidak disebut" };
+  const reqRank =
+    EDUCATION_RANK[required] ?? EDUCATION_RANK[required.toLowerCase()];
+  if (reqRank == null)
+    return { ratio: 1, applicable: false, detail: "Tidak disebut" };
   const candidateRank = highestCandidateEducation(candidate);
-  if (candidateRank < 0) return { ratio: 0, applicable: true, detail: "Pendidikanmu belum diisi" };
-  if (candidateRank >= reqRank) return { ratio: 1, applicable: true, detail: "Pendidikanmu memenuhi" };
+  if (candidateRank < 0)
+    return { ratio: 0, applicable: true, detail: "Pendidikanmu belum diisi" };
+  if (candidateRank >= reqRank)
+    return { ratio: 1, applicable: true, detail: "Pendidikanmu memenuhi" };
   const gap = reqRank - candidateRank;
-  return { ratio: Math.max(0, 1 - gap * 0.4), applicable: true, detail: "Posisi minta jenjang lebih tinggi" };
+  return {
+    ratio: Math.max(0, 1 - gap * 0.4),
+    applicable: true,
+    detail: "Posisi minta jenjang lebih tinggi",
+  };
 }
 
 export function calcMatch(candidate: Candidate, job: Job): MatchResult {
@@ -265,11 +285,47 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
     job.categoryHint !== "GENERAL" &&
     candidate.profileCategoryHint !== job.categoryHint;
 
-  const dims: { id: MatchDimensionId; ratio: number; applicable: boolean; label: string; detail: string }[] = [
-    { id: "skill", ratio: skillRatioApplied, applicable: true, label: "Skill", detail: skillDetail },
-    { id: "semantic", ratio: semantic.ratio, applicable: semantic.applicable, label: "Profil & deskripsi", detail: !semantic.applicable ? "Belum ada vektor profil" : semanticDifferentDomain ? "Profilmu berada di domain berbeda dari lowongan ini" : semantic.ratio < 0.2 ? "Profil kamu jauh dari deskripsi lowongan, isi pengalaman dan ringkasan profil" : "Berdasarkan isi CV vs deskripsi lowongan" },
-    { id: "experience", ratio: experience.ratio, applicable: experience.applicable, label: "Pengalaman", detail: experience.detail },
-    { id: "education", ratio: education.ratio, applicable: education.applicable, label: "Pendidikan", detail: education.detail },
+  const dims: {
+    id: MatchDimensionId;
+    ratio: number;
+    applicable: boolean;
+    label: string;
+    detail: string;
+  }[] = [
+    {
+      id: "skill",
+      ratio: skillRatioApplied,
+      applicable: true,
+      label: "Skill",
+      detail: skillDetail,
+    },
+    {
+      id: "semantic",
+      ratio: semantic.ratio,
+      applicable: semantic.applicable,
+      label: "Profil & deskripsi",
+      detail: !semantic.applicable
+        ? "Belum ada vektor profil"
+        : semanticDifferentDomain
+          ? "Profilmu berada di domain berbeda dari lowongan ini"
+          : semantic.ratio < 0.2
+            ? "Profil kamu jauh dari deskripsi lowongan, isi pengalaman dan ringkasan profil"
+            : "Berdasarkan isi CV vs deskripsi lowongan",
+    },
+    {
+      id: "experience",
+      ratio: experience.ratio,
+      applicable: experience.applicable,
+      label: "Pengalaman",
+      detail: experience.detail,
+    },
+    {
+      id: "education",
+      ratio: education.ratio,
+      applicable: education.applicable,
+      label: "Pendidikan",
+      detail: education.detail,
+    },
   ];
 
   const totalWeight = dims
@@ -278,9 +334,8 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
 
   const dimensions: MatchDimension[] = dims.map((d) => {
     const baseWeight = BASE_WEIGHTS[d.id];
-    const weight = d.applicable && totalWeight > 0
-      ? (baseWeight / totalWeight) * 100
-      : 0;
+    const weight =
+      d.applicable && totalWeight > 0 ? (baseWeight / totalWeight) * 100 : 0;
     const contribution = Math.round(d.ratio * weight);
     return {
       id: d.id,
@@ -295,8 +350,42 @@ export function calcMatch(candidate: Candidate, job: Job): MatchResult {
 
   const score = Math.max(
     0,
-    Math.min(100, dimensions.reduce((sum, d) => sum + d.contribution, 0)),
+    Math.min(
+      100,
+      dimensions.reduce((sum, d) => sum + d.contribution, 0),
+    ),
   );
 
-  return { score, breakdown: skill.breakdown, dimensions };
+  const skillContribution =
+    dimensions.find((d) => d.id === "skill")?.contribution ?? 0;
+  const matchedRaw = skill.breakdown
+    .filter((b) => b.state === "match")
+    .reduce((sum, b) => sum + b.contribution, 0);
+  const scaledBreakdown =
+    matchedRaw > 0
+      ? largestRemainderScale(skill.breakdown, skillContribution, matchedRaw)
+      : skill.breakdown;
+
+  return { score, breakdown: scaledBreakdown, dimensions };
+}
+
+function largestRemainderScale(
+  breakdown: MatchBreakdownItem[],
+  target: number,
+  matchedRaw: number,
+): MatchBreakdownItem[] {
+  const scaledRaw = breakdown.map((b) =>
+    b.state === "match" ? (b.contribution / matchedRaw) * target : 0,
+  );
+  const floors = scaledRaw.map((v) => Math.floor(v));
+  const sumFloors = floors.reduce((a, b) => a + b, 0);
+  const bumps = Math.max(0, Math.round(target) - sumFloors);
+  const order = scaledRaw
+    .map((v, i) => ({ i, frac: v - floors[i] }))
+    .sort((a, b) => b.frac - a.frac);
+  const bumpSet = new Set(order.slice(0, bumps).map((r) => r.i));
+  return breakdown.map((b, i) => ({
+    ...b,
+    contribution: floors[i] + (bumpSet.has(i) ? 1 : 0),
+  }));
 }
