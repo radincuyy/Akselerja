@@ -47,6 +47,10 @@ export const authConfig = {
       return true;
     },
     async jwt({ token, user, account }) {
+      const isCredentials =
+        account?.provider === "credentials" ||
+        (!account && token.provider === "credentials");
+
       if (user) {
         const stableId =
           account?.provider !== "credentials" && account?.providerAccountId
@@ -54,7 +58,40 @@ export const authConfig = {
             : user.id ||
               (typeof user.email === "string" ? user.email.toLowerCase() : "");
         token.id = stableId;
+        if (account?.provider) token.provider = account.provider;
+
+        if (
+          account?.provider === "credentials" &&
+          typeof user.email === "string"
+        ) {
+          try {
+            const { getPasswordUpdatedAtMs } = await import("./lib/user-store");
+            token.pwc = (await getPasswordUpdatedAtMs(user.email)) ?? 0;
+          } catch {
+            token.pwc = 0;
+          }
+          token.pwcCheckedAt = Date.now();
+        }
+        return token;
       }
+
+      if (isCredentials && typeof token.email === "string") {
+        const RECHECK_MS = 5 * 60 * 1000;
+        const lastCheck =
+          typeof token.pwcCheckedAt === "number" ? token.pwcCheckedAt : 0;
+        if (Date.now() - lastCheck >= RECHECK_MS) {
+          try {
+            const { getPasswordUpdatedAtMs } = await import("./lib/user-store");
+            const current = (await getPasswordUpdatedAtMs(token.email)) ?? 0;
+            const stamped = typeof token.pwc === "number" ? token.pwc : 0;
+            if (current > stamped) {
+              return null;
+            }
+            token.pwcCheckedAt = Date.now();
+          } catch {}
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

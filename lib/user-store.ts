@@ -22,7 +22,12 @@ function normalizeEmail(email: string): string {
 }
 
 function is404Error(err: unknown): boolean {
-  return Boolean(err && typeof err === "object" && "code" in err && (err as { code: number }).code === 404);
+  return Boolean(
+    err &&
+    typeof err === "object" &&
+    "code" in err &&
+    (err as { code: number }).code === 404,
+  );
 }
 
 function hashResetToken(token: string): string {
@@ -43,7 +48,11 @@ export type CreateUserInput = {
 
 export type CreateUserResult =
   | { ok: true; user: { id: string; name: string; email: string } }
-  | { ok: false; reason: "email-taken" | "cosmos-not-configured" | "cosmos-error"; message?: string };
+  | {
+      ok: false;
+      reason: "email-taken" | "cosmos-not-configured" | "cosmos-error";
+      message?: string;
+    };
 
 export async function createUserWithPassword(
   input: CreateUserInput,
@@ -80,7 +89,12 @@ export async function createUserWithPassword(
   try {
     await container.items.create(record);
   } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && (err as { code: number }).code === 409) {
+    if (
+      err &&
+      typeof err === "object" &&
+      "code" in err &&
+      (err as { code: number }).code === 409
+    ) {
       return { ok: false, reason: "email-taken" };
     }
     return {
@@ -107,7 +121,11 @@ type VerifiedUser = {
 
 export type VerifyResult =
   | { ok: true; user: VerifiedUser }
-  | { ok: false; reason: "invalid" | "cosmos-not-configured" | "cosmos-error"; message?: string };
+  | {
+      ok: false;
+      reason: "invalid" | "cosmos-not-configured" | "cosmos-error";
+      message?: string;
+    };
 
 export async function verifyUserCredentials(
   email: string,
@@ -151,6 +169,20 @@ export async function verifyUserCredentials(
   }
 }
 
+export async function getPasswordUpdatedAtMs(
+  email: string,
+): Promise<number | null> {
+  if (!isCosmosConfigured()) return null;
+  const lowered = normalizeEmail(email);
+  const container = getContainer(CONTAINERS.users);
+  const { resource } = await container
+    .item(lowered, lowered)
+    .read<UserRecord>();
+  if (!resource?.passwordUpdatedAt) return null;
+  const ms = Date.parse(resource.passwordUpdatedAt);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 export type CreatePasswordResetTokenResult =
   | {
       ok: true;
@@ -160,9 +192,15 @@ export type CreatePasswordResetTokenResult =
     }
   | {
       ok: false;
-      reason: "not-found" | "cosmos-not-configured" | "cosmos-error";
+      reason:
+        | "not-found"
+        | "throttled"
+        | "cosmos-not-configured"
+        | "cosmos-error";
       message?: string;
     };
+
+const RESET_REQUEST_THROTTLE_MS = 60 * 1000;
 
 export async function createPasswordResetToken(
   email: string,
@@ -180,6 +218,16 @@ export async function createPasswordResetToken(
       .item(lowered, lowered)
       .read<UserRecord>();
     if (!resource) return { ok: false, reason: "not-found" };
+
+    if (resource.passwordResetRequestedAt) {
+      const lastMs = Date.parse(resource.passwordResetRequestedAt);
+      if (
+        Number.isFinite(lastMs) &&
+        Date.now() - lastMs < RESET_REQUEST_THROTTLE_MS
+      ) {
+        return { ok: false, reason: "throttled" };
+      }
+    }
 
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
@@ -239,7 +287,10 @@ export async function resetUserPasswordWithToken(input: {
     const { resource } = await container
       .item(lowered, lowered)
       .read<UserRecord>();
-    if (!resource?.passwordResetTokenHash || !resource.passwordResetTokenExpiresAt) {
+    if (
+      !resource?.passwordResetTokenHash ||
+      !resource.passwordResetTokenExpiresAt
+    ) {
       return { ok: false, reason: "invalid-token" };
     }
 
@@ -274,7 +325,6 @@ export async function resetUserPasswordWithToken(input: {
     };
   }
 }
-
 
 export async function deleteUserById(userId: string): Promise<void> {
   if (!isCosmosConfigured()) return;

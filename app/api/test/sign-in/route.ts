@@ -4,7 +4,12 @@ import { encode } from "next-auth/jwt";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (process.env.E2E_MODE !== "true") {
+  // Defense-in-depth: this route forges a session, so it must be impossible
+  // to reach in production even if E2E_MODE is accidentally set there.
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.E2E_MODE !== "true"
+  ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

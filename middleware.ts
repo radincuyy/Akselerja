@@ -19,9 +19,9 @@ export default async function middleware(req: NextRequest) {
     const token = await getToken({
       req,
       secret: process.env.AUTH_SECRET,
-      secureCookie:
-        process.env.NODE_ENV === "production" &&
-        process.env.E2E_MODE !== "true",
+      // Always require secure cookies in production; never let E2E_MODE
+      // downgrade transport security on a live deployment.
+      secureCookie: process.env.NODE_ENV === "production",
     });
     if (!token) {
       return NextResponse.json(

@@ -54,9 +54,10 @@ export async function requestPasswordReset(input: {
   }
 
   if (!isResendConfigured()) {
+    console.error("[password-reset] resend not configured");
     return {
       ok: false,
-      error: "Layanan email reset belum dikonfigurasi. Hubungi admin.",
+      error: "Permintaan reset belum bisa diproses. Coba lagi sebentar lagi.",
     };
   }
 
@@ -67,7 +68,7 @@ export async function requestPasswordReset(input: {
     console.error("[password-reset] app url missing", err);
     return {
       ok: false,
-      error: "Alamat aplikasi belum dikonfigurasi. Hubungi admin.",
+      error: "Permintaan reset belum bisa diproses. Coba lagi sebentar lagi.",
     };
   }
 
@@ -77,17 +78,15 @@ export async function requestPasswordReset(input: {
   );
 
   if (!tokenResult.ok) {
-    if (tokenResult.reason === "not-found") {
+    if (tokenResult.reason === "not-found" || tokenResult.reason === "throttled") {
       return { ok: true, email };
     }
-    if (tokenResult.reason === "cosmos-not-configured") {
-      return {
-        ok: false,
-        error: "Database belum terkonfigurasi. Hubungi admin.",
-      };
-    }
 
-    console.error("[password-reset] token creation failed", tokenResult.message);
+    console.error(
+      "[password-reset] token creation failed",
+      tokenResult.reason,
+      tokenResult.message,
+    );
     return {
       ok: false,
       error: "Permintaan reset belum bisa diproses. Coba lagi sebentar lagi.",
@@ -146,9 +145,10 @@ export async function confirmPasswordReset(input: {
   if (result.ok) return { ok: true };
 
   if (result.reason === "cosmos-not-configured") {
+    console.error("[password-reset] cosmos not configured");
     return {
       ok: false,
-      error: "Database belum terkonfigurasi. Hubungi admin.",
+      error: "Password belum bisa disimpan. Coba lagi sebentar lagi.",
     };
   }
 
