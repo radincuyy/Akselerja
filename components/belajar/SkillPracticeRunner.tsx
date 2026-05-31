@@ -55,6 +55,16 @@ type Props = {
   target?: string;
 };
 
+const EMPTY_MC_QUESTIONS: ClientCheckpointQuestion[] = [];
+const PRACTICE_ANSWER_DRAFT_VERSION = 1;
+
+type PracticeAnswerDraft = {
+  version: typeof PRACTICE_ANSWER_DRAFT_VERSION;
+  answer: string;
+  mcSelections: Record<string, number>;
+  savedAt: number;
+};
+
 function typeLabel(type: PracticeTask["type"]): string {
   if (type === "roleplay") return "Roleplay";
   if (type === "document-review") return "Review dokumen";
@@ -72,11 +82,57 @@ function formatDuration(seconds: number | undefined): string {
   return `${h}:${String(mm).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function practiceAnswerDraftKey(taskSlug: string, target?: string): string {
+  return `akselerja:practice-answer-draft:${taskSlug}:${target ?? "default"}`;
+}
+
+function readPracticeAnswerDraft(key: string): PracticeAnswerDraft | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PracticeAnswerDraft>;
+    if (parsed.version !== PRACTICE_ANSWER_DRAFT_VERSION) return null;
+    if (typeof parsed.answer !== "string") return null;
+    if (!parsed.mcSelections || typeof parsed.mcSelections !== "object") {
+      return null;
+    }
+    if (typeof parsed.savedAt !== "number") return null;
+    return {
+      version: PRACTICE_ANSWER_DRAFT_VERSION,
+      answer: parsed.answer,
+      mcSelections: parsed.mcSelections as Record<string, number>,
+      savedAt: parsed.savedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePracticeAnswerDraft(key: string, draft: PracticeAnswerDraft) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(draft));
+  } catch {
+    // localStorage can be unavailable or full; losing a draft should not block practice.
+  }
+}
+
+function removePracticeAnswerDraft(key: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
 export default function SkillPracticeRunner({
   task,
   skillName,
   initialAttempt,
-  mcQuestions = [],
+  mcQuestions = EMPTY_MC_QUESTIONS,
   mcGeneratedBy,
   videos = [],
   target,
@@ -95,6 +151,10 @@ export default function SkillPracticeRunner({
   const [mcSelections, setMcSelections] = useState<Record<string, number>>({});
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [loadedAnswerDraftKey, setLoadedAnswerDraftKey] = useState<
+    string | null
+  >(null);
+  const [answerDraftRestored, setAnswerDraftRestored] = useState(false);
   const [serverResult, setServerResult] = useState<GradingResult | null>(
     initialAttempt
       ? {
@@ -110,6 +170,10 @@ export default function SkillPracticeRunner({
   );
   const submission = useMemo(() => resolvePracticeSubmission(task), [task]);
   const requiresExcelFile = isExcelPracticeSubmission(submission);
+  const answerDraftKey = useMemo(
+    () => practiceAnswerDraftKey(task.slug, target),
+    [target, task.slug],
+  );
 
   const localResults = useMemo(
     () => (submitted ? gradePracticeAnswer(task, answer) : []),
@@ -157,6 +221,85 @@ export default function SkillPracticeRunner({
     !pending &&
     (mcQuestions.length === 0 || allMcAnswered) &&
     (!requiresExcelFile || Boolean(evidenceFile));
+
+  useEffect(() => {
+    setLoadedAnswerDraftKey(null);
+    setAnswerDraftRestored(false);
+
+    function finishDraftLoad() {
+      setLoadedAnswerDraftKey(answerDraftKey);
+    }
+
+    const draft = readPracticeAnswerDraft(answerDraftKey);
+    if (!draft) {
+      finishDraftLoad();
+      return;
+    }
+
+    const completedAtMs = initialAttempt?.completedAt
+      ? Date.parse(initialAttempt.completedAt)
+      : Number.NaN;
+    if (Number.isFinite(completedAtMs) && draft.savedAt <= completedAtMs) {
+      removePracticeAnswerDraft(answerDraftKey);
+      finishDraftLoad();
+      return;
+    }
+
+    const questionsById = new Map(mcQuestions.map((q) => [q.id, q]));
+    const nextMcSelections: Record<string, number> = {};
+    for (const [questionId, selectedIndex] of Object.entries(
+      draft.mcSelections,
+    )) {
+      const question = questionsById.get(questionId);
+      if (
+        question &&
+        Number.isInteger(selectedIndex) &&
+        selectedIndex >= 0 &&
+        selectedIndex < question.options.length
+      ) {
+        nextMcSelections[questionId] = selectedIndex;
+      }
+    }
+
+    const hasUsefulDraft =
+      Boolean(draft.answer.trim()) || Object.keys(nextMcSelections).length > 0;
+
+    setAnswer(draft.answer);
+    setMcSelections(nextMcSelections);
+    if (hasUsefulDraft) {
+      setSubmitted(false);
+      setAnswerDraftRestored(true);
+    }
+    finishDraftLoad();
+  }, [answerDraftKey, initialAttempt?.completedAt, mcQuestions]);
+
+  useEffect(() => {
+    if (loadedAnswerDraftKey !== answerDraftKey) return;
+    if (submitted) {
+      removePracticeAnswerDraft(answerDraftKey);
+      return;
+    }
+
+    const isEmptyDraft =
+      !answer.trim() && Object.keys(mcSelections).length === 0;
+    if (isEmptyDraft) {
+      removePracticeAnswerDraft(answerDraftKey);
+      return;
+    }
+
+    writePracticeAnswerDraft(answerDraftKey, {
+      version: PRACTICE_ANSWER_DRAFT_VERSION,
+      answer,
+      mcSelections,
+      savedAt: Date.now(),
+    });
+  }, [
+    answer,
+    answerDraftKey,
+    loadedAnswerDraftKey,
+    mcSelections,
+    submitted,
+  ]);
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -342,9 +485,10 @@ export default function SkillPracticeRunner({
                           <button
                             key={oi}
                             type="button"
-                            onClick={() =>
-                              setMcSelections((prev) => ({ ...prev, [q.id]: oi }))
-                            }
+                            onClick={() => {
+                              setMcSelections((prev) => ({ ...prev, [q.id]: oi }));
+                              setAnswerDraftRestored(false);
+                            }}
                             aria-pressed={isSelected}
                             className={`flex items-start gap-3 rounded-md border px-4 py-2.5 text-left text-sm transition-colors ${
                               isSelected
@@ -468,6 +612,7 @@ export default function SkillPracticeRunner({
             value={answer}
             onChange={(e) => {
               setAnswer(e.target.value);
+              setAnswerDraftRestored(false);
               if (submitted) setSubmitted(false);
             }}
             rows={9}
@@ -478,6 +623,11 @@ export default function SkillPracticeRunner({
             }
             className="mt-3 w-full resize-none rounded-md border border-(--color-line) bg-(--color-paper) px-4 py-3 text-base leading-relaxed text-(--color-ink) outline-none placeholder:text-(--color-muted) focus:border-(--color-teal)"
           />
+          {answerDraftRestored ? (
+            <p role="status" className="mt-2 text-xs text-(--color-teal)">
+              Draft jawaban terakhir dipulihkan dari perangkat ini.
+            </p>
+          ) : null}
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-(--color-muted)">
               {mcQuestions.length > 0 && !allMcAnswered
