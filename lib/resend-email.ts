@@ -19,7 +19,14 @@ function getResendApiKey(): string {
 }
 
 function getResendFrom(): string {
-  return process.env.RESEND_FROM?.trim() || "Akselerja <onboarding@resend.dev>";
+  const configured = process.env.RESEND_FROM?.trim();
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "RESEND_FROM belum dikonfigurasi. Set sender domain terverifikasi untuk produksi.",
+    );
+  }
+  return "Akselerja <onboarding@resend.dev>";
 }
 
 export function isResendConfigured(): boolean {
