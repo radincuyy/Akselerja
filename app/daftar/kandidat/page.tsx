@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Logo from "@/components/Logo";
-import KandidatSignupForm from "@/components/KandidatSignupForm";
+import Logo from "@/components/layout/Logo";
+import KandidatSignupForm from "@/components/auth/KandidatSignupForm";
 
 export default function DaftarKandidatPage() {
   return (

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import Logo from "@/components/Logo";
-import GoogleSignInButton from "@/components/GoogleSignInButton";
-import CredentialsLoginForm from "@/components/CredentialsLoginForm";
+import Logo from "@/components/layout/Logo";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
+import CredentialsLoginForm from "@/components/auth/CredentialsLoginForm";
 
 type SearchParams = Promise<{ reset?: string; error?: string; next?: string }>;
 

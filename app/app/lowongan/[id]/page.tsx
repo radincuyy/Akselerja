@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import ApplyButton from "@/components/ApplyButton";
-import CompanyLogo from "@/components/CompanyLogo";
-import LinkPendingIndicator from "@/components/LinkPendingIndicator";
-import ScoreDisplay from "@/components/ScoreDisplay";
+import ApplyButton from "@/components/jobs/ApplyButton";
+import CompanyLogo from "@/components/jobs/CompanyLogo";
+import LinkPendingIndicator from "@/components/ui/LinkPendingIndicator";
+import ScoreDisplay from "@/components/jobs/ScoreDisplay";
 import { skillById } from "@/lib/learning/skills";
 import { calcMatch } from "@/lib/jobs/match";
 import { buildMatchReason } from "@/lib/jobs/match-reason";

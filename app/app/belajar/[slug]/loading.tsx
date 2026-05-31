@@ -1,4 +1,4 @@
-import GenerationLoadingState from "@/components/GenerationLoadingState";
+import GenerationLoadingState from "@/components/belajar/GenerationLoadingState";
 
 export default function PracticeDetailLoading() {
   return (

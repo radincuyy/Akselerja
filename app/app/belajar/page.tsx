@@ -1,7 +1,7 @@
 import Link from "next/link";
-import PageHeader from "@/components/PageHeader";
-import Pagination from "@/components/Pagination";
-import LinkPendingIndicator from "@/components/LinkPendingIndicator";
+import PageHeader from "@/components/layout/PageHeader";
+import Pagination from "@/components/ui/Pagination";
+import LinkPendingIndicator from "@/components/ui/LinkPendingIndicator";
 import {
   listPracticeAttemptsForUser,
   type PracticeAttempt,

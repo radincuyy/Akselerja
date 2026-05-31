@@ -1,5 +1,5 @@
-import PageHeader from "@/components/PageHeader";
-import CoachChat from "@/components/CoachChat";
+import PageHeader from "@/components/layout/PageHeader";
+import CoachChat from "@/components/belajar/CoachChat";
 
 export const metadata = {
   title: "Coach · Akselerja",

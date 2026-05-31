@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import PasswordField from "@/components/PasswordField";
+import PasswordField from "@/components/auth/PasswordField";
 import { isPasswordValid, PASSWORD_RULE_ERROR } from "@/lib/auth/password-rules";
 import { confirmPasswordReset } from "@/lib/auth/password-reset-actions";
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import Nav from "./Nav";
-import Footer from "./Footer";
+import Nav from "../marketing/Nav";
+import Footer from "../marketing/Footer";
 
 type Props = {
   eyebrow: string;

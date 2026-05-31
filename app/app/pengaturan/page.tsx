@@ -1,5 +1,5 @@
-import PageHeader from "@/components/PageHeader";
-import DangerConfirmForm from "@/components/DangerConfirmForm";
+import PageHeader from "@/components/layout/PageHeader";
+import DangerConfirmForm from "@/components/profile/DangerConfirmForm";
 import { getCurrentCandidate } from "@/lib/profile/current-candidate";
 import { deleteCandidateAccount } from "@/lib/profile/profile-actions";
 

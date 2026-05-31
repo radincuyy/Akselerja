@@ -1,9 +1,9 @@
 import Link from "next/link";
-import PageHeader from "@/components/PageHeader";
-import JobCard from "@/components/JobCard";
-import JobSearchInput from "@/components/JobSearchInput";
-import JobFilterSheet from "@/components/JobFilterSheet";
-import Pagination from "@/components/Pagination";
+import PageHeader from "@/components/layout/PageHeader";
+import JobCard from "@/components/jobs/JobCard";
+import JobSearchInput from "@/components/jobs/JobSearchInput";
+import JobFilterSheet from "@/components/jobs/JobFilterSheet";
+import Pagination from "@/components/ui/Pagination";
 import { calcMatch } from "@/lib/jobs/match";
 import { buildMatchReason } from "@/lib/jobs/match-reason";
 import { listCityFacetsAsync } from "@/lib/jobs/search-store";

@@ -23,7 +23,7 @@ import {
   type SkillDraft,
 } from "@/lib/profile/profile-actions";
 import type { Candidate, JobType, WorkMode } from "@/lib/shared/types";
-import CvUploader from "@/components/CvUploader";
+import CvUploader from "@/components/profile/CvUploader";
 
 type SectionKey =
   | "personal"

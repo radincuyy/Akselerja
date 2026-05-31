@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import ProfileEditMount from "@/components/ProfileEditMount";
+import ProfileEditMount from "@/components/profile/ProfileEditMount";
 import { getProfileAsync } from "@/lib/profile/profile-store";
 import { requireUser } from "@/lib/auth/session";
 

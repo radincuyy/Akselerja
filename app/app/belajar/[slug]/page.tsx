@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import PageHeader from "@/components/PageHeader";
-import SkillPracticeRunner from "@/components/SkillPracticeRunner";
+import PageHeader from "@/components/layout/PageHeader";
+import SkillPracticeRunner from "@/components/belajar/SkillPracticeRunner";
 import { getLatestPracticeAttemptForUser } from "@/lib/learning/attempts-store";
 import { skillDisplayName } from "@/lib/learning/skills";
 import { getPracticeTaskBySlugAsync } from "@/lib/learning/practice-store";

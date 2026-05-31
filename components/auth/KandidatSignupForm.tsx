@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import PasswordField from "@/components/PasswordField";
+import PasswordField from "@/components/auth/PasswordField";
 import { signupWithEmailPassword } from "@/lib/auth/auth-actions";
 import { isPasswordValid, PASSWORD_RULE_ERROR } from "@/lib/auth/password-rules";
 import { loginWithEmailPassword } from "@/lib/auth/signin-actions";

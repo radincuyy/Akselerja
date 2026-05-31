@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import ResetPasswordForm from "@/components/ResetPasswordForm";
+import ResetPasswordForm from "@/components/auth/ResetPasswordForm";
 
 export const metadata = {
   title: "Atur password baru · Akselerja",

@@ -1,4 +1,4 @@
-import LegalLayout from "@/components/LegalLayout";
+import LegalLayout from "@/components/layout/LegalLayout";
 
 export const metadata = {
   title: "Kebijakan Data · Akselerja",
