@@ -61,16 +61,18 @@ describe("calcMatch", () => {
     expect(score).toBe(100);
   });
 
-  it("contributions sum to score (largest-remainder rounding)", () => {
+  it("breakdown contributions sum to the skill dimension contribution", () => {
     const candidate = buildCandidate(["a", "b"]);
     const job = buildJob([
       { skillId: "a", mustHave: true },
       { skillId: "b", mustHave: true },
       { skillId: "c", mustHave: true },
     ]);
-    const { score, breakdown } = calcMatch(candidate, job);
+    const { breakdown, dimensions } = calcMatch(candidate, job);
     const total = breakdown.reduce((sum, b) => sum + b.contribution, 0);
-    expect(total).toBe(score);
+    const skillContribution =
+      dimensions.find((d) => d.id === "skill")?.contribution ?? 0;
+    expect(total).toBe(skillContribution);
   });
 
   it("must-have requirements weigh more than nice-to-have", () => {
