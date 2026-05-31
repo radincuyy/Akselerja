@@ -99,6 +99,7 @@ export default async function SkillPracticePage({
           skillName={skillName}
           initialAttempt={latestAttempt}
           mcQuestions={mcQuestions}
+          mcGeneratedBy={checkpointSet.generatedBy}
           videos={videos}
           target={target}
         />

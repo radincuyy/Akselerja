@@ -42,6 +42,7 @@ type Props = {
     mcTotal?: number;
   } | null;
   mcQuestions?: ClientCheckpointQuestion[];
+  mcGeneratedBy?: "ai" | "fallback";
   videos?: YouTubeVideo[];
   target?: string;
 };
@@ -68,6 +69,7 @@ export default function SkillPracticeRunner({
   skillName,
   initialAttempt,
   mcQuestions = [],
+  mcGeneratedBy,
   videos = [],
   target,
 }: Props) {
@@ -258,6 +260,13 @@ export default function SkillPracticeRunner({
               {mcQuestions.length} soal pilihan ganda untuk pemanasan. Skor warmup
               menyumbang separuh dari nilai akhir.
             </p>
+            {mcGeneratedBy === "fallback" ? (
+              <p className="mt-3 rounded-md border border-(--color-line) bg-(--color-tint) p-3 text-xs leading-relaxed text-(--color-muted)">
+                Soal ini dibuat dari template umum karena penilai AI sedang
+                sibuk. Tetap berguna untuk latihan, tapi belum spesifik untuk
+                skill ini.
+              </p>
+            ) : null}
             <ol className="mt-5 space-y-5">
               {mcQuestions.map((q, qi) => {
                 const selected = mcSelections[q.id];
@@ -411,6 +420,15 @@ export default function SkillPracticeRunner({
                 ? `Skill ${skillName} sudah ditambahkan ke profil jika sebelumnya belum ada. Match score akan diperbarui saat halaman belajar atau lowongan dibuka ulang.`
                 : "Jawabanmu sudah tersimpan, tapi skor rubrik belum cukup untuk menambahkan skill ke profil. Edit jawaban untuk menaikkan bukti skill."}
             </p>
+
+            {serverResult?.gradedBy === "keyword" ? (
+              <p className="mt-4 rounded-md border border-(--color-line) bg-(--color-tint) p-3 text-xs leading-relaxed text-(--color-muted)">
+                Penilaian AI sedang tidak tersedia, jadi skor ini dihitung
+                dengan metode dasar berbasis kata kunci. Hasilnya tetap
+                tersimpan, tapi bisa kurang akurat. Coba nilai ulang nanti untuk
+                feedback yang lebih dalam.
+              </p>
+            ) : null}
 
             {serverResult?.feedback ? (
               <div className="mt-4 rounded-md border border-(--color-line) bg-(--color-paper) p-4">
