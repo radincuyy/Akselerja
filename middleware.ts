@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 const PROTECTED_API_PREFIX = "/api/";
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/test/"];
+const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/test/", "/api/health"];
 
 export default async function middleware(req: NextRequest) {
   const { nextUrl } = req;

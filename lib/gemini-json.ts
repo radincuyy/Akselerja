@@ -4,6 +4,7 @@ import {
   isQwenConfigured,
   shouldFallbackToQwen,
 } from "./qwen-client";
+import { isQuotaError, reserveGeminiCall } from "./ai-budget";
 
 const DEFAULT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-2.5-flash";
 
@@ -69,6 +70,7 @@ export async function generateGeminiJson<T = unknown>({
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
+      reserveGeminiCall();
       const response = await getClient().models.generateContent({
         model,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -97,12 +99,16 @@ export async function generateGeminiJson<T = unknown>({
       }
     } catch (error) {
       lastError = error;
+      if (isQuotaError(error)) break;
       if (attempt >= attempts - 1 || !shouldRetry(error)) break;
       await sleep(600 * (attempt + 1));
     }
   }
 
-  if (isQwenConfigured() && shouldFallbackToQwen(lastError)) {
+  if (
+    isQwenConfigured() &&
+    (isQuotaError(lastError) || shouldFallbackToQwen(lastError))
+  ) {
     console.warn(
       "[gemini-json] Gemini exhausted, failing over to Qwen:",
       String(lastError).slice(0, 160),

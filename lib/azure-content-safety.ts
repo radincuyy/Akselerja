@@ -73,6 +73,17 @@ export function shouldCheckGeneratedTextSafety(): boolean {
   return env("AZURE_CONTENT_SAFETY_CHECK_OUTPUT") === "1";
 }
 
+let _warnedUnconfigured = false;
+function warnUnconfiguredOnce(): void {
+  if (_warnedUnconfigured) return;
+  _warnedUnconfigured = true;
+  console.warn(
+    "[content-safety] AZURE_CONTENT_SAFETY_* not configured: moderation is " +
+      "DISABLED (fail-open). Coach input/output is not screened. Set the " +
+      "Content Safety env vars to enable.",
+  );
+}
+
 export async function analyzeTextSafety(
   text: string,
 ): Promise<ContentSafetyResult> {
@@ -87,6 +98,7 @@ export async function analyzeTextSafety(
   }
 
   if (!isContentSafetyConfigured()) {
+    warnUnconfiguredOnce();
     return {
       checked: false,
       allowed: true,
