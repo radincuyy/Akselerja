@@ -11,6 +11,11 @@ export type CheckpointQuestion = {
   explanation: string;
 };
 
+export type ClientCheckpointQuestion = Pick<
+  CheckpointQuestion,
+  "id" | "prompt" | "options"
+>;
+
 export type CheckpointSet = {
   skillId: string;
   skillName: string;
@@ -19,7 +24,7 @@ export type CheckpointSet = {
   generatedBy: "ai" | "fallback";
 };
 
-const CACHE_TTL_HOURS = 24;
+const CACHE_TTL_HOURS = 168;
 const CACHE_VERSION = "v3";
 const QUESTION_COUNT = 10;
 
@@ -31,11 +36,7 @@ function nameSlug(skillName: string): string {
     .slice(0, 40);
 }
 
-function cacheKey(
-  skillId: string,
-  skillName: string,
-  jobId?: string,
-): string {
+function cacheKey(skillId: string, skillName: string, jobId?: string): string {
   const jobPart = jobId ? `job-${jobId}` : "no-job";
   return `checkpoint:${CACHE_VERSION}:${skillId}:${nameSlug(skillName)}:${jobPart}`;
 }

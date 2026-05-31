@@ -10,7 +10,7 @@ import {
   levelFromPracticeScore,
 } from "@/lib/practice-grading";
 import type { PracticeTask } from "@/lib/types";
-import type { CheckpointQuestion } from "@/lib/checkpoint-generator";
+import type { ClientCheckpointQuestion } from "@/lib/checkpoint-generator";
 import type { YouTubeVideo } from "@/lib/youtube-search";
 
 type GradingResult = {
@@ -41,7 +41,7 @@ type Props = {
     mcCorrect?: number;
     mcTotal?: number;
   } | null;
-  mcQuestions?: CheckpointQuestion[];
+  mcQuestions?: ClientCheckpointQuestion[];
   videos?: YouTubeVideo[];
   target?: string;
 };

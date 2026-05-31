@@ -58,7 +58,11 @@ export default async function SkillPracticePage({
     }),
     getYouTubeMaterial(task.skillId, skillName),
   ]);
-  const mcQuestions = checkpointSet.questions.slice(0, 5);
+  const mcQuestions = checkpointSet.questions.slice(0, 5).map((q) => ({
+    id: q.id,
+    prompt: q.prompt,
+    options: q.options,
+  }));
   const eyebrow = targetJob
     ? `${targetJob.title} · ${skillName}`
     : `${task.role} · ${skillName}`;

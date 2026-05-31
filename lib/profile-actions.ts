@@ -110,7 +110,9 @@ function monthsBetween(startMonth?: string, endMonth?: string): number {
   if (!start) return 0;
   const end = endMonth ? parseMonth(endMonth) : new Date();
   if (!end) return 0;
-  const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  const months =
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    (end.getMonth() - start.getMonth());
   return Math.max(0, months);
 }
 
@@ -476,9 +478,7 @@ export type PersonalInput = {
   portfolio?: string;
 };
 
-export type SectionResult =
-  | { ok: true }
-  | { ok: false; error: string };
+export type SectionResult = { ok: true } | { ok: false; error: string };
 
 function failSection(errors: Record<string, string>): SectionResult {
   return {
@@ -694,7 +694,12 @@ export type AchievementDraft = {
 export async function saveAchievementSection(
   drafts: AchievementDraft[],
 ): Promise<SectionResult> {
-  const cleaned: { id: string; title: string; year: string; description?: string }[] = [];
+  const cleaned: {
+    id: string;
+    title: string;
+    year: string;
+    description?: string;
+  }[] = [];
   for (const d of drafts) {
     const title = d.title?.trim() ?? "";
     if (!title) continue;
@@ -740,10 +745,16 @@ export async function savePreferencesSection(
   draft: PreferencesDraft,
 ): Promise<SectionResult> {
   const errors: Record<string, string> = {};
-  if (!Array.isArray(draft.preferredJobTypes) || draft.preferredJobTypes.length === 0) {
+  if (
+    !Array.isArray(draft.preferredJobTypes) ||
+    draft.preferredJobTypes.length === 0
+  ) {
     errors.preferredJobTypes = "Pilih minimal satu tipe pekerjaan.";
   }
-  if (!Array.isArray(draft.preferredWorkModes) || draft.preferredWorkModes.length === 0) {
+  if (
+    !Array.isArray(draft.preferredWorkModes) ||
+    draft.preferredWorkModes.length === 0
+  ) {
     errors.preferredWorkModes = "Pilih minimal satu mode kerja.";
   }
   if (Object.keys(errors).length > 0) return failSection(errors);
@@ -792,8 +803,7 @@ export async function completeOnboarding(input: OnboardingInput) {
   const cv = input.cv;
   const cvPersonal = cv?.personal ?? {};
   const cvEmail = cvPersonal.email?.trim();
-  const resolvedEmail =
-    cvEmail && cvEmail.length > 0 ? cvEmail : accountEmail;
+  const resolvedEmail = cvEmail && cvEmail.length > 0 ? cvEmail : accountEmail;
   const resolvedName = cvPersonal.name?.trim() || accountName;
   const resolvedLocation = cvPersonal.location?.trim() || "";
   const resolvedBio = cvPersonal.bio?.trim() ?? "";
@@ -869,7 +879,7 @@ export async function completeOnboarding(input: OnboardingInput) {
     readinessScore: base.readinessScore ?? 0,
     preferredJobTypes: prefs.preferredJobTypes,
     preferredWorkModes: prefs.preferredWorkModes,
-    skills: skills.length > 0 ? skills : base.skills ?? [],
+    skills: skills.length > 0 ? skills : (base.skills ?? []),
     education: education.length > 0 ? education : base.education,
     experience: experience.length > 0 ? experience : base.experience,
     organizations:
@@ -1010,29 +1020,44 @@ export async function submitPracticeAttempt(input: {
         error: "Jawab semua soal pilihan ganda dulu sebelum mengirim.",
       };
     }
+    let set;
     try {
       const { getCheckpointSet } = await import("./checkpoint-generator");
-      const set = await getCheckpointSet(task.skillId, {
+      set = await getCheckpointSet(task.skillId, {
         skillName: resolvedSkillName,
         jobContext: targetJob ?? undefined,
       });
-      const warmup = set.questions.slice(0, input.mcAnswers.length);
-      const byId = new Map(warmup.map((q) => [q.id, q]));
-      let correct = 0;
-      for (const a of input.mcAnswers) {
-        const q = byId.get(a.questionId);
-        if (q && a.selectedIndex === q.correctIndex) correct++;
-      }
-      mcCorrect = correct;
-      mcTotal = warmup.length;
-      const mcScore = warmup.length > 0 ? (correct / warmup.length) * 100 : 0;
-      score = Math.round(score * 0.5 + mcScore * 0.5);
     } catch (err) {
-      console.warn(
-        "[practice] MC grading failed, falling back to essay only:",
+      console.error(
+        "[practice] checkpoint fetch failed during grading:",
         String(err).slice(0, 120),
       );
+      return {
+        ok: false,
+        error:
+          "Soal pemahaman belum bisa dinilai sekarang. Coba kirim lagi sebentar lagi.",
+      };
     }
+
+    const warmup = set.questions.slice(0, input.mcAnswers.length);
+    const byId = new Map(warmup.map((q) => [q.id, q]));
+    const stale = input.mcAnswers.some((a) => !byId.has(a.questionId));
+    if (stale) {
+      return {
+        ok: false,
+        error:
+          "Soal pemahaman sudah diperbarui sejak kamu membukanya. Muat ulang halaman lalu kerjakan lagi.",
+      };
+    }
+    let correct = 0;
+    for (const a of input.mcAnswers) {
+      const q = byId.get(a.questionId);
+      if (q && a.selectedIndex === q.correctIndex) correct++;
+    }
+    mcCorrect = correct;
+    mcTotal = warmup.length;
+    const mcScore = warmup.length > 0 ? (correct / warmup.length) * 100 : 0;
+    score = Math.round(score * 0.5 + mcScore * 0.5);
   }
 
   const attempt = await recordPracticeAttempt({
@@ -1052,12 +1077,9 @@ export async function submitPracticeAttempt(input: {
   });
 
   const readinessScoreChange = await recomputeReadinessScoreAsync(user.id);
-  revalidateTag(profileCacheTag(user.id));
+  revalidateProfileSurfaces(user.id, { embedding: true });
   revalidatePath("/app/belajar");
   revalidatePath("/app/belajar/[slug]", "page");
-  revalidatePath("/app/profil");
-  revalidatePath("/app/lowongan");
-  revalidatePath("/app");
 
   return {
     ok: true,
