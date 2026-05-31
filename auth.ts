@@ -17,7 +17,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = String(credentials?.email ?? "").trim().toLowerCase();
         const password = String(credentials?.password ?? "");
         if (!email || !password) return null;
-        const { verifyUserCredentials } = await import("./lib/user-store");
+        const { verifyUserCredentials } = await import("./lib/auth/user-store");
         const result = await verifyUserCredentials(email, password);
         if (!result.ok) return null;
         return {

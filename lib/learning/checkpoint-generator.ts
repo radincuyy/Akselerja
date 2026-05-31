@@ -1,7 +1,7 @@
-import { generateGeminiJson, isGeminiConfigured } from "./gemini-json";
+import { generateGeminiJson, isGeminiConfigured } from "../ai/gemini-json";
 import { skillById } from "./skills";
-import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
-import type { Job, Candidate } from "./types";
+import { CONTAINERS, getContainer, isCosmosConfigured } from "../infra/db";
+import type { Job, Candidate } from "../shared/types";
 
 export type CheckpointQuestion = {
   id: string;

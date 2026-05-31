@@ -2,8 +2,8 @@
 
 import { useEffect, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { skillById } from "@/lib/skills";
-import { formatPeriod } from "@/lib/profile-store";
+import { skillById } from "@/lib/learning/skills";
+import { formatPeriod } from "@/lib/profile/profile-store";
 import {
   saveAchievementSection,
   saveEducationSection,
@@ -21,8 +21,8 @@ import {
   type PreferencesDraft,
   type ProjectDraft,
   type SkillDraft,
-} from "@/lib/profile-actions";
-import type { Candidate, JobType, WorkMode } from "@/lib/types";
+} from "@/lib/profile/profile-actions";
+import type { Candidate, JobType, WorkMode } from "@/lib/shared/types";
 import CvUploader from "@/components/CvUploader";
 
 type SectionKey =

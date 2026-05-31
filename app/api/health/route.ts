@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { CONTAINERS, getContainer, isCosmosConfigured } from "@/lib/db";
-import { isBlobConfigured } from "@/lib/blob-store";
-import { isResendConfigured } from "@/lib/resend-email";
+import { CONTAINERS, getContainer, isCosmosConfigured } from "@/lib/infra/db";
+import { isBlobConfigured } from "@/lib/infra/blob-store";
+import { isResendConfigured } from "@/lib/email/resend-email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { skillById } from "./skills";
+import { skillById } from "../learning/skills";
 
 type ParsedSkill = {
   id: string;

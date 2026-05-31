@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import OnboardingFlow from "@/components/OnboardingFlow";
-import { requireUser } from "@/lib/session";
+import { requireUser } from "@/lib/auth/session";
 
 export default async function OnboardingPage() {
   await requireUser();

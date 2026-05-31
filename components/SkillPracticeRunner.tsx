@@ -3,15 +3,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { submitPracticeAttempt } from "@/lib/profile-actions";
+import { submitPracticeAttempt } from "@/lib/profile/profile-actions";
 import {
   calculatePracticeScore,
   gradePracticeAnswer,
   levelFromPracticeScore,
-} from "@/lib/practice-grading";
-import type { PracticeTask } from "@/lib/types";
-import type { ClientCheckpointQuestion } from "@/lib/checkpoint-generator";
-import type { YouTubeVideo } from "@/lib/youtube-search";
+} from "@/lib/learning/practice-grading";
+import type { PracticeTask } from "@/lib/shared/types";
+import type { ClientCheckpointQuestion } from "@/lib/learning/checkpoint-generator";
+import type { YouTubeVideo } from "@/lib/learning/youtube-search";
 
 type GradingResult = {
   score: number;

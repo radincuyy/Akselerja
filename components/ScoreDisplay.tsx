@@ -1,4 +1,4 @@
-import { scoreBandLabel, type ScoreAudience } from "@/lib/format";
+import { scoreBandLabel, type ScoreAudience } from "@/lib/shared/format";
 
 type Tone = "default" | "warning" | "low";
 

@@ -1,5 +1,5 @@
-import type { PracticeTask } from "./types";
-import { CONTAINERS, getContainer } from "./db";
+import type { PracticeTask } from "../shared/types";
+import { CONTAINERS, getContainer } from "../infra/db";
 import {
   getGeneratedPracticeTask,
   type PracticeJobContext,

@@ -1,4 +1,4 @@
-import type { PracticeRubricCriterion, PracticeTask } from "./types";
+import type { PracticeRubricCriterion, PracticeTask } from "../shared/types";
 
 export type CriterionResult = {
   criterion: PracticeRubricCriterion;

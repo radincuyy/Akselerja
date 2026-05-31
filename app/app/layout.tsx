@@ -1,5 +1,5 @@
 import AppShell from "@/components/AppShell";
-import { getCurrentCandidate } from "@/lib/current-candidate";
+import { getCurrentCandidate } from "@/lib/profile/current-candidate";
 
 export default async function CandidateAppLayout({
   children,

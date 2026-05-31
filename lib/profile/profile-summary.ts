@@ -1,10 +1,10 @@
 import { revalidateTag } from "next/cache";
-import type { Candidate } from "./types";
-import { embedText } from "./gemini-embed";
-import { embedTextQwen, isQwenConfigured, shouldFallbackToQwen } from "./qwen-client";
-import { CONTAINERS, getContainer } from "./db";
+import type { Candidate } from "../shared/types";
+import { embedText } from "../ai/gemini-embed";
+import { embedTextQwen, isQwenConfigured, shouldFallbackToQwen } from "../ai/qwen-client";
+import { CONTAINERS, getContainer } from "../infra/db";
 import { profileCacheTag } from "./profile-store";
-import { buildProfileEmbedText, categoryHintFromCandidate } from "./embed-text";
+import { buildProfileEmbedText, categoryHintFromCandidate } from "../ai/embed-text";
 
 export async function refreshProfileVector(userId: string): Promise<void> {
   const container = getContainer(CONTAINERS.candidates);

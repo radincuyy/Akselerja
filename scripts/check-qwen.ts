@@ -8,7 +8,7 @@ import {
   generateQwenChat,
   generateQwenJson,
   isQwenConfigured,
-} from "../lib/qwen-client";
+} from "../lib/ai/qwen-client";
 
 async function main() {
   console.log("--- Qwen API smoke test ---");

@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { searchJobs, hydrateJobs, type SearchJobsParams } from "./search-store";
 import { calcMatch } from "./match";
-import type { Candidate, Job } from "./types";
+import type { Candidate, Job } from "../shared/types";
 
 const CANDIDATE_POOL = 500;
 const CACHE_TTL_SECONDS = 60;

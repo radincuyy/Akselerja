@@ -1,8 +1,8 @@
 "use server";
 
-import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
+import { CONTAINERS, getContainer, isCosmosConfigured } from "../infra/db";
 import { skillById } from "./skills";
-import { mergeSkillsAsync } from "./profile-store";
+import { mergeSkillsAsync } from "../profile/profile-store";
 import { revalidateTag, unstable_cache } from "next/cache";
 
 export type PracticeCriterionResult = {

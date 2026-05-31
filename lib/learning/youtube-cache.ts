@@ -1,4 +1,4 @@
-import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
+import { CONTAINERS, getContainer, isCosmosConfigured } from "../infra/db";
 import { searchYouTubeVideos, type YouTubeVideo } from "./youtube-search";
 
 const CACHE_VERSION = "v2";

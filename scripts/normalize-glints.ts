@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { Job, JobType, SkillRequirement, WorkMode } from "../lib/types";
+import type { Job, JobType, SkillRequirement, WorkMode } from "../lib/shared/types";
 
 function deriveIndustryId(breadcrumb: string[] | undefined): string | null {
   if (!Array.isArray(breadcrumb) || breadcrumb.length === 0) return null;

@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "crypto";
-import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
+import { CONTAINERS, getContainer, isCosmosConfigured } from "../infra/db";
 
 type UserRecord = {
   id: string;

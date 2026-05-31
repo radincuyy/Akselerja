@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { signOut } from "@/auth";
-import { deleteBlob, isBlobConfigured, uploadCv } from "./blob-store";
+import { deleteBlob, isBlobConfigured, uploadCv } from "../infra/blob-store";
 import {
   deleteProfileAsync,
   getProfileAsync,
@@ -26,25 +26,25 @@ import {
   setSkillsAsync,
   updateProfileBasicAsync,
 } from "./profile-store";
-import { recordPracticeAttempt } from "./attempts-store";
-import { getPracticeTaskBySlugAsync } from "./practice-store";
-import { getJobByIdAsync } from "./jobs-store";
+import { recordPracticeAttempt } from "../learning/attempts-store";
+import { getPracticeTaskBySlugAsync } from "../learning/practice-store";
+import { getJobByIdAsync } from "../jobs/jobs-store";
 import { parseCv } from "./cv-parser";
 import {
   analyzeParsedCvWithLanguage,
   cvLanguageInsightNotes,
-} from "./azure-language";
-import { requireUser } from "./session";
-import { deleteUserById } from "./user-store";
+} from "../ai/azure-language";
+import { requireUser } from "../auth/session";
+import { deleteUserById } from "../auth/user-store";
 import { refreshProfileVector } from "./profile-summary";
-import { scheduleLearningPrewarmForProfile } from "./learning-prewarm";
+import { scheduleLearningPrewarmForProfile } from "../learning/learning-prewarm";
 import {
   calculatePracticeScore,
   gradePracticeAnswer,
   levelFromPracticeScore,
-} from "./practice-grading";
-import { gradePracticeAnswerWithAi } from "./practice-ai-grading";
-import { skillById, skillDisplayName } from "./skills";
+} from "../learning/practice-grading";
+import { gradePracticeAnswerWithAi } from "../learning/practice-ai-grading";
+import { skillById, skillDisplayName } from "../learning/skills";
 import type {
   Education,
   Experience,
@@ -53,7 +53,7 @@ import type {
   ProjectExperience,
   WorkMode,
   CvLanguageInsights,
-} from "./types";
+} from "../shared/types";
 
 function scheduleProfileEmbed(userId: string): void {
   after(async () => {
@@ -1023,7 +1023,7 @@ export async function submitPracticeAttempt(input: {
     }
     let set;
     try {
-      const { getCheckpointSet } = await import("./checkpoint-generator");
+      const { getCheckpointSet } = await import("../learning/checkpoint-generator");
       set = await getCheckpointSet(task.skillId, {
         skillName: resolvedSkillName,
         jobContext: targetJob ?? undefined,

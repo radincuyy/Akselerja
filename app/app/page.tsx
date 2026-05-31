@@ -1,10 +1,10 @@
 import Link from "next/link";
 import ScoreDisplay from "@/components/ScoreDisplay";
 import JobCard from "@/components/JobCard";
-import { buildMatchReason } from "@/lib/match-reason";
-import { rankCandidateJobs } from "@/lib/recommendations";
-import { getCurrentCandidate } from "@/lib/current-candidate";
-import type { Candidate } from "@/lib/types";
+import { buildMatchReason } from "@/lib/jobs/match-reason";
+import { rankCandidateJobs } from "@/lib/jobs/recommendations";
+import { getCurrentCandidate } from "@/lib/profile/current-candidate";
+import type { Candidate } from "@/lib/shared/types";
 
 const HOME_RECOMMENDATION_LIMIT = 12;
 

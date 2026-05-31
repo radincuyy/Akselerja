@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import ProfileEditMount from "@/components/ProfileEditMount";
-import { getProfileAsync } from "@/lib/profile-store";
-import { requireUser } from "@/lib/session";
+import { getProfileAsync } from "@/lib/profile/profile-store";
+import { requireUser } from "@/lib/auth/session";
 
 type SearchParams = Promise<{ saved?: string; cv?: string }>;
 

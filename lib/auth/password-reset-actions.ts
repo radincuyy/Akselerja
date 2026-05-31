@@ -6,7 +6,7 @@ import {
   createPasswordResetToken,
   resetUserPasswordWithToken,
 } from "./user-store";
-import { isResendConfigured, sendPasswordResetEmail } from "./resend-email";
+import { isResendConfigured, sendPasswordResetEmail } from "../email/resend-email";
 import { checkRateLimit } from "./rate-limit";
 
 const RESET_TOKEN_TTL_MINUTES = 30;

@@ -16,7 +16,7 @@ const COSMOS_KEY = process.env.COSMOS_KEY!;
 const COSMOS_DATABASE = process.env.COSMOS_DATABASE ?? "akselerja";
 
 async function main() {
-  const { refreshProfileVector } = await import("../lib/profile-summary");
+  const { refreshProfileVector } = await import("../lib/profile/profile-summary");
 
   const cosmos = new CosmosClient({
     endpoint: COSMOS_ENDPOINT,

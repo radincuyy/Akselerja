@@ -4,12 +4,12 @@ import JobCard from "@/components/JobCard";
 import JobSearchInput from "@/components/JobSearchInput";
 import JobFilterSheet from "@/components/JobFilterSheet";
 import Pagination from "@/components/Pagination";
-import { calcMatch } from "@/lib/match";
-import { buildMatchReason } from "@/lib/match-reason";
-import { listCityFacetsAsync } from "@/lib/search-store";
-import { rankedJobsSlice } from "@/lib/ranked-jobs";
-import { getCurrentCandidate } from "@/lib/current-candidate";
-import { expandIndustryGroups } from "@/lib/preferences-options";
+import { calcMatch } from "@/lib/jobs/match";
+import { buildMatchReason } from "@/lib/jobs/match-reason";
+import { listCityFacetsAsync } from "@/lib/jobs/search-store";
+import { rankedJobsSlice } from "@/lib/jobs/ranked-jobs";
+import { getCurrentCandidate } from "@/lib/profile/current-candidate";
+import { expandIndustryGroups } from "@/lib/shared/preferences-options";
 
 type SearchParams = Promise<{
   lokasi?: string;

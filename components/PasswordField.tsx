@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getPasswordChecks, isPasswordValid } from "@/lib/password-rules";
+import { getPasswordChecks, isPasswordValid } from "@/lib/auth/password-rules";
 
 type PasswordFieldProps = {
   id: string;

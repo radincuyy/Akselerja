@@ -1,12 +1,12 @@
-import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
-import { generateGeminiJson, isGeminiConfigured } from "./gemini-json";
+import { CONTAINERS, getContainer, isCosmosConfigured } from "../infra/db";
+import { generateGeminiJson, isGeminiConfigured } from "../ai/gemini-json";
 import {
   formatSkkniReferences,
   searchSkkniReferences,
   type SkkniReference,
 } from "./skkni-search";
 import { skillById } from "./skills";
-import type { PracticeRubricCriterion, PracticeTask } from "./types";
+import type { PracticeRubricCriterion, PracticeTask } from "../shared/types";
 
 const CACHE_VERSION = "v4-job-aware";
 const DEFAULT_CACHE_TTL_HOURS = 168;

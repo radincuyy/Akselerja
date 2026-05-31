@@ -6,8 +6,8 @@ import {
   discardCvPreview,
   uploadCvForReview,
   type ParsedCvPreview,
-} from "@/lib/profile-actions";
-import type { CvFile } from "@/lib/types";
+} from "@/lib/profile/profile-actions";
+import type { CvFile } from "@/lib/shared/types";
 
 type Props = {
   currentCv?: CvFile;

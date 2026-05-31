@@ -73,7 +73,7 @@ function shortCity(location: string): string {
 
 async function main() {
   console.log(`Sync target index: ${INDEX_NAME}`);
-  const { slugifyCompany } = await import("../lib/jobs-store");
+  const { slugifyCompany } = await import("../lib/jobs/jobs-store");
 
   const cosmos = new CosmosClient({
     endpoint: COSMOS_ENDPOINT!,

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Logo from "./Logo";
-import type { CurrentUser } from "@/lib/session";
-import type { Candidate } from "@/lib/types";
+import type { CurrentUser } from "@/lib/auth/session";
+import type { Candidate } from "@/lib/shared/types";
 
 type NavItem = {
   href: string;

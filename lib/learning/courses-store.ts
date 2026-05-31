@@ -1,6 +1,6 @@
-import type { Course } from "./types";
-import { CONTAINERS, getContainer } from "./db";
-import { embedText } from "./gemini-embed";
+import type { Course } from "../shared/types";
+import { CONTAINERS, getContainer } from "../infra/db";
+import { embedText } from "../ai/gemini-embed";
 import { skillById } from "./skills";
 import { unstable_cache } from "next/cache";
 

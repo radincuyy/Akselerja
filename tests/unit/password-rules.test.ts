@@ -3,7 +3,7 @@ import {
   getPasswordChecks,
   isPasswordValid,
   PASSWORD_RULE_ERROR,
-} from "@/lib/password-rules";
+} from "@/lib/auth/password-rules";
 
 describe("password-rules", () => {
   it("rejects short passwords", () => {

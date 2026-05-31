@@ -4,9 +4,9 @@ import { config } from "dotenv";
 import { readFile, writeFile, access, mkdir } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { createHash } from "node:crypto";
-import { embedText } from "../lib/gemini-embed";
-import { buildJobEmbedText, categoryHintFromJob } from "../lib/embed-text";
-import type { Job } from "../lib/types";
+import { embedText } from "../lib/ai/gemini-embed";
+import { buildJobEmbedText, categoryHintFromJob } from "../lib/ai/embed-text";
+import type { Job } from "../lib/shared/types";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 

@@ -4,8 +4,8 @@ import { useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PasswordField from "@/components/PasswordField";
-import { isPasswordValid, PASSWORD_RULE_ERROR } from "@/lib/password-rules";
-import { confirmPasswordReset } from "@/lib/password-reset-actions";
+import { isPasswordValid, PASSWORD_RULE_ERROR } from "@/lib/auth/password-rules";
+import { confirmPasswordReset } from "@/lib/auth/password-reset-actions";
 
 export default function ResetPasswordForm() {
   const router = useRouter();

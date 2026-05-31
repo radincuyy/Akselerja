@@ -10,7 +10,7 @@ import { CosmosClient } from "@azure/cosmos";
 import { config } from "dotenv";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { Job } from "../lib/types";
+import type { Job } from "../lib/shared/types";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 

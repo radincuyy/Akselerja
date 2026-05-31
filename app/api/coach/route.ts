@@ -1,24 +1,24 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { auth } from "@/auth";
-import { getProfileAsync } from "@/lib/profile-store";
-import { rankCandidateJobs } from "@/lib/recommendations";
-import { calcMatch } from "@/lib/match";
-import { skillById } from "@/lib/skills";
-import { findCoursesForGapsAsync } from "@/lib/courses-store";
-import { listPracticeTasksAsync } from "@/lib/practice-store";
+import { getProfileAsync } from "@/lib/profile/profile-store";
+import { rankCandidateJobs } from "@/lib/jobs/recommendations";
+import { calcMatch } from "@/lib/jobs/match";
+import { skillById } from "@/lib/learning/skills";
+import { findCoursesForGapsAsync } from "@/lib/learning/courses-store";
+import { listPracticeTasksAsync } from "@/lib/learning/practice-store";
 import {
   analyzeTextSafety,
   contentSafetyBlockedMessage,
   shouldCheckGeneratedTextSafety,
-} from "@/lib/azure-content-safety";
+} from "@/lib/ai/azure-content-safety";
 import {
   generateQwenChat,
   isQwenConfigured,
   shouldFallbackToQwen,
   type QwenMessage,
-} from "@/lib/qwen-client";
-import type { Candidate, Course, Job, PracticeTask } from "@/lib/types";
+} from "@/lib/ai/qwen-client";
+import type { Candidate, Course, Job, PracticeTask } from "@/lib/shared/types";
 
 export const runtime = "nodejs";
 

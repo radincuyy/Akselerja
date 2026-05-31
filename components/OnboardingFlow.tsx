@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   completeOnboarding,
   uploadCvForReview,
-} from "@/lib/profile-actions";
+} from "@/lib/profile/profile-actions";
 import type {
   OnboardingPreferencesInput,
-} from "@/lib/profile-actions";
-import type { JobType, WorkMode } from "@/lib/types";
+} from "@/lib/profile/profile-actions";
+import type { JobType, WorkMode } from "@/lib/shared/types";
 
 type Step = "preferences" | "cv";
 

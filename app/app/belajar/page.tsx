@@ -5,20 +5,20 @@ import LinkPendingIndicator from "@/components/LinkPendingIndicator";
 import {
   listPracticeAttemptsForUser,
   type PracticeAttempt,
-} from "@/lib/attempts-store";
-import { calcMatch } from "@/lib/match";
-import { rankCandidateJobs } from "@/lib/recommendations";
-import { readCachedGapExplanations } from "@/lib/gap-explain";
-import { getCurrentCandidate } from "@/lib/current-candidate";
+} from "@/lib/learning/attempts-store";
+import { calcMatch } from "@/lib/jobs/match";
+import { rankCandidateJobs } from "@/lib/jobs/recommendations";
+import { readCachedGapExplanations } from "@/lib/learning/gap-explain";
+import { getCurrentCandidate } from "@/lib/profile/current-candidate";
 import {
   getGeneratedPracticeTask,
   type PracticeJobContext,
-} from "@/lib/practice-generation";
-import { listPracticeTasksAsync } from "@/lib/practice-store";
-import { getJobByIdAsync } from "@/lib/jobs-store";
-import { skillById } from "@/lib/skills";
-import { scoreBandLabel } from "@/lib/format";
-import type { Job, PracticeTask } from "@/lib/types";
+} from "@/lib/learning/practice-generation";
+import { listPracticeTasksAsync } from "@/lib/learning/practice-store";
+import { getJobByIdAsync } from "@/lib/jobs/jobs-store";
+import { skillById } from "@/lib/learning/skills";
+import { scoreBandLabel } from "@/lib/shared/format";
+import type { Job, PracticeTask } from "@/lib/shared/types";
 
 type SearchParams = Promise<{
   target?: string;

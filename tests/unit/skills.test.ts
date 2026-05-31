@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { skillById } from "@/lib/skills";
+import { skillById } from "@/lib/learning/skills";
 
 describe("skillById", () => {
   it("indexes skills by id", () => {

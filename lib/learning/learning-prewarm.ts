@@ -1,8 +1,8 @@
 import { after } from "next/server";
 import { getGeneratedPracticeTask } from "./practice-generation";
-import { rankCandidateJobs } from "./recommendations";
+import { rankCandidateJobs } from "../jobs/recommendations";
 import { skillById } from "./skills";
-import type { Candidate } from "./types";
+import type { Candidate } from "../shared/types";
 
 const PREWARM_SKILL_LIMIT = 2;
 

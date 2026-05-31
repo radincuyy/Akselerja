@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPasswordResetEmailHtml } from "@/lib/resend-email";
+import { buildPasswordResetEmailHtml } from "@/lib/email/resend-email";
 
 describe("resend-email", () => {
   it("renders a branded password reset email", () => {

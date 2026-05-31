@@ -1,7 +1,7 @@
 import PageHeader from "@/components/PageHeader";
 import DangerConfirmForm from "@/components/DangerConfirmForm";
-import { getCurrentCandidate } from "@/lib/current-candidate";
-import { deleteCandidateAccount } from "@/lib/profile-actions";
+import { getCurrentCandidate } from "@/lib/profile/current-candidate";
+import { deleteCandidateAccount } from "@/lib/profile/profile-actions";
 
 export default async function PengaturanPage() {
   const { profile } = await getCurrentCandidate();

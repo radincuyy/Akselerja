@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithGoogle } from "@/lib/signin-actions";
+import { signInWithGoogle } from "@/lib/auth/signin-actions";
 
 export default function GoogleSignInButton() {
   const [loading, setLoading] = useState(false);

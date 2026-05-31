@@ -1,8 +1,8 @@
 import { CosmosClient } from "@azure/cosmos";
 import { config } from "dotenv";
 import { resolve } from "path";
-import { classifySkillTrack } from "../lib/skill-track";
-import type { Course } from "../lib/types";
+import { classifySkillTrack } from "../lib/learning/skill-track";
+import type { Course } from "../lib/shared/types";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 

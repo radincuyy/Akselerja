@@ -4,8 +4,8 @@ import {
   gradePracticeAnswer,
   levelFromPracticeScore,
   scoreCriterion,
-} from "@/lib/practice-grading";
-import type { PracticeRubricCriterion, PracticeTask } from "@/lib/types";
+} from "@/lib/learning/practice-grading";
+import type { PracticeRubricCriterion, PracticeTask } from "@/lib/shared/types";
 
 const criterion: PracticeRubricCriterion = {
   id: "c1",

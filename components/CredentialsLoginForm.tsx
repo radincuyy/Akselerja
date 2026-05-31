@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import PasswordField from "@/components/PasswordField";
-import { loginWithEmailPassword } from "@/lib/signin-actions";
+import { loginWithEmailPassword } from "@/lib/auth/signin-actions";
 
 type Props = {
   callbackUrl?: string;

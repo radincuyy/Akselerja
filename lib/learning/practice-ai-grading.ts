@@ -1,5 +1,5 @@
-import { generateGeminiJson } from "./gemini-json";
-import type { PracticeRubricCriterion, PracticeTask } from "./types";
+import { generateGeminiJson } from "../ai/gemini-json";
+import type { PracticeRubricCriterion, PracticeTask } from "../shared/types";
 
 export type AiCriterionResult = {
   criterion: PracticeRubricCriterion;

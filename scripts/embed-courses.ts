@@ -11,7 +11,7 @@
 import { CosmosClient } from "@azure/cosmos";
 import { config } from "dotenv";
 import { resolve } from "path";
-import { embedText } from "../lib/gemini-embed";
+import { embedText } from "../lib/ai/gemini-embed";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 

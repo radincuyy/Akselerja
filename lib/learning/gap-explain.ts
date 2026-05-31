@@ -1,13 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
-import { CONTAINERS, getContainer, isCosmosConfigured } from "./db";
+import { CONTAINERS, getContainer, isCosmosConfigured } from "../infra/db";
 import {
   generateQwenChat,
   isQwenConfigured,
   shouldFallbackToQwen,
-} from "./qwen-client";
+} from "../ai/qwen-client";
 import { formatSkkniReferences, searchSkkniReferences } from "./skkni-search";
 import { skillById } from "./skills";
-import type { Job } from "./types";
+import type { Job } from "../shared/types";
 
 const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-2.5-flash";
 const CACHE_VERSION = "v2-skkni";

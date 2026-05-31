@@ -2,7 +2,7 @@ import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import type { DefaultSession } from "next-auth";
 import { revalidateTag } from "next/cache";
-import { migrateProfileIdAsync, profileCacheTag } from "./lib/profile-store";
+import { migrateProfileIdAsync, profileCacheTag } from "./lib/profile/profile-store";
 
 declare module "next-auth" {
   interface Session {
@@ -65,7 +65,7 @@ export const authConfig = {
           typeof user.email === "string"
         ) {
           try {
-            const { getPasswordUpdatedAtMs } = await import("./lib/user-store");
+            const { getPasswordUpdatedAtMs } = await import("./lib/auth/user-store");
             token.pwc = (await getPasswordUpdatedAtMs(user.email)) ?? 0;
           } catch {
             token.pwc = 0;
@@ -81,7 +81,7 @@ export const authConfig = {
           typeof token.pwcCheckedAt === "number" ? token.pwcCheckedAt : 0;
         if (Date.now() - lastCheck >= RECHECK_MS) {
           try {
-            const { getPasswordUpdatedAtMs } = await import("./lib/user-store");
+            const { getPasswordUpdatedAtMs } = await import("./lib/auth/user-store");
             const current = (await getPasswordUpdatedAtMs(token.email)) ?? 0;
             const stamped = typeof token.pwc === "number" ? token.pwc : 0;
             if (current > stamped) {

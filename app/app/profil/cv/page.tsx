@@ -1,6 +1,6 @@
 import Link from "next/link";
 import CvUploader from "@/components/CvUploader";
-import { getCurrentCandidate } from "@/lib/current-candidate";
+import { getCurrentCandidate } from "@/lib/profile/current-candidate";
 
 export default async function UpdateCvPage() {
   const { profile } = await getCurrentCandidate();

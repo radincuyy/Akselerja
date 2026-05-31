@@ -5,12 +5,12 @@ import ApplyButton from "@/components/ApplyButton";
 import CompanyLogo from "@/components/CompanyLogo";
 import LinkPendingIndicator from "@/components/LinkPendingIndicator";
 import ScoreDisplay from "@/components/ScoreDisplay";
-import { skillById } from "@/lib/skills";
-import { calcMatch } from "@/lib/match";
-import { buildMatchReason } from "@/lib/match-reason";
-import { formatIdr, formatRelativeId } from "@/lib/format";
-import { getJobByIdAsync } from "@/lib/jobs-store";
-import { getCurrentCandidate } from "@/lib/current-candidate";
+import { skillById } from "@/lib/learning/skills";
+import { calcMatch } from "@/lib/jobs/match";
+import { buildMatchReason } from "@/lib/jobs/match-reason";
+import { formatIdr, formatRelativeId } from "@/lib/shared/format";
+import { getJobByIdAsync } from "@/lib/jobs/jobs-store";
+import { getCurrentCandidate } from "@/lib/profile/current-candidate";
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ c?: string }>;

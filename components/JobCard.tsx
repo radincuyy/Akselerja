@@ -1,6 +1,6 @@
 import Link from "next/link";
-import type { Job } from "@/lib/types";
-import { formatIdr, scoreBandLabel } from "@/lib/format";
+import type { Job } from "@/lib/shared/types";
+import { formatIdr, scoreBandLabel } from "@/lib/shared/format";
 import CompanyLogo from "@/components/CompanyLogo";
 
 type Props = {

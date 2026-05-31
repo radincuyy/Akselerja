@@ -6,9 +6,9 @@ import type {
   Experience,
   OrganizationExperience,
   ProjectExperience,
-} from "./types";
+} from "../shared/types";
 import { unstable_cache } from "next/cache";
-import { CONTAINERS, getContainer } from "./db";
+import { CONTAINERS, getContainer } from "../infra/db";
 
 type CandidateSkill = Candidate["skills"][number];
 

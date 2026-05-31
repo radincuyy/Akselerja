@@ -1,6 +1,6 @@
 import { SearchClient, AzureKeyCredential } from "@azure/search-documents";
 import { unstable_cache } from "next/cache";
-import type { Job } from "./types";
+import type { Job } from "../shared/types";
 import { getJobsByIdsAsync, listJobsAsync } from "./jobs-store";
 
 const ENDPOINT = process.env.AZURE_SEARCH_ENDPOINT;

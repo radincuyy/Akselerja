@@ -2,9 +2,9 @@
 
 import { useEffect, useId, useState } from "react";
 import PasswordField from "@/components/PasswordField";
-import { signupWithEmailPassword } from "@/lib/auth-actions";
-import { isPasswordValid, PASSWORD_RULE_ERROR } from "@/lib/password-rules";
-import { loginWithEmailPassword } from "@/lib/signin-actions";
+import { signupWithEmailPassword } from "@/lib/auth/auth-actions";
+import { isPasswordValid, PASSWORD_RULE_ERROR } from "@/lib/auth/password-rules";
+import { loginWithEmailPassword } from "@/lib/auth/signin-actions";
 
 export default function KandidatSignupForm() {
   const emailId = useId();

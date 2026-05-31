@@ -1,4 +1,4 @@
-import type { Candidate, Job } from "./types";
+import type { Candidate, Job } from "../shared/types";
 import { calcMatch, type MatchResult } from "./match";
 import { searchJobs, type SearchJobsResult } from "./search-store";
 

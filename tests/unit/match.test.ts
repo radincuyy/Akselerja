@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { calcMatch } from "@/lib/match";
-import type { Candidate, Job } from "@/lib/types";
+import { calcMatch } from "@/lib/jobs/match";
+import type { Candidate, Job } from "@/lib/shared/types";
 
 function buildCandidate(skillIds: string[]): Candidate {
   return {

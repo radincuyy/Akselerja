@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import Link from "next/link";
-import { requestPasswordReset } from "@/lib/password-reset-actions";
+import { requestPasswordReset } from "@/lib/auth/password-reset-actions";
 
 export default function LupaPasswordPage() {
   const emailId = useId();

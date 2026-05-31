@@ -1,4 +1,4 @@
-import type { Candidate, Job } from "./types";
+import type { Candidate, Job } from "../shared/types";
 import type { MatchResult } from "./match";
 
 export type MatchReason = {

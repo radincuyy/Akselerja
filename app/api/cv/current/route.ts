@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { downloadBlobToBuffer, isBlobConfigured } from "@/lib/blob-store";
-import { getProfileAsync } from "@/lib/profile-store";
+import { downloadBlobToBuffer, isBlobConfigured } from "@/lib/infra/blob-store";
+import { getProfileAsync } from "@/lib/profile/profile-store";
 
 export const runtime = "nodejs";
 

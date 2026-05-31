@@ -8,7 +8,7 @@ import {
   useTransition,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { INDUSTRY_OPTIONS } from "@/lib/preferences-options";
+import { INDUSTRY_OPTIONS } from "@/lib/shared/preferences-options";
 
 type CityFacet = { value: string; count: number };
 

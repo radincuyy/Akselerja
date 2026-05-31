@@ -1,5 +1,5 @@
-import type { Candidate, Job, SkillRequirement } from "./types";
-import { skillById } from "./skills";
+import type { Candidate, Job, SkillRequirement } from "../shared/types";
+import { skillById } from "../learning/skills";
 
 type SkillState = "match" | "missing";
 

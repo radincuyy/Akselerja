@@ -1,5 +1,5 @@
-import { skillById } from "./skills";
-import type { Job, Candidate } from "./types";
+import { skillById } from "../learning/skills";
+import type { Job, Candidate } from "../shared/types";
 
 const BOILERPLATE_RE =
   /\b(BPJS\s*(kesehatan|ketenagakerjaan|ketenagakerja)?|THR|tunjangan hari raya|cuti tahunan|cuti bersama|gaji pokok|tunjangan(?: makan| transportasi| jabatan)?|kompensasi|benefit|bonus(?: kpi| tahunan| serah terima)?|fresh graduate|kemampuan komunikasi(?: yang baik)?|mampu bekerja(?: di bawah tekanan| dalam tim| individu maupun dalam tim)?|fast learner|easy going|target oriented|hard working|disiplin(?: tinggi)?|jujur(?: dan bertanggung jawab)?|teliti(?: dan rapi)?|pekerja keras|kualifikasi(?: dan persyaratan)?|persyaratan(?: umum)?|nilai tambah|nice to have|kondisi kerja|jam kerja|hari kerja|domisili|D3 segala jurusan|S1 segala jurusan|minimal D3|minimal S1|minimal SMA|minimal SMK|terbuka untuk(?: fresh graduate)?|silahkan melamar|tertarik(?: untuk melamar)?|melamar segera|gaji tidak ditampilkan|gaji kompetitif|UMR|UMUT|UMK|loyal|memiliki laptop|memiliki kendaraan|memiliki sim|sim a|sim b|sim c)\b/gi;

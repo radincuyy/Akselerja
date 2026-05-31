@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { getProfileAsync } from "@/lib/profile-store";
-import { requireUser, type CurrentUser } from "@/lib/session";
-import type { Candidate } from "@/lib/types";
+import { getProfileAsync } from "@/lib/profile/profile-store";
+import { requireUser, type CurrentUser } from "@/lib/auth/session";
+import type { Candidate } from "@/lib/shared/types";
 
 export type CurrentCandidate = {
   user: CurrentUser;

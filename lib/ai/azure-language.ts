@@ -1,5 +1,5 @@
-import type { ParsedCv } from "./cv-parser";
-import type { CvLanguageEntity, CvLanguageInsights } from "./types";
+import type { ParsedCv } from "../profile/cv-parser";
+import type { CvLanguageEntity, CvLanguageInsights } from "../shared/types";
 
 const DEFAULT_API_VERSION = "2024-11-01";
 const DEFAULT_MAX_CV_TEXT_CHARS = 4500;

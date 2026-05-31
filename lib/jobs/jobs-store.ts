@@ -1,6 +1,6 @@
-import type { Job } from "./types";
+import type { Job } from "../shared/types";
 import { unstable_cache } from "next/cache";
-import { CONTAINERS, getContainer } from "./db";
+import { CONTAINERS, getContainer } from "../infra/db";
 
 export const JOB_CACHE_TAG = "jobs";
 
