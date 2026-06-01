@@ -82,7 +82,7 @@ async function generatePriorityPracticeTasks(
   );
   const tasks = await Promise.all(
     uniqueSkillIds.map((skillId) =>
-      getGeneratedPracticeTask(skillId, jobContext),
+      getGeneratedPracticeTask(skillId, jobContext, { forceCacheOnly: true }),
     ),
   );
   return tasks.filter((task): task is PracticeTask => Boolean(task));
@@ -365,9 +365,10 @@ export default async function BelajarPage({
                 </Link>
                 <Link
                   href={focusHref}
-                  className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
                 >
                   Mulai dari {skillName(focusGap.skillId, focusGap.name)}
+                  <LinkPendingIndicator />
                 </Link>
               </>
             ) : (
@@ -808,11 +809,12 @@ function RoadmapCard({ step, index }: { step: RoadmapStep; index: number }) {
               isCompleted
                 ? "inline-flex items-center justify-center gap-2 rounded-md border border-(--color-signal-green) bg-(--color-paper) px-4 py-2 text-sm font-semibold text-(--color-signal-green) hover:border-(--color-teal) hover:text-(--color-teal)"
                 : isFinal
-                  ? "inline-flex items-center justify-center rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
-                  : "inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
+                  ? "inline-flex items-center justify-center gap-2 rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep)"
+                  : "inline-flex items-center justify-center gap-2 rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-teal) hover:text-(--color-teal)"
             }
           >
             {step.action}
+            <LinkPendingIndicator />
           </Link>
         ) : (
           <span
