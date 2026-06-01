@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { skillById } from "../learning/skills";
+import { shouldFallbackToQwen, generateQwenJson } from "../ai/qwen-client";
 
 type ParsedSkill = {
   id: string;
@@ -332,19 +333,27 @@ Output JSON sesuai schema.`;
     const status = (err as { status?: number })?.status;
     const raw = String(err);
     if (status === 429 && /limit: 0/.test(raw)) {
-      throw new Error(
+      const newErr = new Error(
         "Kuota Gemini di API key ini = 0. Buat API key baru di aistudio.google.com (project default-nya otomatis ada free tier).",
       );
+      (newErr as any).status = 429;
+      throw newErr;
     }
     if (status === 429) {
-      throw new Error(
+      const newErr = new Error(
         "Kuota Gemini terlampaui. Tunggu beberapa detik lalu coba lagi.",
       );
+      (newErr as any).status = 429;
+      throw newErr;
     }
     throw err;
   }
 
   const raw = response.text ?? "{}";
+  return mapParsedCv(raw);
+};
+
+function mapParsedCv(rawJsonText: string): ParsedCv {
   let parsed: {
     skills?: string[];
     education?: Array<{
@@ -361,9 +370,10 @@ Output JSON sesuai schema.`;
       endMonth?: string;
       duties?: string;
     }>;
+    personal?: Record<string, unknown>;
   };
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(rawJsonText);
   } catch {
     throw new Error("Parser AI mengembalikan respon tidak valid.");
   }
@@ -444,9 +454,7 @@ Output JSON sesuai schema.`;
 
   const taxonomyHits = skills.filter((s) => skillById[s.id]).length;
 
-  const rawPersonal = ((parsed as { personal?: unknown }).personal ?? {}) as
-    | Record<string, unknown>
-    | undefined;
+  const rawPersonal = (parsed.personal ?? {}) as Record<string, unknown> | undefined;
   const personal: ParsedPersonal = {
     name: rawPersonal?.name ? String(rawPersonal.name).trim() : undefined,
     email: rawPersonal?.email
@@ -486,6 +494,125 @@ Output JSON sesuai schema.`;
       `Pendidikan terdeteksi: ${education.length}. Pengalaman kerja: ${experience.length}. Pengalaman organisasi: ${organizations.length}. Proyek: ${projects.length}.`,
     ],
   };
+}
+
+const qwenEngine: CvParserEngine = async (input) => {
+  const key = process.env.QWEN_API_KEY;
+  if (!key) {
+    throw new Error("QWEN_API_KEY tidak terkonfigurasi.");
+  }
+  const model = process.env.QWEN_CV_MODEL ?? process.env.QWEN_CHAT_MODEL ?? "qwen-plus";
+
+  const prompt = `Kamu adalah parser CV untuk job board Indonesia. Tugas:
+ekstrak data identitas kandidat, skill (hard + soft + tools), riwayat
+pendidikan, pengalaman kerja, pengalaman organisasi, dan proyek.
+
+Aturan data identitas (personal):
+- "name" = nama lengkap kandidat seperti tertulis di header CV.
+- "email" = alamat email pribadi yang tertulis di CV (kosongkan kalau
+  tidak ada).
+- "phone" = nomor telepon dalam format yang tertulis di CV.
+- "location" = nama kota tempat tinggal saja (mis. "Jakarta Selatan",
+  "Surabaya"). Jangan masukkan provinsi atau alamat lengkap.
+- "linkedin", "github", "portfolio" = URL lengkap kalau disebut di CV.
+- "bio" = ringkasan profil dari section "About Me", "Profile", atau
+  "Summary". Salin apa adanya, jangan dipotong. Maksimal 2000 karakter.
+  Kalau CV tidak punya summary, kosongkan.
+- Field yang tidak ada di CV → kosongkan (jangan menebak).
+
+Aturan skill:
+- Pecah skill umbrella jadi item terpisah. Kalau CV menulis "Pemrograman
+  (Java, Python, C++)", kembalikan 4 item: "Pemrograman", "Java",
+  "Python", "C++". Kalau CV menulis "Pengembangan Web (HTML, CSS,
+  JavaScript, React)", kembalikan 5 item: "Pengembangan Web", "HTML",
+  "CSS", "JavaScript", "React". Hapus tanda kurung dari nama skill.
+- Kembalikan nama skill apa adanya seperti yang tertulis di CV. Boleh Bahasa
+  Indonesia atau Bahasa Inggris, sesuai aslinya. Jangan terjemahkan.
+- Pakai bentuk standar: "Microsoft Excel", "JavaScript", "Komunikasi".
+- Maksimal 100 skill, prioritaskan yang paling jelas didukung isi CV.
+- Hanya skill yang benar-benar disebut atau jelas tersirat. Jangan menebak.
+
+Aturan pendidikan, pengalaman, organisasi, dan proyek:
+- startMonth dan endMonth pakai format "YYYY-MM" (mis. "2022-09"). Kalau
+  hanya ada tahun tanpa bulan, pakai bulan 01 atau 12 sesuai konteks
+  (start = bulan paling awal yang mungkin, end = bulan terakhir).
+- Kalau pekerjaan/pendidikan/organisasi/proyek masih berjalan, kosongkan
+  endMonth.
+- Untuk pendidikan, "degree" = jenjang + jurusan kalau ada (mis. "S1
+  Teknik Informatika"). "institution" = nama sekolah/universitas.
+- Untuk pengalaman kerja (experience), masukkan posisi yang dibayar:
+  pekerjaan tetap, kontrak, magang berbayar, freelance. "position" = jabatan,
+  "company" = perusahaan, "duties" = ringkasan tanggung jawab dalam 1-2
+  kalimat.
+- Untuk pengalaman organisasi (organizations), masukkan kepengurusan
+  organisasi mahasiswa, komunitas, BEM/HIMA, kepanitiaan, kegiatan
+  kerelawanan, atau ekstrakurikuler. JANGAN masukkan ke experience.
+  "role" = jabatan (mis. "Ketua", "Bendahara"), "organization" = nama
+  organisasi.
+- Untuk proyek (projects), masukkan proyek kuliah, proyek pribadi,
+  hackathon, kontribusi open source, atau karya yang berdiri sendiri.
+  JANGAN masukkan ke experience. "title" = judul proyek, "context" =
+  konteks singkat (mis. "Tugas akhir", "Hackathon Kemenpora 2024",
+  "Proyek pribadi"), "link" = URL kalau ada.
+- Untuk prestasi (achievements), masukkan penghargaan, juara lomba,
+  beasiswa, sertifikat kompetisi, atau pencapaian akademik/profesional
+  yang bisa diverifikasi. Section di CV biasanya bernama "Achievements",
+  "Awards", "Prestasi", atau "Penghargaan". JANGAN masukkan sertifikasi
+  rutin (mis. TOEFL, AWS Certified) ke prestasi. "title" = nama prestasi
+  (mis. "Juara 1 Hackathon Kemenpora"), "year" = tahun atau periode
+  (mis. "2024"), "description" = ringkasan singkat (boleh kosong).
+- Tidak ada data → kembalikan array kosong. Jangan menebak.
+
+Kembalikan format JSON objek dengan struktur properti:
+- personal (object dengan properties: name, email, phone, location, linkedin, github, portfolio, bio)
+- skills (array of string)
+- education (array of object: institution, degree, startMonth, endMonth, notes. institution & degree required)
+- experience (array of object: position, company, startMonth, endMonth, duties. position & company required)
+- organizations (array of object: role, organization, startMonth, endMonth, duties. role & organization required)
+- projects (array of object: title, context, startMonth, endMonth, duties, link. title required)
+- achievements (array of object: title, year, description. title & year required)
+
+Output wajib berupa JSON objek saja.`;
+
+  let cvText = "";
+  if (
+    input.contentType === "text/plain" ||
+    input.filename.toLowerCase().endsWith(".txt")
+  ) {
+    cvText = input.buffer.toString("utf-8");
+  } else if (
+    input.contentType === "application/pdf" ||
+    input.filename.toLowerCase().endsWith(".pdf")
+  ) {
+    try {
+      const pdf = require("pdf-parse");
+      const data = await pdf(new Uint8Array(input.buffer));
+      cvText = data.text;
+    } catch (pdfErr) {
+      console.warn("[cv-parser] Gagal mengekstrak teks PDF secara lokal, menggunakan string mentah:", pdfErr);
+      cvText = input.buffer.toString("utf-8");
+    }
+  } else {
+    cvText = input.buffer.toString("utf-8");
+  }
+
+  if (!cvText.trim()) {
+    throw new Error("Dokumen CV kosong atau tidak memiliki teks yang terbaca.");
+  }
+
+  const rawObj = await generateQwenJson<any>({
+    prompt: `Berikut adalah isi teks dari dokumen CV kandidat:\n\n${cvText}\n\nSilakan lakukan ekstraksi terstruktur sesuai aturan system.`,
+    systemInstruction: prompt,
+    model,
+  });
+
+  const parsedCv = mapParsedCv(JSON.stringify(rawObj));
+
+  parsedCv.notes.push(
+    "[Layanan Cadangan] CV diproses menggunakan model cadangan Qwen dengan ekstraksi teks lokal karena layanan utama (Gemini) sedang mengalami kendala kuota."
+  );
+
+  return parsedCv;
 };
 
 export async function parseCv(input: CvParseInput): Promise<ParsedCv> {
@@ -493,6 +620,21 @@ export async function parseCv(input: CvParseInput): Promise<ParsedCv> {
     return await geminiEngine(input);
   } catch (err) {
     console.error("[cv-parser] Gemini threw:", err);
+
+    if (shouldFallbackToQwen(err)) {
+      console.log("[cv-parser] Gemini quota/error detected, falling back to Qwen...");
+      try {
+        return await qwenEngine(input);
+      } catch (qwenErr) {
+        console.error("[cv-parser] Qwen fallback also threw:", qwenErr);
+        throw new Error(
+          qwenErr instanceof Error
+            ? `Fallback Qwen gagal: ${qwenErr.message}`
+            : "Parser CV gagal pada Gemini dan Qwen."
+        );
+      }
+    }
+
     throw new Error(
       err instanceof Error
         ? err.message
@@ -500,3 +642,8 @@ export async function parseCv(input: CvParseInput): Promise<ParsedCv> {
     );
   }
 }
+
+export const _test = {
+  qwenEngine,
+  mapParsedCv,
+};
