@@ -7,17 +7,22 @@ import {
 const CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT;
 const ACCOUNT_KEY = process.env.AZURE_STORAGE_KEY;
-const CONTAINER_NAME =
+const CV_CONTAINER_NAME =
   process.env.AZURE_STORAGE_CV_CONTAINER ??
   process.env.BLOB_CONTAINER_CV ??
   "cvs";
+const PRACTICE_CONTAINER_NAME =
+  process.env.AZURE_STORAGE_PRACTICE_CONTAINER ??
+  process.env.BLOB_CONTAINER_PRACTICE ??
+  "practice-evidence";
 
 export function isBlobConfigured(): boolean {
   return Boolean(CONNECTION_STRING || (ACCOUNT_NAME && ACCOUNT_KEY));
 }
 
 let _service: BlobServiceClient | null = null;
-let _container: ContainerClient | null = null;
+const _containers = new Map<string, ContainerClient>();
+const _ensuredContainers = new Set<string>();
 
 function getService(): BlobServiceClient {
   if (_service) return _service;
@@ -37,10 +42,12 @@ function getService(): BlobServiceClient {
   return _service;
 }
 
-function getContainer(): ContainerClient {
-  if (_container) return _container;
-  _container = getService().getContainerClient(CONTAINER_NAME);
-  return _container;
+function getStorageContainer(containerName: string): ContainerClient {
+  const existing = _containers.get(containerName);
+  if (existing) return existing;
+  const container = getService().getContainerClient(containerName);
+  _containers.set(containerName, container);
+  return container;
 }
 
 function sanitizeFilename(name: string): string {
@@ -58,19 +65,29 @@ export type UploadCvResult = {
   sizeBytes: number;
 };
 
-export async function uploadCv(
+async function uploadToContainer(
+  containerName: string,
+  folder: string,
   data: Buffer | ArrayBuffer | Uint8Array,
   originalFilename: string,
-  userId: string,
   contentType: string,
+  options: { ensureContainer?: boolean } = {},
 ): Promise<UploadCvResult> {
   if (!isBlobConfigured()) {
     throw new Error("Blob storage is not configured");
   }
-  const container = getContainer();
+  const container = getStorageContainer(containerName);
+  if (options.ensureContainer && !_ensuredContainers.has(containerName)) {
+    await container.createIfNotExists({ access: undefined });
+    _ensuredContainers.add(containerName);
+  }
   const ts = Date.now();
   const safeName = sanitizeFilename(originalFilename);
-  const blobName = `${userId}/${ts}-${safeName}`;
+  const safeFolder = folder
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  const blobName = `${safeFolder}/${ts}-${safeName}`;
   const blockBlob = container.getBlockBlobClient(blobName);
 
   const buffer =
@@ -93,9 +110,40 @@ export async function uploadCv(
   };
 }
 
+export async function uploadCv(
+  data: Buffer | ArrayBuffer | Uint8Array,
+  originalFilename: string,
+  userId: string,
+  contentType: string,
+): Promise<UploadCvResult> {
+  return uploadToContainer(
+    CV_CONTAINER_NAME,
+    userId,
+    data,
+    originalFilename,
+    contentType,
+  );
+}
+
+export async function uploadPracticeEvidence(
+  data: Buffer | ArrayBuffer | Uint8Array,
+  originalFilename: string,
+  userId: string,
+  contentType: string,
+): Promise<UploadCvResult> {
+  return uploadToContainer(
+    PRACTICE_CONTAINER_NAME,
+    userId,
+    data,
+    originalFilename,
+    contentType,
+    { ensureContainer: true },
+  );
+}
+
 export async function deleteBlob(blobName: string): Promise<void> {
   if (!isBlobConfigured()) return;
-  const container = getContainer();
+  const container = getStorageContainer(CV_CONTAINER_NAME);
   try {
     await container.getBlockBlobClient(blobName).deleteIfExists();
   } catch {
@@ -111,7 +159,7 @@ export async function downloadBlobToBuffer(blobName: string): Promise<{
   if (!isBlobConfigured()) {
     throw new Error("Blob storage is not configured");
   }
-  const container = getContainer();
+  const container = getStorageContainer(CV_CONTAINER_NAME);
   const blob = container.getBlobClient(blobName);
   const buffer = await blob.downloadToBuffer();
   const properties = await blob.getProperties();

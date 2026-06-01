@@ -42,6 +42,9 @@ const nextConfig = {
   },
   experimental: {
     optimizePackageImports: ["@azure/cosmos", "@azure/search-documents"],
+    serverActions: {
+      bodySizeLimit: "700kb",
+    },
   },
   images: {
     remotePatterns: [

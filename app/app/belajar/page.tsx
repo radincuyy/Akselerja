@@ -110,9 +110,7 @@ function buildRoadmap(
     (task) =>
       targetSkillIds.has(task.skillId) && latestAttemptByTaskId.has(task.id),
   );
-  const completedSkillIds = new Set(
-    completedTasks.map((task) => task.skillId),
-  );
+  const completedSkillIds = new Set(completedTasks.map((task) => task.skillId));
   const openGaps = gaps.filter((gap) => !completedSkillIds.has(gap.skillId));
 
   if (gaps.length === 0 && completedTasks.length === 0) {
@@ -133,8 +131,7 @@ function buildRoadmap(
 
   const labels: string[] = [];
 
-  const completedSteps: RoadmapStep[] = completedTasks
-    .map((task, idx) => {
+  const completedSteps: RoadmapStep[] = completedTasks.map((task, idx) => {
     const attempt = latestAttemptByTaskId.get(task.id);
     const name = skillName(task.skillId);
     return {
@@ -156,32 +153,29 @@ function buildRoadmap(
     };
   });
 
-  const gapSteps: RoadmapStep[] = openGaps
-    .map((gap, offset) => {
-      const idx = completedSteps.length + offset;
-      const name = skillName(gap.skillId, gap.name);
-      const practice = practiceTasks.find(
-        (task) => task.skillId === gap.skillId,
-      );
-      const ragBody = explanations.get(gap.skillId);
+  const gapSteps: RoadmapStep[] = openGaps.map((gap, offset) => {
+    const idx = completedSteps.length + offset;
+    const name = skillName(gap.skillId, gap.name);
+    const practice = practiceTasks.find((task) => task.skillId === gap.skillId);
+    const ragBody = explanations.get(gap.skillId);
 
-      const fallbackBody = `Tonton materi video, kerjakan pilihan ganda, lalu tulis jawaban kasus untuk ${name}. Hasilnya jadi bukti skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
-      return {
-        label: labels[idx] ?? `Step ${idx + 1}`,
-        title: `Pelajari ${name}`,
-        body: practice?.scenario ?? ragBody ?? fallbackBody,
-        evidence:
-          practice?.expectedEvidence?.[0] ??
-          `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
-        action: "Mulai belajar",
-        href: practice
-          ? `/app/belajar/${practice.slug}${targetSuffix}`
-          : `/app/belajar/latihan-praktik-${gap.skillId}${targetSuffix}`,
-        skillId: gap.skillId,
-        skillLabel: name,
-        estimatedMinutes: practice?.estimatedMinutes,
-      };
-    });
+    const fallbackBody = `Tonton materi video, kerjakan pilihan ganda, lalu tulis jawaban kasus untuk ${name}. Hasilnya jadi bukti skill ini bisa ditambahkan ke profil setelah skornya cukup.`;
+    return {
+      label: labels[idx] ?? `Step ${idx + 1}`,
+      title: `Pelajari ${name}`,
+      body: practice?.scenario ?? ragBody ?? fallbackBody,
+      evidence:
+        practice?.expectedEvidence?.[0] ??
+        `Bisa menjelaskan minimal satu kasus konkret dari ${name} dan apa hasilnya.`,
+      action: "Mulai belajar",
+      href: practice
+        ? `/app/belajar/${practice.slug}${targetSuffix}`
+        : `/app/belajar/latihan-praktik-${gap.skillId}${targetSuffix}`,
+      skillId: gap.skillId,
+      skillLabel: name,
+      estimatedMinutes: practice?.estimatedMinutes,
+    };
+  });
 
   const hasOpenGaps = openGaps.length > 0;
   const steps: RoadmapStep[] = [...completedSteps, ...gapSteps];
@@ -257,7 +251,12 @@ export default async function BelajarPage({
   }
 
   const overrideJob = ranked.find((r) => r.job.id === target);
-  let top: { job: typeof ranked[number]["job"]; score: number; breakdown: typeof ranked[number]["breakdown"]; dimensions: typeof ranked[number]["dimensions"] };
+  let top: {
+    job: (typeof ranked)[number]["job"];
+    score: number;
+    breakdown: (typeof ranked)[number]["breakdown"];
+    dimensions: (typeof ranked)[number]["dimensions"];
+  };
   if (overrideJob) {
     top = overrideJob;
   } else {
@@ -301,11 +300,11 @@ export default async function BelajarPage({
   };
   const [explanations, generatedPracticeTasks] = await Promise.all([
     readCachedGapExplanations({
-        job: targetJob,
-        gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
-        candidateSkillIds: me.skills.map((s) => s.skillId),
-        limit: 4,
-      }),
+      job: targetJob,
+      gaps: gaps.map((g) => ({ skillId: g.skillId, name: g.name })),
+      candidateSkillIds: me.skills.map((s) => s.skillId),
+      limit: 4,
+    }),
     generatePriorityPracticeTasks(priorityPracticeSkillIds, practiceJobContext),
   ]);
   const practiceTasks = [...generatedPracticeTasks, ...basePracticeTasks];
@@ -504,8 +503,8 @@ export default async function BelajarPage({
             Roadmap belajar
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-(--color-muted)">
-            Setiap langkah punya bukti yang bisa kamu pakai untuk update
-            profil dan menjelaskan kesiapan ke HR.
+            Setiap langkah punya bukti yang bisa kamu pakai untuk update profil
+            dan menjelaskan kesiapan ke HR.
           </p>
           <p className="mt-2 text-sm text-(--color-muted)">
             <strong className="font-semibold text-(--color-ink)">
@@ -590,34 +589,37 @@ function TargetPicker({
         </div>
       ) : null}
 
-      <section className="mt-10" aria-labelledby="picker-heading">
+      <section
+        className="mt-10 min-w-0 max-w-full"
+        aria-labelledby="picker-heading"
+      >
         <h2
           id="picker-heading"
           className="text-sm font-medium uppercase tracking-wider text-(--color-muted)"
         >
           Lowongan rekomendasi
         </h2>
-        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        <ul className="mt-4 grid min-w-0 max-w-full grid-cols-1 gap-3 sm:grid-cols-2">
           {candidates.map(({ job, score, missingCount, totalSkills }) => (
-            <li key={job.id}>
+            <li key={job.id} className="min-w-0">
               <Link
                 href={belajarHref({ target: job.id })}
-                className="group flex h-full flex-col rounded-lg border border-(--color-line) bg-(--color-paper) p-5 transition-colors hover:border-(--color-teal)"
+                className="group flex h-full min-w-0 max-w-full flex-col overflow-hidden rounded-lg border border-(--color-line) bg-(--color-paper) p-4 transition-colors hover:border-(--color-teal) sm:p-5"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="truncate text-base font-semibold text-(--color-ink) group-hover:text-(--color-teal)">
+                    <h3 className="text-base font-semibold leading-snug text-(--color-ink) [overflow-wrap:anywhere] group-hover:text-(--color-teal)">
                       {job.title}
                     </h3>
-                    <p className="mt-0.5 truncate text-sm text-(--color-muted)">
+                    <p className="mt-1 text-sm leading-relaxed text-(--color-muted) [overflow-wrap:anywhere]">
                       {job.company} · {job.location}
                     </p>
                   </div>
-                  <span className="shrink-0 text-base font-semibold tabular-nums text-(--color-teal)">
+                  <span className="shrink-0 text-xl font-semibold tabular-nums text-(--color-teal)">
                     {score}%
                   </span>
                 </div>
-                <p className="mt-4 text-sm leading-relaxed text-(--color-muted)">
+                <p className="mt-4 text-sm leading-relaxed text-(--color-muted) [overflow-wrap:anywhere]">
                   {missingCount === 0
                     ? `Semua ${totalSkills} skill sudah ada di profilmu. Tinggal lamar.`
                     : `${missingCount} dari ${totalSkills} skill perlu ditutup. Roadmap akan fokus ke gap itu.`}
@@ -635,13 +637,7 @@ function TargetPicker({
   );
 }
 
-function RoadmapCard({
-  step,
-  index,
-}: {
-  step: RoadmapStep;
-  index: number;
-}) {
+function RoadmapCard({ step, index }: { step: RoadmapStep; index: number }) {
   const isLocked = Boolean(step.locked);
   const isCompleted = Boolean(step.completed);
   const isFinal = Boolean(step.isFinal);
@@ -684,7 +680,13 @@ function RoadmapCard({
               : "text-(--color-signal-green)"
           }`}
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden
+          >
             {step.passed === false ? (
               <path
                 d="M3 7.5 6 4l3 3.5M6 4v6"
@@ -713,7 +715,13 @@ function RoadmapCard({
         </span>
       ) : step.allClear ? (
         <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-(--color-tint) px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-(--color-signal-green)">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden
+          >
             <path
               d="M2.5 6.5 5 9l4.5-5.5"
               stroke="currentColor"
@@ -726,7 +734,13 @@ function RoadmapCard({
         </span>
       ) : isLocked ? (
         <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-(--color-paper) px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-(--color-muted)">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden
+          >
             <path
               d="M3.5 5.5V4a2.5 2.5 0 0 1 5 0v1.5M3 5.5h6v4.5H3z"
               stroke="currentColor"
@@ -756,8 +770,20 @@ function RoadmapCard({
 
       {step.estimatedMinutes && !isCompleted && !isLocked ? (
         <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-(--color-muted)">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4" />
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden
+          >
+            <circle
+              cx="6"
+              cy="6"
+              r="4.5"
+              stroke="currentColor"
+              strokeWidth="1.4"
+            />
             <path
               d="M6 3.5V6l1.6 1"
               stroke="currentColor"

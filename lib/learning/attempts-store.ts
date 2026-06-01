@@ -4,6 +4,7 @@ import { CONTAINERS, getContainer, isCosmosConfigured } from "../infra/db";
 import { skillById } from "./skills";
 import { mergeSkillsAsync } from "../profile/profile-store";
 import { revalidateTag, unstable_cache } from "next/cache";
+import type { PracticeEvidenceFile } from "../shared/types";
 
 export type PracticeCriterionResult = {
   id: string;
@@ -23,6 +24,7 @@ export type PracticeAttempt = {
   score: number;
   passed: boolean;
   answer: string;
+  evidenceFile?: PracticeEvidenceFile;
   completedAt: string;
   feedback?: string;
   gradedBy?: "ai" | "keyword";
@@ -50,6 +52,7 @@ export type RecordPracticeAttemptInput = {
   skillName?: string;
   score: number;
   answer: string;
+  evidenceFile?: PracticeEvidenceFile;
   feedback?: string;
   gradedBy?: "ai" | "keyword";
   perCriterion?: PracticeCriterionResult[];
@@ -76,6 +79,7 @@ export async function recordPracticeAttempt(
     score: input.score,
     passed,
     answer: input.answer,
+    evidenceFile: input.evidenceFile,
     completedAt: new Date().toISOString(),
     feedback: input.feedback,
     gradedBy: input.gradedBy,

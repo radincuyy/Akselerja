@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { submitPracticeAttempt } from "@/lib/profile/profile-actions";
 import {
   calculatePracticeScore,
   gradePracticeAnswer,
   levelFromPracticeScore,
 } from "@/lib/learning/practice-grading";
-import type { PracticeTask } from "@/lib/shared/types";
+import {
+  EXCEL_PRACTICE_MAX_BYTES,
+  formatPracticeFileSize,
+  isExcelPracticeSubmission,
+  resolvePracticeSubmission,
+} from "@/lib/learning/practice-submission";
+import type { PracticeEvidenceFile, PracticeTask } from "@/lib/shared/types";
 import type { ClientCheckpointQuestion } from "@/lib/learning/checkpoint-generator";
 import type { YouTubeVideo } from "@/lib/learning/youtube-search";
 
@@ -20,6 +26,7 @@ type GradingResult = {
   perCriterion: { id: string; name: string; score: number; feedback: string }[];
   mcCorrect?: number;
   mcTotal?: number;
+  evidenceFile?: PracticeEvidenceFile;
 };
 
 type Props = {
@@ -40,11 +47,31 @@ type Props = {
     }[];
     mcCorrect?: number;
     mcTotal?: number;
+    evidenceFile?: PracticeEvidenceFile;
   } | null;
   mcQuestions?: ClientCheckpointQuestion[];
   mcGeneratedBy?: "ai" | "fallback";
   videos?: YouTubeVideo[];
   target?: string;
+};
+
+const EMPTY_MC_QUESTIONS: ClientCheckpointQuestion[] = [];
+const PRACTICE_ANSWER_DRAFT_VERSION = 1;
+const PRACTICE_TIMER_DRAFT_VERSION = 1;
+
+type PracticeAnswerDraft = {
+  version: typeof PRACTICE_ANSWER_DRAFT_VERSION;
+  answer: string;
+  mcSelections: Record<string, number>;
+  savedAt: number;
+};
+
+type PracticeTimerDraft = {
+  version: typeof PRACTICE_TIMER_DRAFT_VERSION;
+  durationMinutes: number;
+  secondsLeft: number;
+  timerRunning: boolean;
+  savedAt: number;
 };
 
 function typeLabel(type: PracticeTask["type"]): string {
@@ -64,11 +91,119 @@ function formatDuration(seconds: number | undefined): string {
   return `${h}:${String(mm).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function practiceAnswerDraftKey(taskSlug: string, target?: string): string {
+  return `akselerja:practice-answer-draft:${taskSlug}:${target ?? "default"}`;
+}
+
+function readPracticeAnswerDraft(key: string): PracticeAnswerDraft | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PracticeAnswerDraft>;
+    if (parsed.version !== PRACTICE_ANSWER_DRAFT_VERSION) return null;
+    if (typeof parsed.answer !== "string") return null;
+    if (!parsed.mcSelections || typeof parsed.mcSelections !== "object") {
+      return null;
+    }
+    if (typeof parsed.savedAt !== "number") return null;
+    return {
+      version: PRACTICE_ANSWER_DRAFT_VERSION,
+      answer: parsed.answer,
+      mcSelections: parsed.mcSelections as Record<string, number>,
+      savedAt: parsed.savedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePracticeAnswerDraft(key: string, draft: PracticeAnswerDraft) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(draft));
+  } catch {
+    // localStorage can be unavailable or full; losing a draft should not block practice.
+  }
+}
+
+function removePracticeAnswerDraft(key: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function practiceTimerDraftKey(taskSlug: string, target?: string): string {
+  return `akselerja:practice-timer-draft:${taskSlug}:${target ?? "default"}`;
+}
+
+function clampDurationMinutes(value: number, fallback: number): number {
+  const safeFallback = Number.isFinite(fallback) ? fallback : 30;
+  const safeValue = Number.isFinite(value) ? value : safeFallback;
+  return Math.min(120, Math.max(1, Math.round(safeValue)));
+}
+
+function clampSecondsLeft(value: number, durationMinutes: number): number {
+  const maxSeconds = clampDurationMinutes(durationMinutes, 30) * 60;
+  const safeValue = Number.isFinite(value) ? value : maxSeconds;
+  return Math.min(maxSeconds, Math.max(0, Math.floor(safeValue)));
+}
+
+function readPracticeTimerDraft(key: string): PracticeTimerDraft | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PracticeTimerDraft>;
+    if (parsed.version !== PRACTICE_TIMER_DRAFT_VERSION) return null;
+    if (
+      typeof parsed.durationMinutes !== "number" ||
+      typeof parsed.secondsLeft !== "number" ||
+      typeof parsed.timerRunning !== "boolean" ||
+      typeof parsed.savedAt !== "number"
+    ) {
+      return null;
+    }
+    return {
+      version: PRACTICE_TIMER_DRAFT_VERSION,
+      durationMinutes: parsed.durationMinutes,
+      secondsLeft: parsed.secondsLeft,
+      timerRunning: parsed.timerRunning,
+      savedAt: parsed.savedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePracticeTimerDraft(key: string, draft: PracticeTimerDraft) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(draft));
+  } catch {
+    // localStorage can be unavailable or full; losing timer state should not block practice.
+  }
+}
+
+function removePracticeTimerDraft(key: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
 export default function SkillPracticeRunner({
   task,
   skillName,
   initialAttempt,
-  mcQuestions = [],
+  mcQuestions = EMPTY_MC_QUESTIONS,
   mcGeneratedBy,
   videos = [],
   target,
@@ -78,12 +213,27 @@ export default function SkillPracticeRunner({
   const [completedAt, setCompletedAt] = useState(
     initialAttempt?.completedAt ?? "",
   );
-  const [durationMinutes, setDurationMinutes] = useState(task.estimatedMinutes);
-  const [secondsLeft, setSecondsLeft] = useState(task.estimatedMinutes * 60);
+  const [durationMinutes, setDurationMinutes] = useState(
+    clampDurationMinutes(task.estimatedMinutes, 30),
+  );
+  const [secondsLeft, setSecondsLeft] = useState(
+    clampDurationMinutes(task.estimatedMinutes, 30) * 60,
+  );
   const [timerRunning, setTimerRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [mcSelections, setMcSelections] = useState<Record<string, number>>({});
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [loadedAnswerDraftKey, setLoadedAnswerDraftKey] = useState<
+    string | null
+  >(null);
+  const [answerDraftRestored, setAnswerDraftRestored] = useState(false);
+  const [loadedTimerDraftKey, setLoadedTimerDraftKey] = useState<string | null>(
+    null,
+  );
+  const [timerDraftRestored, setTimerDraftRestored] = useState(false);
   const [serverResult, setServerResult] = useState<GradingResult | null>(
     initialAttempt
       ? {
@@ -93,8 +243,19 @@ export default function SkillPracticeRunner({
           perCriterion: initialAttempt.perCriterion ?? [],
           mcCorrect: initialAttempt.mcCorrect,
           mcTotal: initialAttempt.mcTotal,
+          evidenceFile: initialAttempt.evidenceFile,
         }
       : null,
+  );
+  const submission = useMemo(() => resolvePracticeSubmission(task), [task]);
+  const requiresExcelFile = isExcelPracticeSubmission(submission);
+  const answerDraftKey = useMemo(
+    () => practiceAnswerDraftKey(task.slug, target),
+    [target, task.slug],
+  );
+  const timerDraftKey = useMemo(
+    () => practiceTimerDraftKey(task.slug, target),
+    [target, task.slug],
   );
 
   const localResults = useMemo(
@@ -135,6 +296,177 @@ export default function SkillPracticeRunner({
     (q) => typeof mcSelections[q.id] === "number",
   );
   const mcRemaining = mcQuestions.length - Object.keys(mcSelections).length;
+  const maxEvidenceBytes = requiresExcelFile
+    ? (submission.maxFileSizeBytes ?? EXCEL_PRACTICE_MAX_BYTES)
+    : EXCEL_PRACTICE_MAX_BYTES;
+  const canSubmit =
+    Boolean(answer.trim()) &&
+    !pending &&
+    (mcQuestions.length === 0 || allMcAnswered) &&
+    (!requiresExcelFile || Boolean(evidenceFile));
+
+  useEffect(() => {
+    setLoadedAnswerDraftKey(null);
+    setAnswerDraftRestored(false);
+
+    function finishDraftLoad() {
+      setLoadedAnswerDraftKey(answerDraftKey);
+    }
+
+    const draft = readPracticeAnswerDraft(answerDraftKey);
+    if (!draft) {
+      finishDraftLoad();
+      return;
+    }
+
+    const completedAtMs = initialAttempt?.completedAt
+      ? Date.parse(initialAttempt.completedAt)
+      : Number.NaN;
+    if (Number.isFinite(completedAtMs) && draft.savedAt <= completedAtMs) {
+      removePracticeAnswerDraft(answerDraftKey);
+      finishDraftLoad();
+      return;
+    }
+
+    const questionsById = new Map(mcQuestions.map((q) => [q.id, q]));
+    const nextMcSelections: Record<string, number> = {};
+    for (const [questionId, selectedIndex] of Object.entries(
+      draft.mcSelections,
+    )) {
+      const question = questionsById.get(questionId);
+      if (
+        question &&
+        Number.isInteger(selectedIndex) &&
+        selectedIndex >= 0 &&
+        selectedIndex < question.options.length
+      ) {
+        nextMcSelections[questionId] = selectedIndex;
+      }
+    }
+
+    const hasUsefulDraft =
+      Boolean(draft.answer.trim()) || Object.keys(nextMcSelections).length > 0;
+
+    setAnswer(draft.answer);
+    setMcSelections(nextMcSelections);
+    if (hasUsefulDraft) {
+      setSubmitted(false);
+      setAnswerDraftRestored(true);
+    }
+    finishDraftLoad();
+  }, [answerDraftKey, initialAttempt?.completedAt, mcQuestions]);
+
+  useEffect(() => {
+    if (loadedAnswerDraftKey !== answerDraftKey) return;
+    if (submitted) {
+      removePracticeAnswerDraft(answerDraftKey);
+      return;
+    }
+
+    const isEmptyDraft =
+      !answer.trim() && Object.keys(mcSelections).length === 0;
+    if (isEmptyDraft) {
+      removePracticeAnswerDraft(answerDraftKey);
+      return;
+    }
+
+    writePracticeAnswerDraft(answerDraftKey, {
+      version: PRACTICE_ANSWER_DRAFT_VERSION,
+      answer,
+      mcSelections,
+      savedAt: Date.now(),
+    });
+  }, [
+    answer,
+    answerDraftKey,
+    loadedAnswerDraftKey,
+    mcSelections,
+    submitted,
+  ]);
+
+  useEffect(() => {
+    setLoadedTimerDraftKey(null);
+    setTimerDraftRestored(false);
+
+    function finishDraftLoad() {
+      setLoadedTimerDraftKey(timerDraftKey);
+    }
+
+    const draft = readPracticeTimerDraft(timerDraftKey);
+    if (!draft) {
+      finishDraftLoad();
+      return;
+    }
+
+    const completedAtMs = initialAttempt?.completedAt
+      ? Date.parse(initialAttempt.completedAt)
+      : Number.NaN;
+    if (Number.isFinite(completedAtMs) && draft.savedAt <= completedAtMs) {
+      removePracticeTimerDraft(timerDraftKey);
+      finishDraftLoad();
+      return;
+    }
+
+    const defaultDuration = clampDurationMinutes(task.estimatedMinutes, 30);
+    const nextDuration = clampDurationMinutes(
+      draft.durationMinutes,
+      defaultDuration,
+    );
+    const elapsedSeconds = draft.timerRunning
+      ? Math.max(0, Math.floor((Date.now() - draft.savedAt) / 1000))
+      : 0;
+    const nextSecondsLeft = clampSecondsLeft(
+      draft.secondsLeft - elapsedSeconds,
+      nextDuration,
+    );
+    const nextTimerRunning = draft.timerRunning && nextSecondsLeft > 0;
+    const hasUsefulDraft =
+      nextDuration !== defaultDuration ||
+      nextSecondsLeft !== defaultDuration * 60 ||
+      nextTimerRunning;
+
+    setDurationMinutes(nextDuration);
+    setSecondsLeft(nextSecondsLeft);
+    setTimerRunning(nextTimerRunning);
+    if (hasUsefulDraft) {
+      setTimerDraftRestored(true);
+    }
+    finishDraftLoad();
+  }, [initialAttempt?.completedAt, task.estimatedMinutes, timerDraftKey]);
+
+  useEffect(() => {
+    if (loadedTimerDraftKey !== timerDraftKey) return;
+    if (submitted) {
+      removePracticeTimerDraft(timerDraftKey);
+      return;
+    }
+
+    const defaultDuration = clampDurationMinutes(task.estimatedMinutes, 30);
+    const isDefaultDraft =
+      durationMinutes === defaultDuration &&
+      secondsLeft === defaultDuration * 60 &&
+      !timerRunning;
+    if (isDefaultDraft) {
+      removePracticeTimerDraft(timerDraftKey);
+      return;
+    }
+
+    writePracticeTimerDraft(timerDraftKey, {
+      version: PRACTICE_TIMER_DRAFT_VERSION,
+      durationMinutes,
+      secondsLeft,
+      timerRunning,
+      savedAt: Date.now(),
+    });
+  }, [
+    durationMinutes,
+    loadedTimerDraftKey,
+    secondsLeft,
+    submitted,
+    task.estimatedMinutes,
+    timerDraftKey,
+    timerRunning,
+  ]);
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -153,14 +485,44 @@ export default function SkillPracticeRunner({
   }, [timerRunning]);
 
   function resetTimer(nextMinutes = durationMinutes) {
+    const safeMinutes = clampDurationMinutes(nextMinutes, durationMinutes);
     setTimerRunning(false);
-    setDurationMinutes(nextMinutes);
-    setSecondsLeft(nextMinutes * 60);
+    setDurationMinutes(safeMinutes);
+    setSecondsLeft(safeMinutes * 60);
+  }
+
+  function validateEvidenceFile(file: File): string | null {
+    if (!file.name.match(/\.xlsx$/i)) {
+      return "Upload file spreadsheet dengan ekstensi .xlsx.";
+    }
+    if (file.size === 0) return "File spreadsheet kosong, coba pilih file lain.";
+    if (file.size > maxEvidenceBytes) {
+      return `File melebihi batas ${formatPracticeFileSize(maxEvidenceBytes)}.`;
+    }
+    return null;
+  }
+
+  function handleEvidenceFile(file: File | undefined) {
+    if (!file) return;
+    const validationError = validateEvidenceFile(file);
+    if (validationError) {
+      setEvidenceFile(null);
+      setFileError(validationError);
+      return;
+    }
+    setEvidenceFile(file);
+    setFileError(null);
+    setError(null);
+    if (submitted) setSubmitted(false);
   }
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!answer.trim()) return;
+    if (requiresExcelFile && !evidenceFile) {
+      setError("Upload file spreadsheet (.xlsx) dulu sebelum mengirim jawaban.");
+      return;
+    }
     if (mcQuestions.length > 0 && !allMcAnswered) {
       setError("Jawab semua soal pilihan ganda dulu sebelum mengirim.");
       return;
@@ -175,12 +537,18 @@ export default function SkillPracticeRunner({
     }));
 
     startTransition(async () => {
-      const res = await submitPracticeAttempt({
-        slug: task.slug,
-        answer: nextAnswer,
-        mcAnswers: mcAnswers.length > 0 ? mcAnswers : undefined,
-        target,
-      });
+      const payload = new FormData();
+      payload.set("slug", task.slug);
+      payload.set("answer", nextAnswer);
+      if (target) payload.set("target", target);
+      if (requiresExcelFile && evidenceFile) {
+        payload.set("evidenceFile", evidenceFile);
+      }
+      if (mcAnswers.length > 0) {
+        payload.set("mcAnswers", JSON.stringify(mcAnswers));
+      }
+
+      const res = await submitPracticeAttempt(payload);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -195,7 +563,10 @@ export default function SkillPracticeRunner({
         perCriterion: res.perCriterion,
         mcCorrect: res.mcCorrect,
         mcTotal: res.mcTotal,
+        evidenceFile: res.evidenceFile,
       });
+      setEvidenceFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setSubmitted(true);
     });
   }
@@ -282,9 +653,10 @@ export default function SkillPracticeRunner({
                           <button
                             key={oi}
                             type="button"
-                            onClick={() =>
-                              setMcSelections((prev) => ({ ...prev, [q.id]: oi }))
-                            }
+                            onClick={() => {
+                              setMcSelections((prev) => ({ ...prev, [q.id]: oi }));
+                              setAnswerDraftRestored(false);
+                            }}
                             aria-pressed={isSelected}
                             className={`flex items-start gap-3 rounded-md border px-4 py-2.5 text-left text-sm transition-colors ${
                               isSelected
@@ -354,36 +726,87 @@ export default function SkillPracticeRunner({
           onSubmit={submit}
           className="mt-6 rounded-lg border border-(--color-line) bg-(--color-paper) p-6 sm:p-7"
         >
+          {requiresExcelFile ? (
+            <div className="mb-5">
+              <label
+                htmlFor="practice-evidence-file"
+                className="text-sm font-medium text-(--color-muted)"
+              >
+                File spreadsheet
+              </label>
+              <div className="mt-3 rounded-md border border-dashed border-(--color-line) bg-(--color-tint) px-4 py-4">
+                <input
+                  ref={fileInputRef}
+                  id="practice-evidence-file"
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  onChange={(e) => handleEvidenceFile(e.target.files?.[0])}
+                  className="block w-full text-sm text-(--color-muted) file:mr-3 file:rounded file:border-0 file:bg-(--color-paper) file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-(--color-ink)"
+                />
+                <div className="mt-3 flex flex-col gap-1 text-xs text-(--color-muted) sm:flex-row sm:items-center sm:justify-between">
+                  <span>
+                    {evidenceFile
+                      ? `${evidenceFile.name} (${formatPracticeFileSize(evidenceFile.size)})`
+                      : serverResult?.evidenceFile
+                        ? `Bukti terakhir: ${serverResult.evidenceFile.filename}`
+                        : `Format .xlsx, maksimal ${formatPracticeFileSize(maxEvidenceBytes)}.`}
+                  </span>
+                  {serverResult?.evidenceFile && !evidenceFile ? (
+                    <span>Upload file baru untuk menilai ulang.</span>
+                  ) : !evidenceFile ? (
+                    <span>Spreadsheet online bisa diunduh sebagai .xlsx.</span>
+                  ) : null}
+                </div>
+                {fileError ? (
+                  <p
+                    role="alert"
+                    className="mt-2 text-sm text-(--color-signal-clay)"
+                  >
+                    {fileError}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           <label
             htmlFor="practice-answer"
             className="text-sm font-medium text-(--color-muted)"
           >
-            Jawaban kandidat
+            {requiresExcelFile ? "Ringkasan pekerjaan" : "Jawaban kandidat"}
           </label>
           <textarea
             id="practice-answer"
             value={answer}
             onChange={(e) => {
               setAnswer(e.target.value);
+              setAnswerDraftRestored(false);
               if (submitted) setSubmitted(false);
             }}
             rows={9}
-            placeholder="Tulis langkah kerja, keputusan, dan alasanmu di sini."
+            placeholder={
+              requiresExcelFile
+                ? "Ringkas isi workbook, keputusan format, dan pengecekan yang kamu lakukan."
+                : "Tulis langkah kerja, keputusan, dan alasanmu di sini."
+            }
             className="mt-3 w-full resize-none rounded-md border border-(--color-line) bg-(--color-paper) px-4 py-3 text-base leading-relaxed text-(--color-ink) outline-none placeholder:text-(--color-muted) focus:border-(--color-teal)"
           />
+          {answerDraftRestored ? (
+            <p role="status" className="mt-2 text-xs text-(--color-teal)">
+              Draft jawaban terakhir dipulihkan dari perangkat ini.
+            </p>
+          ) : null}
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-(--color-muted)">
               {mcQuestions.length > 0 && !allMcAnswered
                 ? `Masih ada ${mcRemaining} soal pilihan ganda yang belum dijawab.`
+                : requiresExcelFile && !evidenceFile
+                  ? "Upload file .xlsx agar evaluator bisa membaca bukti pekerjaan."
                 : `${answer.trim().length} karakter. Feedback membaca sinyal pada rubrik.`}
             </p>
             <button
               type="submit"
-              disabled={
-                !answer.trim() ||
-                pending ||
-                (mcQuestions.length > 0 && !allMcAnswered)
-              }
+              disabled={!canSubmit}
               className="inline-flex min-h-11 items-center justify-center rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
             >
               {pending ? "Menyimpan..." : "Nilai jawaban"}
@@ -446,6 +869,11 @@ export default function SkillPracticeRunner({
                   <p className="mt-3 text-xs text-(--color-muted)">
                     Warmup pilihan ganda: {serverResult.mcCorrect}/
                     {serverResult.mcTotal} benar.
+                  </p>
+                ) : null}
+                {serverResult.evidenceFile ? (
+                  <p className="mt-3 text-xs text-(--color-muted)">
+                    File bukti: {serverResult.evidenceFile.filename}
                   </p>
                 ) : null}
               </div>
@@ -573,6 +1001,11 @@ export default function SkillPracticeRunner({
                     ? "Sedang berjalan"
                     : "Belum dimulai"}
               </p>
+              {timerDraftRestored ? (
+                <p role="status" className="mt-2 text-xs text-(--color-teal)">
+                  Timer terakhir dipulihkan dari perangkat ini.
+                </p>
+              ) : null}
             </div>
             <label className="w-24 text-xs font-medium text-(--color-muted)">
               Menit
@@ -583,10 +1016,11 @@ export default function SkillPracticeRunner({
                 step={1}
                 value={durationMinutes}
                 onChange={(e) => {
-                  const next = Math.min(
-                    120,
-                    Math.max(1, Number(e.target.value) || 1),
+                  const next = clampDurationMinutes(
+                    Number(e.target.value),
+                    durationMinutes,
                   );
+                  setTimerDraftRestored(false);
                   resetTimer(next);
                 }}
                 className="mt-1 w-full rounded-md border border-(--color-line) bg-(--color-paper) px-3 py-2 text-sm text-(--color-ink)"
@@ -596,14 +1030,20 @@ export default function SkillPracticeRunner({
           <div className="mt-5 grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setTimerRunning((value) => !value)}
+              onClick={() => {
+                setTimerRunning((value) => !value);
+                setTimerDraftRestored(false);
+              }}
               className="inline-flex items-center justify-center rounded-md bg-(--color-teal) px-4 py-2 text-sm font-semibold text-(--color-paper-on-teal) hover:bg-(--color-teal-deep) disabled:opacity-50"
             >
               {timerRunning ? "Pause" : "Mulai"}
             </button>
             <button
               type="button"
-              onClick={() => resetTimer()}
+              onClick={() => {
+                setTimerDraftRestored(false);
+                resetTimer();
+              }}
               className="inline-flex items-center justify-center rounded-md border border-(--color-line) px-4 py-2 text-sm font-medium text-(--color-ink) hover:border-(--color-ink)"
             >
               Reset

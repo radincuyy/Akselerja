@@ -4,7 +4,12 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { signOut } from "@/auth";
-import { deleteBlob, isBlobConfigured, uploadCv } from "../infra/blob-store";
+import {
+  deleteBlob,
+  isBlobConfigured,
+  uploadCv,
+  uploadPracticeEvidence,
+} from "../infra/blob-store";
 import {
   deleteProfileAsync,
   getProfileAsync,
@@ -44,6 +49,18 @@ import {
   levelFromPracticeScore,
 } from "../learning/practice-grading";
 import { gradePracticeAnswerWithAi } from "../learning/practice-ai-grading";
+import {
+  buildExcelPracticeEvidenceText,
+  looksLikeXlsx,
+  parseExcelPracticeWorkbook,
+} from "../learning/practice-excel";
+import {
+  EXCEL_PRACTICE_CONTENT_TYPE,
+  EXCEL_PRACTICE_MAX_BYTES,
+  formatPracticeFileSize,
+  isExcelPracticeSubmission,
+  resolvePracticeSubmission,
+} from "../learning/practice-submission";
 import { skillById, skillDisplayName } from "../learning/skills";
 import type {
   Education,
@@ -53,6 +70,7 @@ import type {
   ProjectExperience,
   WorkMode,
   CvLanguageInsights,
+  PracticeEvidenceFile,
 } from "../shared/types";
 
 function scheduleProfileEmbed(userId: string): void {
@@ -937,12 +955,61 @@ export async function completeOnboarding(input: OnboardingInput) {
 
 // ----- Practice learning -----
 
-export async function submitPracticeAttempt(input: {
+type SubmitPracticeAttemptInput = {
   slug: string;
   answer: string;
+  evidenceFile?: File | null;
   mcAnswers?: { questionId: string; selectedIndex: number }[];
   target?: string;
-}): Promise<
+};
+
+function parsePracticeMcAnswers(
+  value: FormDataEntryValue | null,
+): SubmitPracticeAttemptInput["mcAnswers"] {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return undefined;
+    return parsed
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const item = entry as Record<string, unknown>;
+        return {
+          questionId: String(item.questionId ?? ""),
+          selectedIndex: Number(item.selectedIndex),
+        };
+      })
+      .filter(
+        (
+          entry,
+        ): entry is { questionId: string; selectedIndex: number } =>
+          entry !== null &&
+          Boolean(entry.questionId) &&
+          Number.isFinite(entry.selectedIndex),
+      );
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizePracticeAttemptInput(
+  input: SubmitPracticeAttemptInput | FormData,
+): SubmitPracticeAttemptInput {
+  if (!(input instanceof FormData)) return input;
+  const evidence = input.get("evidenceFile");
+  const target = asString(input.get("target"));
+  return {
+    slug: asString(input.get("slug")),
+    answer: asString(input.get("answer")),
+    target: target || undefined,
+    evidenceFile: evidence instanceof File ? evidence : undefined,
+    mcAnswers: parsePracticeMcAnswers(input.get("mcAnswers")),
+  };
+}
+
+export async function submitPracticeAttempt(
+  rawInput: SubmitPracticeAttemptInput | FormData,
+): Promise<
   | {
       ok: true;
       score: number;
@@ -963,9 +1030,11 @@ export async function submitPracticeAttempt(input: {
       gradedBy: "ai" | "keyword";
       mcCorrect?: number;
       mcTotal?: number;
+      evidenceFile?: PracticeEvidenceFile;
     }
   | { ok: false; error: string }
 > {
+  const input = normalizePracticeAttemptInput(rawInput);
   const user = await requireUser();
   const answer = input.answer.trim();
   if (!answer) return { ok: false, error: "Jawaban tidak boleh kosong." };
@@ -981,6 +1050,93 @@ export async function submitPracticeAttempt(input: {
 
   const task = await getPracticeTaskBySlugAsync(input.slug, jobContext);
   if (!task) return { ok: false, error: "Latihan tidak ditemukan." };
+  const submission = resolvePracticeSubmission(task);
+
+  let answerForGrading = answer;
+  let evidenceFile: PracticeEvidenceFile | undefined;
+  if (isExcelPracticeSubmission(submission)) {
+    const file = input.evidenceFile;
+    if (!(file instanceof File)) {
+      return {
+        ok: false,
+        error: "Upload file spreadsheet (.xlsx) dulu sebelum mengirim jawaban.",
+      };
+    }
+    const maxBytes = submission.maxFileSizeBytes ?? EXCEL_PRACTICE_MAX_BYTES;
+    if (file.size === 0) {
+      return {
+        ok: false,
+        error: "File spreadsheet kosong, coba upload ulang.",
+      };
+    }
+    if (file.size > maxBytes) {
+      return {
+        ok: false,
+        error: `File lebih besar dari ${formatPracticeFileSize(maxBytes)}. Ringkas workbook atau upload file yang lebih kecil.`,
+      };
+    }
+    if (!file.name.match(/\.xlsx$/i)) {
+      return {
+        ok: false,
+        error:
+          "Format belum didukung. Upload file spreadsheet dengan ekstensi .xlsx.",
+      };
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    if (!looksLikeXlsx(buffer)) {
+      return {
+        ok: false,
+        error:
+          "File tidak terbaca sebagai workbook .xlsx. Pastikan file dibuat dari aplikasi spreadsheet dan bukan hasil rename.",
+      };
+    }
+
+    let parsedEvidence;
+    try {
+      parsedEvidence = await parseExcelPracticeWorkbook({
+        buffer,
+        filename: file.name,
+        task,
+      });
+    } catch (err) {
+      console.error("[practice] Excel parse failed:", err);
+      return {
+        ok: false,
+        error:
+          "File spreadsheet gagal dibaca. Coba simpan ulang sebagai .xlsx lalu upload lagi.",
+      };
+    }
+
+    let blobName: string | undefined;
+    const contentType = file.type || EXCEL_PRACTICE_CONTENT_TYPE;
+    if (isBlobConfigured()) {
+      try {
+        const uploaded = await uploadPracticeEvidence(
+          buffer,
+          file.name,
+          user.id,
+          contentType,
+        );
+        blobName = uploaded.blobName;
+      } catch (err) {
+        console.warn(
+          "[practice] evidence upload failed, continuing with parsed workbook:",
+          err,
+        );
+      }
+    }
+
+    evidenceFile = {
+      kind: "excel",
+      filename: file.name,
+      uploadedAt: new Date().toISOString(),
+      sizeBytes: file.size,
+      contentType,
+      blobName,
+    };
+    answerForGrading = `${answer}\n\n${buildExcelPracticeEvidenceText(parsedEvidence)}`;
+  }
 
   const requirementName = targetJob?.requirements.find(
     (r) => r.skillId === task.skillId,
@@ -998,7 +1154,7 @@ export async function submitPracticeAttempt(input: {
   let gradedBy: "ai" | "keyword" = "ai";
 
   try {
-    const aiResult = await gradePracticeAnswerWithAi(task, answer);
+    const aiResult = await gradePracticeAnswerWithAi(task, answerForGrading);
     score = aiResult.totalScore;
     overallFeedback = aiResult.overallFeedback;
     perCriterion = aiResult.perCriterion.map((r) => ({
@@ -1010,7 +1166,7 @@ export async function submitPracticeAttempt(input: {
   } catch (err) {
     console.warn("[practice] AI grading failed, fallback to keyword:", err);
     gradedBy = "keyword";
-    const results = gradePracticeAnswer(task, answer);
+    const results = gradePracticeAnswer(task, answerForGrading);
     score = calculatePracticeScore(results);
     perCriterion = results.map((r) => ({
       id: r.criterion.id,
@@ -1084,6 +1240,7 @@ export async function submitPracticeAttempt(input: {
     skillName: resolvedSkillName,
     score,
     answer,
+    evidenceFile,
     feedback: overallFeedback,
     gradedBy,
     perCriterion,
@@ -1111,5 +1268,6 @@ export async function submitPracticeAttempt(input: {
     gradedBy,
     mcCorrect,
     mcTotal,
+    evidenceFile,
   };
 }
