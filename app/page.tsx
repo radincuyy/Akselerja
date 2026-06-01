@@ -6,8 +6,15 @@ import WhatYouGet from "@/components/marketing/WhatYouGet";
 import Faq from "@/components/marketing/Faq";
 import ClosingCta from "@/components/marketing/ClosingCta";
 import Footer from "@/components/marketing/Footer";
+import { getCurrentUser } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
 
-export default function Page() {
+export default async function Page() {
+  const user = await getCurrentUser();
+  if (user) {
+    redirect("/app");
+  }
+
   return (
     <>
       <Nav />

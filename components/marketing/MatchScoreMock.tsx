@@ -68,7 +68,7 @@ export default function MatchScoreMock() {
   return (
     <figure
       aria-label="Contoh hasil match score Akselerja"
-      className="relative isolate w-full max-w-md rounded-lg border border-(--color-line) bg-(--color-paper) p-6"
+      className="relative isolate w-full max-w-md rounded-[2rem] border border-slate-200/50 bg-(--color-paper)/80 backdrop-blur-md p-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] animate-float hover:scale-[1.02] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)] active:scale-[0.98] transition-all duration-300 cursor-pointer"
     >
       <div className="flex items-center justify-between text-xs font-medium tracking-wide text-(--color-muted)">
         <span>Contoh hasil match</span>

@@ -65,7 +65,7 @@ export default async function CandidateHome() {
         </p>
       </section>
 
-      <section className="mt-10 rounded-lg border border-(--color-line) bg-(--color-paper) p-6">
+      <section className="mt-10 rounded-[2rem] border border-slate-200/40 bg-white p-6 sm:p-8 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.025),inset_0_1px_0_rgba(255,255,255,0.85)]">
         <ScoreDisplay
           score={readinessScore}
           label="Kelengkapan profil"
@@ -219,10 +219,10 @@ function NextStep({
   return (
     <Link
       href={href}
-      className="group flex flex-col rounded-lg border border-(--color-line) bg-(--color-paper) p-5 transition-colors hover:border-(--color-teal)"
+      className="group flex flex-col rounded-2xl border border-slate-200/40 bg-white p-6 shadow-[0_12px_24px_-10px_rgba(0,0,0,0.02),inset_0_1px_0_rgba(255,255,255,0.85)] hover:scale-[1.015] hover:-translate-y-0.5 hover:shadow-[0_20px_35px_-10px_rgba(0,0,0,0.04)] active:scale-[0.985] active:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
     >
-      <p className="text-sm font-medium text-(--color-teal)">{eyebrow}</p>
-      <h3 className="mt-2 text-base font-semibold text-(--color-ink) group-hover:text-(--color-teal)">
+      <p className="text-xs font-semibold uppercase tracking-wider text-(--color-teal)/90">{eyebrow}</p>
+      <h3 className="mt-2.5 text-base font-semibold text-(--color-ink) group-hover:text-(--color-teal) transition-colors duration-300">
         {title}
       </h3>
       <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">{body}</p>
