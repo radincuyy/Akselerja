@@ -2,32 +2,34 @@ type Props = { className?: string };
 
 export default function Logo({ className }: Props) {
   return (
-    <svg
-      viewBox="0 0 132 24"
-      role="img"
-      aria-label="Akselerja"
-      className={className}
-      fill="none"
+    <span
+      className={`inline-flex items-center gap-2 ${className ?? ""}`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        height: "24px",
+        verticalAlign: "middle"
+      }}
     >
-      <circle cx="12" cy="12" r="10" fill="currentColor" />
-      <path
-        d="M9 12.4 L11.2 14.6 L15.5 9.6"
-        stroke="var(--color-paper)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+      <img
+        src="/logo.png"
+        alt=""
+        className="h-5 w-auto shrink-0"
+        style={{ objectFit: "contain" }}
       />
-      <text
-        x="29"
-        y="17"
-        fontFamily="var(--font-sans)"
-        fontWeight="600"
-        fontSize="16"
-        letterSpacing="-0.01em"
-        fill="currentColor"
+      <span
+        className="font-semibold text-base tracking-tight text-current leading-none"
+        style={{
+          fontFamily: "var(--font-general-sans), var(--font-sans)",
+          display: "inline-block"
+        }}
       >
         Akselerja
-      </text>
-    </svg>
+      </span>
+    </span>
   );
 }
+
+
+
+

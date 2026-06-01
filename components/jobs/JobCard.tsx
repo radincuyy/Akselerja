@@ -53,7 +53,7 @@ export default function JobCard({
   const moreSkills = skillNames.length - visibleSkills.length;
 
   return (
-    <article className="group rounded-lg border border-(--color-line) bg-(--color-paper) p-4 transition-colors hover:border-(--color-ink)/40 sm:p-6">
+    <article className="group rounded-[2rem] border border-slate-200/40 bg-white p-5 sm:p-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.025),inset_0_1px_0_rgba(255,255,255,0.85)] hover:scale-[1.015] hover:-translate-y-1 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.05)] active:scale-[0.985] active:translate-y-0 transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer">
       <Link href={href} className="block min-w-0">
         <div className="flex min-w-0 items-start gap-3 sm:gap-4">
           <CompanyLogo
