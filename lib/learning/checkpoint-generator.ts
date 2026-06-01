@@ -26,7 +26,7 @@ export type CheckpointSet = {
 
 const CACHE_TTL_HOURS = 168;
 const CACHE_VERSION = "v3";
-const QUESTION_COUNT = 10;
+const QUESTION_COUNT = 5;
 
 function nameSlug(skillName: string): string {
   return skillName

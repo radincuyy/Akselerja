@@ -42,22 +42,73 @@ export default async function SkillPracticePage({
       }
     : undefined;
 
-  const task = await getPracticeTaskBySlugAsync(slug, jobContext);
-  if (!task) notFound();
-
   const user = await requireUser();
+  const isDynamic = slug.startsWith("latihan-praktik-") || slug.startsWith("skill-drill-");
+
+  let task;
+  let latestAttempt;
+  let checkpointSet;
+  let videos;
+  let skillId: string;
+  let taskId: string;
+
+  if (isDynamic) {
+    skillId = slug.startsWith("latihan-praktik-")
+      ? slug.slice("latihan-praktik-".length)
+      : slug.slice("skill-drill-".length);
+    taskId = slug;
+
+    const requirementName = targetJob?.requirements.find(
+      (r) => r.skillId === skillId,
+    )?.name;
+    const skillName = requirementName ?? skillDisplayName(skillId);
+
+    const [fetchedTask, attempt, checkSet, ytVideos] = await Promise.all([
+      getPracticeTaskBySlugAsync(slug, jobContext),
+      getLatestPracticeAttemptForUser(user.id, taskId),
+      getCheckpointSet(skillId, {
+        skillName,
+        jobContext: targetJob ?? undefined,
+      }),
+      getYouTubeMaterial(skillId, skillName),
+    ]);
+
+    if (!fetchedTask) notFound();
+    task = fetchedTask;
+    latestAttempt = attempt;
+    checkpointSet = checkSet;
+    videos = ytVideos;
+  } else {
+    const fetchedTask = await getPracticeTaskBySlugAsync(slug, jobContext);
+    if (!fetchedTask) notFound();
+    task = fetchedTask;
+    skillId = task.skillId;
+    taskId = task.id;
+
+    const requirementName = targetJob?.requirements.find(
+      (r) => r.skillId === skillId,
+    )?.name;
+    const skillName = requirementName ?? skillDisplayName(skillId);
+
+    const [attempt, checkSet, ytVideos] = await Promise.all([
+      getLatestPracticeAttemptForUser(user.id, taskId),
+      getCheckpointSet(skillId, {
+        skillName,
+        jobContext: targetJob ?? undefined,
+      }),
+      getYouTubeMaterial(skillId, skillName),
+    ]);
+
+    latestAttempt = attempt;
+    checkpointSet = checkSet;
+    videos = ytVideos;
+  }
+
   const requirementName = targetJob?.requirements.find(
-    (r) => r.skillId === task.skillId,
+    (r) => r.skillId === skillId,
   )?.name;
-  const skillName = requirementName ?? skillDisplayName(task.skillId);
-  const [latestAttempt, checkpointSet, videos] = await Promise.all([
-    getLatestPracticeAttemptForUser(user.id, task.id),
-    getCheckpointSet(task.skillId, {
-      skillName,
-      jobContext: targetJob ?? undefined,
-    }),
-    getYouTubeMaterial(task.skillId, skillName),
-  ]);
+  const skillName = requirementName ?? skillDisplayName(skillId);
+
   const mcQuestions = checkpointSet.questions.slice(0, 5).map((q) => ({
     id: q.id,
     prompt: q.prompt,

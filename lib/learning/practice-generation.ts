@@ -61,12 +61,10 @@ function isEnabled(): boolean {
 
 function cacheKey(
   skillId: string,
-  references: SkkniReference[],
   jobContext?: PracticeJobContext,
 ): string {
-  const referenceIds = references.map((ref) => ref.id).join(",");
   const jobPart = jobContext?.jobId ? `job:${jobContext.jobId}` : "no-job";
-  return `practice-generation:${CACHE_VERSION}:${skillId}:${jobPart}:${referenceIds || "no-skkni"}`;
+  return `practice-generation:${CACHE_VERSION}:${skillId}:${jobPart}`;
 }
 
 async function readCachedTask(key: string): Promise<PracticeTask | null> {
@@ -354,16 +352,21 @@ Rubrik harus 3-4 kriteria dan cocok untuk menilai jawaban teks pendek. Buat kasu
 export async function getGeneratedPracticeTask(
   skillId: string,
   jobContext?: PracticeJobContext,
+  options?: { forceCacheOnly?: boolean },
 ): Promise<PracticeTask | null> {
   if (!isEnabled() || !isGeminiConfigured()) return null;
+
+  const key = cacheKey(skillId, jobContext);
+  const cached = await readCachedTask(key);
+  if (cached) return withDynamicPracticeIdentity(cached, skillId);
+
+  if (options?.forceCacheOnly) return null;
+
   const references = await searchSkkniReferences({
     skillId,
     query: skillById[skillId]?.name ?? skillId,
     top: 4,
   });
-  const key = cacheKey(skillId, references, jobContext);
-  const cached = await readCachedTask(key);
-  if (cached) return withDynamicPracticeIdentity(cached, skillId);
 
   try {
     const task = await generateTask(skillId, references, jobContext);

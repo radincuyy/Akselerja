@@ -38,15 +38,24 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function shouldRetry(error: unknown): boolean {
+function isApiQuotaError(error: unknown): boolean {
   const status = (error as { status?: number })?.status;
   const text = String(error);
   return (
     status === 429 ||
+    /RESOURCE_EXHAUSTED|quota|exhausted|limit exceeded/i.test(text)
+  );
+}
+
+function shouldRetry(error: unknown): boolean {
+  if (isApiQuotaError(error)) return false;
+  const status = (error as { status?: number })?.status;
+  const text = String(error);
+  return (
     status === 500 ||
     status === 502 ||
     status === 503 ||
-    /RESOURCE_EXHAUSTED|UNAVAILABLE|high demand|quota/i.test(text)
+    /UNAVAILABLE|high demand/i.test(text)
   );
 }
 
@@ -99,11 +108,12 @@ export async function generateGeminiJson<T = unknown>({
       }
     } catch (error) {
       lastError = error;
-      if (isQuotaError(error)) break;
+      if (isQuotaError(error) || isApiQuotaError(error)) break;
       if (attempt >= attempts - 1 || !shouldRetry(error)) break;
       await sleep(600 * (attempt + 1));
     }
   }
+
 
   if (
     isQwenConfigured() &&
