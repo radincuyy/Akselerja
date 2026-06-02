@@ -175,6 +175,7 @@ export default function JobFilterSheet({
     const params = new URLSearchParams(searchParams);
     if (value) params.set(key, value);
     else params.delete(key);
+    params.set("clear", "1");
     params.delete("page");
     const qs = params.toString();
     startTransition(() => {

@@ -9,6 +9,7 @@ import { buildMatchReason } from "@/lib/jobs/match-reason";
 import { listCityFacetsAsync } from "@/lib/jobs/search-store";
 import { rankedJobsSlice } from "@/lib/jobs/ranked-jobs";
 import { getCurrentCandidate } from "@/lib/profile/current-candidate";
+import { redirect } from "next/navigation";
 import { expandIndustryGroups } from "@/lib/shared/preferences-options";
 
 type SearchParams = Promise<{
@@ -21,6 +22,7 @@ type SearchParams = Promise<{
   pendidikan?: string;
   gaji?: string;
   page?: string;
+  clear?: string;
 }>;
 
 const PAGE_SIZE = 20;
@@ -82,8 +84,32 @@ export default async function LowonganListPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const { lokasi, tipe, industri, mode, q, pengalaman, pendidikan, gaji, page } = sp;
+  const { lokasi, tipe, industri, mode, q, pengalaman, pendidikan, gaji, page, clear } = sp;
   const { profile: me } = await getCurrentCandidate();
+
+  const hasFilterParams =
+    lokasi !== undefined ||
+    tipe !== undefined ||
+    industri !== undefined ||
+    mode !== undefined ||
+    q !== undefined ||
+    pengalaman !== undefined ||
+    pendidikan !== undefined ||
+    gaji !== undefined;
+
+  if (!hasFilterParams && clear !== "1") {
+    const defaultParams = new URLSearchParams();
+    if (me.preferredJobTypes && me.preferredJobTypes.length > 0) {
+      defaultParams.set("tipe", me.preferredJobTypes.join(","));
+    }
+    if (me.preferredWorkModes && me.preferredWorkModes.length > 0) {
+      defaultParams.set("mode", me.preferredWorkModes.join(","));
+    }
+    const qs = defaultParams.toString();
+    if (qs) {
+      redirect(`/app/lowongan?${qs}`);
+    }
+  }
 
   const lokasiList = csvList(lokasi);
   const tipeList = csvList(tipe);
@@ -135,13 +161,13 @@ export default async function LowonganListPage({
 
   const hasFilter = Boolean(
     lokasiList.length ||
-      tipeList.length ||
-      industriList.length ||
-      modeList.length ||
-      q ||
-      pengalaman ||
-      pendidikan ||
-      gaji,
+    tipeList.length ||
+    industriList.length ||
+    modeList.length ||
+    q ||
+    pengalaman ||
+    pendidikan ||
+    gaji,
   );
   const RANK_POOL_CAP = 500;
   const total = Math.min(totalCount ?? ranked.length, RANK_POOL_CAP);
