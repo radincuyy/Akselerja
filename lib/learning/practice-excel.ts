@@ -1,4 +1,10 @@
-import ExcelJS from "exceljs";
+import type ExcelJSType from "exceljs";
+
+async function getExcelJS(): Promise<typeof ExcelJSType> {
+  const mod = await import("exceljs");
+  return mod.default;
+}
+
 import type { PracticeTask } from "../shared/types";
 
 export type ExcelCellSnapshot = {
@@ -97,7 +103,7 @@ function valueToText(value: unknown): string {
   return cleanText(String(value));
 }
 
-function cellKind(cell: ExcelJS.Cell): ExcelCellSnapshot["kind"] {
+function cellKind(cell: ExcelJSType.Cell): ExcelCellSnapshot["kind"] {
   const value = cell.value;
   if (value == null || valueToText(value) === "") return "blank";
   if (value instanceof Date) return "date";
@@ -107,7 +113,7 @@ function cellKind(cell: ExcelJS.Cell): ExcelCellSnapshot["kind"] {
   return "text";
 }
 
-function snapshotCell(cell: ExcelJS.Cell, column: number): ExcelCellSnapshot {
+function snapshotCell(cell: ExcelJSType.Cell, column: number): ExcelCellSnapshot {
   const kind = cellKind(cell);
   return {
     column,
@@ -119,7 +125,7 @@ function snapshotCell(cell: ExcelJS.Cell, column: number): ExcelCellSnapshot {
 }
 
 function collectRowCells(
-  row: ExcelJS.Row,
+  row: ExcelJSType.Row,
   maxColumns: number,
 ): ExcelCellSnapshot[] {
   const cells: ExcelCellSnapshot[] = [];
@@ -132,7 +138,7 @@ function collectRowCells(
 }
 
 function detectHeaderRow(
-  worksheet: ExcelJS.Worksheet,
+  worksheet: ExcelJSType.Worksheet,
 ): { rowNumber: number | null; headers: ExcelCellSnapshot[] } {
   const scanRows = Math.min(worksheet.rowCount, MAX_HEADER_SCAN_ROWS);
   const maxColumns = Math.min(
@@ -152,7 +158,7 @@ function detectHeaderRow(
   return { rowNumber: null, headers: [] };
 }
 
-function summarizeWorksheet(worksheet: ExcelJS.Worksheet): ExcelWorksheetSummary {
+function summarizeWorksheet(worksheet: ExcelJSType.Worksheet): ExcelWorksheetSummary {
   const { rowNumber: headerRow, headers } = detectHeaderRow(worksheet);
   const rows: ExcelWorksheetSummary["rows"] = [];
   const columnFormats = new Map<
@@ -301,6 +307,7 @@ export async function parseExcelPracticeWorkbook(input: {
   filename: string;
   task: PracticeTask;
 }): Promise<ExcelPracticeParseResult> {
+  const ExcelJS = await getExcelJS();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(
     input.buffer as unknown as Parameters<typeof workbook.xlsx.load>[0],

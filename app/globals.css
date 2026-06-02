@@ -200,6 +200,11 @@
   .pretty-scrollbar::-webkit-scrollbar-thumb:hover {
     background: color-mix(in oklab, var(--color-teal) 44%, var(--color-line));
   }
+
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 220px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

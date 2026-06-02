@@ -59,6 +59,14 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
+      <head>
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        <link
+          rel="preconnect"
+          href="https://cdn.fontshare.com"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body suppressHydrationWarning>
         <a href="#main" className="skip-link">
           Lewat ke konten utama
