@@ -579,14 +579,6 @@ export default function OnboardingFlow() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleSkipCv}
-                  disabled={submitting}
-                  className="inline-flex items-center justify-center gap-2 rounded-md border border-(--color-line) px-5 py-2.5 text-sm font-medium text-(--color-ink) hover:border-(--color-ink) disabled:opacity-60"
-                >
-                  Lewati, isi profil nanti
-                </button>
-                <button
-                  type="button"
                   onClick={() => setStep("preferences")}
                   disabled={submitting}
                   className="inline-flex items-center justify-center gap-2 px-2 py-2.5 text-sm font-medium text-(--color-muted) hover:text-(--color-ink) disabled:opacity-60"
