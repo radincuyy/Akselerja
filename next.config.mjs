@@ -38,10 +38,27 @@ const nextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: repoRoot,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      {
+        source: "/fonts/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
   },
   experimental: {
-    optimizePackageImports: ["@azure/cosmos", "@azure/search-documents"],
+    optimizePackageImports: [
+      "@azure/cosmos",
+      "@azure/search-documents",
+      "@azure/storage-blob",
+      "next-auth",
+      "bcryptjs",
+    ],
     serverActions: {
       bodySizeLimit: "700kb",
     },
