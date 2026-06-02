@@ -13,12 +13,6 @@ export default async function OnboardingPage() {
           <Link href="/" aria-label="Akselerja" className="text-(--color-ink)">
             <Logo className="h-6 w-auto" />
           </Link>
-          <Link
-            href="/app"
-            className="text-sm text-(--color-muted) hover:text-(--color-ink)"
-          >
-            Lewati untuk sekarang
-          </Link>
         </div>
       </header>
       <div className="mx-auto max-w-3xl px-5 py-12 sm:px-8 sm:py-16">
