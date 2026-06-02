@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { after } from "next/server";
@@ -43,6 +43,7 @@ import { requireUser } from "../auth/session";
 import { deleteUserById } from "../auth/user-store";
 import { refreshProfileVector } from "./profile-summary";
 import { scheduleLearningPrewarmForProfile } from "../learning/learning-prewarm";
+import { CONTAINERS, getContainer } from "../infra/db";
 import {
   calculatePracticeScore,
   gradePracticeAnswer,
@@ -1270,4 +1271,22 @@ export async function submitPracticeAttempt(
     mcTotal,
     evidenceFile,
   };
+}
+
+export async function resetJuriProfileOnSignOut(): Promise<void> {
+  const user = await requireUser();
+  if (user.email === "juri@akselerja.demo") {
+    const container = getContainer(CONTAINERS.candidates);
+    
+    // Deleting candidate profile so they go through onboarding next session
+    try {
+      await container.item(user.id, user.id).delete();
+    } catch (err: any) {
+      if (err.code !== 404) console.warn("[signOut-reset] Failed to delete profile:", err.message);
+    }
+    
+    revalidateTag(profileCacheTag(user.id));
+    revalidatePath("/app");
+    revalidatePath("/app/profil");
+  }
 }

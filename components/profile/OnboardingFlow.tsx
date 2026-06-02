@@ -53,6 +53,118 @@ function clearDraft() {
   window.localStorage.removeItem(DRAFT_KEY);
 }
 
+const SAMPLE_CV_DATA = {
+  filename: "CV Rina Amalia by Naevaweb.pdf",
+  sizeBytes: 272016,
+  blobName: "user-juri-demo-uuid-2026/1780371520901-CV-Rina-Amalia-by-Naevaweb.pdf",
+  contentType: "application/pdf",
+  personal: {
+    name: "Rina Amalia",
+    email: "rina.amalia@naevawebmail.com",
+    location: "Bandung",
+    bio: "Lulusan Informatika yang bersemangat dan memiliki keahlian dalam pengembangan perangkat lunak dan pemrograman. Berpengalaman dalam bekerja dengan berbagai bahasa pemrograman dan framework. Memiliki kemampuan analitis yang kuat, serta pengalaman dalam mengerjakan proyek berbasis tim dan mandiri. Siap untuk mengembangkan keterampilan lebih lanjut di bidang teknologi informasi.",
+    phone: "+6281234567890",
+    linkedin: "linkedin.com/in/rina-amalia",
+    portfolio: "www.rinaamalia.com",
+  },
+  skills: [
+    { id: "pemrograman", name: "Pemrograman" },
+    { id: "java", name: "Java" },
+    { id: "python", name: "Python" },
+    { id: "cpp", name: "C++" },
+    { id: "pengembangan-web", name: "Pengembangan Web" },
+    { id: "html", name: "HTML" },
+    { id: "css", name: "CSS" },
+    { id: "javascript", name: "JavaScript" },
+    { id: "react", name: "React" },
+    { id: "database", name: "Database" },
+    { id: "mysql", name: "MySQL" },
+    { id: "mongodb", name: "MongoDB" },
+    { id: "pembuatan-aplikasi-mobile", name: "Pembuatan Aplikasi Mobile" },
+    { id: "flutter", name: "Flutter" },
+    { id: "devops", name: "DevOps" },
+    { id: "docker", name: "Docker" },
+    { id: "kubernetes", name: "Kubernetes" },
+    { id: "problem-solving", name: "Problem Solving" },
+    { id: "kreativitas", name: "Kreativitas" },
+    { id: "kerja-tim", name: "Kerja Tim" },
+    { id: "manajemen-waktu", name: "Manajemen Waktu" },
+    { id: "analisis-data", name: "Analisis Data" },
+    { id: "visual-studio-code", name: "Visual Studio Code" },
+    { id: "git", name: "Git" },
+    { id: "postman", name: "Postman" }
+  ],
+  education: [
+    {
+      institution: "Universitas Lorem Ipsum",
+      degree: "S1 Teknik Informatika",
+      startMonth: "2019-10",
+      endMonth: "2023-07",
+      notes: "IPK: 3.85/4.00, Konsentrasi: Pemrograman dan Pengembangan Perangkat Lunak"
+    }
+  ],
+  experience: [
+    {
+      position: "Magang Pengembang Perangkat Lunak",
+      company: "PT Lorem Ipsum Teknologi",
+      startMonth: "2022-07",
+      endMonth: "2022-09",
+      duties: "Mengembangkan aplikasi berbasis web menggunakan JavaScript dan React. Berkolaborasi dalam tim untuk menyelesaikan berbagai fitur aplikasi sesuai dengan kebutuhan klien."
+    },
+    {
+      position: "Freelance Web Developer",
+      company: "Freelance",
+      startMonth: "2021-11",
+      endMonth: "2022-06",
+      duties: "Membuat dan memelihara situs web untuk klien individu menggunakan HTML, CSS, dan JavaScript. Membantu dalam mengoptimalkan pengalaman pengguna dan meningkatkan kecepatan situs."
+    }
+  ],
+  organizations: [
+    {
+      role: "Anggota",
+      organization: "Komunitas Teknologi",
+      startMonth: "2021-04",
+      endMonth: "2023-07",
+      duties: "Berpartisipasi dalam acara coding hackathon dan workshop teknologi. Meningkatkan kemampuan pemrograman melalui berbagai kolaborasi proyek."
+    }
+  ],
+  projects: [
+    {
+      title: "Pengembangan Aplikasi Mobile untuk Manajemen Keuangan Pribadi",
+      context: "Proyek Akhir",
+      startMonth: "",
+      endMonth: ""
+    }
+  ],
+  achievements: [
+    {
+      title: "Juara 1 Hackathon Nasional",
+      year: "2022",
+      description: "dari Tech Innovators"
+    }
+  ],
+  languageInsights: {
+    keyPhrases: [
+      "acara coding hackathon",
+      "Manajemen Keuangan Pribadi",
+      "JavaScript dan React",
+      "Pembuatan Aplikasi Mobile",
+      "Pengembang Perangkat Lunak",
+      "Manajemen Waktu",
+      "fitur aplikasi",
+      "berbagai bahasa",
+      "teknologi informasi",
+      "Visual Studio",
+      "situs web",
+      "Komunitas Teknologi"
+    ],
+    entities: [],
+    modelVersion: "2022-10-01",
+    analyzedAt: "2026-06-02T03:38:54.815Z",
+    truncated: false
+  }
+};
+
 const JOB_TYPES: { value: JobType; label: string; hint: string }[] = [
   { value: "Full-time", label: "Full-time", hint: "Kerja penuh waktu" },
   { value: "Part-time", label: "Part-time", hint: "Paruh waktu" },
@@ -200,6 +312,36 @@ export default function OnboardingFlow() {
       router.push("/app");
     } catch (err) {
       setSubmitting(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Gagal menyimpan profil. Coba lagi.",
+      );
+    }
+  }
+
+  async function handleUseSampleCv() {
+    if (!preferences) return;
+    setSubmitting(true);
+    setParseStatus("uploading");
+
+    // Simulate upload delay for a realistic UX feel (1 second)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    setParseStatus("parsing");
+
+    // Simulate AI parsing delay for a realistic UX feel (1.5 seconds)
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    try {
+      await completeOnboarding({
+        preferences,
+        cv: SAMPLE_CV_DATA,
+      });
+      clearDraft();
+      router.push("/app");
+    } catch (err) {
+      setSubmitting(false);
+      setParseStatus("idle");
       setError(
         err instanceof Error
           ? err.message
@@ -426,6 +568,14 @@ export default function OnboardingFlow() {
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-(--color-teal) px-5 py-2.5 text-sm font-semibold text-(--color-paper-on-teal) transition-colors hover:bg-(--color-teal-deep) disabled:opacity-60"
                 >
                   {submitting ? "Memproses…" : "Unggah dan analisis CV"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUseSampleCv}
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-(--color-teal)/10 px-5 py-2.5 text-sm font-semibold text-(--color-teal) transition-colors hover:bg-(--color-teal)/20 disabled:opacity-60"
+                >
+                  Gunakan CV Contoh
                 </button>
                 <button
                   type="button"

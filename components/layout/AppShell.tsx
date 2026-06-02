@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { resetJuriProfileOnSignOut } from "@/lib/profile/profile-actions";
 import Logo from "./Logo";
 import type { CurrentUser } from "@/lib/auth/session";
 import type { Candidate } from "@/lib/shared/types";
@@ -235,8 +236,13 @@ export default function AppShell({ currentUser, profile, children }: Props) {
     };
   }, [isProfileMenuOpen]);
 
-  function handleSignOut() {
+  async function handleSignOut() {
     setIsSigningOut(true);
+    try {
+      await resetJuriProfileOnSignOut();
+    } catch (err) {
+      console.error("Failed to reset judge profile on sign out:", err);
+    }
     signOut({ callbackUrl: "/" });
   }
 
