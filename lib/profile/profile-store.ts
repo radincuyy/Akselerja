@@ -371,6 +371,7 @@ export async function patchProfileAsync(
 function formatMonthYear(monthIso: string, locale = "id-ID") {
   if (!monthIso) return "";
   const d = new Date(`${monthIso}-01`);
+  if (Number.isNaN(d.getTime())) return monthIso;
   return new Intl.DateTimeFormat(locale, {
     month: "short",
     year: "numeric",

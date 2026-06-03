@@ -10,6 +10,7 @@ export function formatIdr(amount: number, locale = "id-ID") {
 export function formatRelativeId(iso: string, now: Date = new Date()): string {
   if (!iso) return "";
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
   const ms = now.getTime() - d.getTime();
   const min = Math.round(ms / 60000);
   if (min < 1) return "baru saja";
